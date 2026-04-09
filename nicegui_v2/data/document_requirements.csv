@@ -1,0 +1,156 @@
+norma,capitulo,requisito,resumen,documento_esperado,tipo_documento,obligatorio,observacion_consultiva
+ISO 9001,4,4.1,Contexto de la organizacion,Matriz de contexto y cuestiones internas y externas | Analisis FODA o diagnostico estrategico,Matriz,No,Conviene registrar factores internos externos y su impacto sobre el sistema.
+ISO 9001,4,4.2,Partes interesadas,Matriz de partes interesadas y requisitos | Seguimiento de necesidades y expectativas,Matriz,No,Es util vincular cada parte interesada con necesidades y seguimiento.
+ISO 9001,4,4.3,Alcance del sistema,Documento de alcance del SGC,Marco del sistema,Si,Debe definir productos servicios sitios y exclusiones aplicables.
+ISO 9001,4,4.4,Procesos e interacciones,Mapa de procesos e interacciones | Fichas de proceso | Matriz de indicadores por proceso,Arquitectura del sistema,Si,Conviene mostrar secuencia entradas salidas responsables e indicadores asociados.
+ISO 9001,5,5.1,Compromiso de liderazgo,Acta o lineamientos de liderazgo del sistema,Registro de direccion,No,Puede evidenciarse con definiciones formales de prioridades revisiones y recursos.
+ISO 9001,5,5.2,Politica de calidad,Politica de calidad aprobada,Politica,Si,La politica debe estar aprobada comunicada y alineada al contexto del negocio.
+ISO 9001,5,5.3,Roles responsabilidades y autoridades,Matriz de roles y responsabilidades del SGC | Organigrama funcional,Matriz,No,Es recomendable definir responsables de procesos y de cumplimiento del sistema.
+ISO 9001,6,6.1,Riesgos y oportunidades,Matriz de riesgos y oportunidades | Plan de tratamiento de riesgos,Matriz,Si,Se espera una metodologia clara para priorizar riesgos y planes de tratamiento.
+ISO 9001,6,6.2,Objetivos de calidad,Objetivos de calidad y plan de seguimiento | Indicadores asociados | Plan de accion de desvio,Plan de gestion,Si,Idealmente deben medirse con indicadores responsables y frecuencia.
+ISO 9001,6,6.3,Planificacion de cambios,Procedimiento de gestion de cambios | Registro de cambios evaluados,Procedimiento,No,Debe ordenar impacto aprobacion implementacion y verificacion de cambios.
+ISO 9001,7,7.1.2,Personas,Plan de dotacion o asignacion de recursos,Plan,No,Puede resolverse con definiciones de estructura y asignacion para procesos clave.
+ISO 9001,7,7.1.3,Infraestructura,Plan de mantenimiento e infraestructura | Registro de mantenimiento preventivo,Plan,No,Conviene incluir instalaciones equipos software y servicios de apoyo.
+ISO 9001,7,7.1.4,Ambiente para la operacion,Criterios de ambiente de trabajo y condiciones operativas,Criterio,No,Aplica a condiciones fisicas ambientales y sociales del trabajo.
+ISO 9001,7,7.1.5,Recursos de seguimiento y medicion,Programa de calibracion o verificacion | Registro de calibraciones y vencimientos,Programa,No,Si aplica medicion conviene formalizar identificacion estado y trazabilidad.
+ISO 9001,7,7.1.6,Conocimiento organizacional,Metodo de gestion del conocimiento o lecciones aprendidas,Criterio,No,Se puede apoyar en instructivos matrices o repositorios de conocimiento.
+ISO 9001,7,7.2,Competencia,Perfil de puestos o matriz de competencias | Registro de formacion y evaluacion de competencia,Soporte de gestion,No,Puede resolverse con perfiles de puesto matriz de competencias o equivalente.
+ISO 9001,7,7.3,Toma de conciencia,Plan de comunicacion y sensibilizacion,Plan,No,Conviene evidenciar conocimiento de politica objetivos y consecuencias del incumplimiento.
+ISO 9001,7,7.4,Comunicacion,Matriz o plan de comunicaciones del sistema | Evidencia de comunicacion interna relevante,Matriz,No,Debe ordenar que se comunica cuando a quien y por que medio.
+ISO 9001,7,7.5,Informacion documentada,Procedimiento de control documental | Listado maestro de documentos | Formato de control de cambios,Procedimiento,Si,Debe definir aprobacion cambios identificacion acceso resguardo y vigencia.
+ISO 9001,8,8.1,Planificacion y control operacional,Plan de calidad o criterio de control operacional | Instructivos operativos clave,Plan de control,No,Conviene vincular procesos requisitos criterios y controles.
+ISO 9001,8,8.2,Requisitos para productos y servicios,Procedimiento comercial o revision de requisitos | Registro de revision contractual,Procedimiento,No,Es util formalizar revision de pedidos contratos y cambios del cliente.
+ISO 9001,8,8.3,Diseno y desarrollo,Procedimiento de diseno y desarrollo | Plan de diseno | Registro de revisiones y validaciones,Procedimiento,No,Aplica si la organizacion disena productos servicios o procesos propios.
+ISO 9001,8,8.4,Control de proveedores,Procedimiento de evaluacion y homologacion de proveedores | Registro de evaluacion de proveedores,Procedimiento,No,Se recomienda integrar criterios de ingreso evaluacion periodica y seguimiento.
+ISO 9001,8,8.5,Produccion y provision del servicio,Instructivos operativos | Criterios de liberacion | Registros de proceso,Instructivo,No,Conviene asegurar disponibilidad de informacion controles y trazabilidad.
+ISO 9001,8,8.5.2,Identificacion y trazabilidad,Procedimiento de identificacion y trazabilidad | Registro o etiqueta de trazabilidad,Procedimiento,No,Aplica cuando la trazabilidad sea requerida o relevante para el control.
+ISO 9001,8,8.5.3,Propiedad perteneciente a clientes o proveedores,Metodo de control de propiedad de terceros,Criterio,No,Conviene registrar recepcion uso proteccion y dano de bienes ajenos.
+ISO 9001,8,8.5.4,Preservacion,Criterios de preservacion del producto o servicio,Criterio,No,Aplica a manipulacion embalaje almacenamiento transporte y proteccion.
+ISO 9001,8,8.5.5,Actividades posteriores a la entrega,Criterios de postventa garantias o soporte,Criterio,No,Aplica segun tipo de producto riesgos y compromiso con cliente.
+ISO 9001,8,8.5.6,Control de cambios,Registro de cambios operativos | Evaluacion y aprobacion del cambio,Registro,No,Debe evidenciar evaluacion aprobacion y seguimiento de cambios productivos.
+ISO 9001,8,8.6,Liberacion de productos y servicios,Criterios y autorizacion de liberacion | Registro de liberacion,Registro de liberacion,No,Conviene definir quien libera con que evidencia y contra que requisitos.
+ISO 9001,8,8.7,Salidas no conformes,Procedimiento de producto o servicio no conforme | Registro de no conformidad y disposicion,Procedimiento,Si,Debe ordenar identificacion segregacion disposicion y autorizacion de concesiones.
+ISO 9001,9,9.1,Seguimiento medicion analisis y evaluacion,Plan de seguimiento y medicion | Tablero de indicadores y analisis,Plan,No,Conviene vincular indicadores fuentes frecuencia y responsables.
+ISO 9001,9,9.1.2,Satisfaccion del cliente,Metodo de medicion de satisfaccion del cliente,Metodo,No,Puede incluir encuestas reclamos devoluciones o scorecards.
+ISO 9001,9,9.1.3,Analisis y evaluacion,Metodologia de analisis de datos y desempeno,Metodo,No,Debe convertir datos en informacion para decision y mejora.
+ISO 9001,9,9.2,Auditoria interna,Programa de auditorias internas | Plan de auditoria | Lista de verificacion | Informe y seguimiento de hallazgos,Programa,Si,Debe contemplar alcance criterios frecuencia responsables y cierre de hallazgos.
+ISO 9001,9,9.3,Revision por la direccion,Agenda de revision por la direccion | Acta de revision | Seguimiento de compromisos,Registro de direccion,Si,Conviene estructurar entradas salidas decisiones y seguimiento de compromisos.
+ISO 9001,10,10.1,Generalidades de mejora,Plan o enfoque de mejora continua,Plan,No,Puede integrarse con objetivos proyectos acciones correctivas y oportunidades.
+ISO 9001,10,10.2,No conformidad y accion correctiva,Procedimiento de no conformidades y acciones correctivas | Registro de accion correctiva | Verificacion de eficacia,Procedimiento,Si,Debe permitir registrar causa raiz acciones responsables plazos y eficacia.
+ISO 9001,10,10.3,Mejora continua,Metodologia de mejora continua o plan de iniciativas,Metodo,No,Conviene consolidar oportunidades proyectos y resultados logrados.
+ISO 14001,4,4.1,Contexto de la organizacion,Matriz de contexto y cuestiones ambientales | Analisis de contexto ambiental,Matriz,No,Conviene registrar factores externos internos y prioridades ambientales.
+ISO 14001,4,4.2,Partes interesadas,Matriz de partes interesadas y obligaciones ambientales | Seguimiento de requisitos y expectativas,Matriz,No,Debe reflejar expectativas regulatorias comunitarias y del negocio.
+ISO 14001,4,4.3,Alcance del sistema,Documento de alcance del SGA,Marco del sistema,Si,Debe considerar actividades sitios procesos y limites del sistema ambiental.
+ISO 14001,4,4.4,Sistema de gestion ambiental,Mapa del sistema y procesos ambientales | Fichas de proceso ambiental,Arquitectura del sistema,No,Es util para relacionar procesos controles riesgos y cumplimiento.
+ISO 14001,5,5.1,Liderazgo y compromiso,Acta o definiciones de liderazgo ambiental,Registro de direccion,No,Puede evidenciarse por decisiones recursos y seguimiento del sistema.
+ISO 14001,5,5.2,Politica ambiental,Politica ambiental aprobada,Politica,Si,La politica debe contemplar proteccion ambiental cumplimiento y mejora continua.
+ISO 14001,5,5.3,Roles responsabilidades y autoridades,Matriz de responsabilidades ambientales | Organigrama o asignacion funcional,Matriz,No,Conviene definir responsables de cumplimiento aspectos y controles.
+ISO 14001,6,6.1.1,Acciones para riesgos y oportunidades,Metodo de evaluacion ambiental y riesgos | Criterio de priorizacion,Metodo,No,Puede integrarse con aspectos requisitos y planificacion de controles.
+ISO 14001,6,6.1.2,Aspectos e impactos,Identificacion de aspectos e impactos ambientales | Matriz de significancia,Matriz,Si,Es base para definir controles y prioridades del sistema ambiental.
+ISO 14001,6,6.1.3,Obligaciones de cumplimiento,Matriz de requisitos legales y otros requisitos | Seguimiento de cumplimiento legal,Matriz legal,Si,Conviene identificar norma fuente aplicabilidad responsable y evidencia.
+ISO 14001,6,6.1.4,Planificacion de acciones,Plan de acciones ambientales por riesgo y cumplimiento | Seguimiento de acciones ambientales,Plan,No,Es util para integrar acciones con objetivos y control operacional.
+ISO 14001,6,6.2.1,Objetivos ambientales,Objetivos metas y programas ambientales | Indicadores ambientales,Plan de gestion,Si,Deberian vincularse con impactos significativos y medicion periodica.
+ISO 14001,6,6.2.2,Planificacion para lograr objetivos,Plan de accion ambiental | Seguimiento de cumplimiento de metas,Plan,No,Conviene definir recursos responsables plazos y criterios de evaluacion.
+ISO 14001,7,7.1,Recursos,Plan de recursos del sistema ambiental,Plan,No,Debe reflejar necesidades para operar y sostener el sistema.
+ISO 14001,7,7.2,Competencia,Matriz de competencias ambientales | Registro de capacitacion ambiental,Soporte de gestion,No,Puede apoyarse en capacitacion responsabilidades y evidencias de idoneidad.
+ISO 14001,7,7.3,Toma de conciencia,Plan de sensibilizacion ambiental,Plan,No,Conviene asegurar entendimiento de politica impactos y consecuencias del incumplimiento.
+ISO 14001,7,7.4,Comunicacion,Matriz o plan de comunicaciones ambientales | Evidencia de comunicacion interna y externa,Matriz,No,Debe ordenar comunicaciones internas externas y respuestas a partes interesadas.
+ISO 14001,7,7.5,Informacion documentada,Procedimiento de control documental | Listado maestro de documentos ambientales,Procedimiento,Si,Se espera control de vigencia cambios acceso y conservacion.
+ISO 14001,8,8.1,Planificacion y control operacional,Criterios de control operacional ambiental | Instructivos operativos ambientales,Procedimiento,Si,Puede expresarse en procedimientos instructivos hojas de control o estandares.
+ISO 14001,8,8.1,Perspectiva de ciclo de vida,Criterios de control operacional ambiental | Instructivos operativos ambientales,Criterio,No,Conviene formalizar requisitos ambientales en etapas del ciclo de vida.
+ISO 14001,8,8.2,Emergencias ambientales,Plan de preparacion y respuesta ante emergencias | Registro de simulacros y evaluacion,Plan de respuesta,Si,Debe contemplar escenarios acciones recursos responsables y pruebas.
+ISO 14001,9,9.1.1,Seguimiento y medicion,Plan de monitoreo y medicion ambiental | Registro de resultados y tendencias,Plan,No,Debe definir que se mide como quien y con que frecuencia.
+ISO 14001,9,9.1.2,Evaluacion de cumplimiento,Procedimiento de evaluacion de cumplimiento legal | Registro de evaluaciones legales,Procedimiento,No,Es recomendable definir periodicidad fuentes y forma de evidenciar resultados.
+ISO 14001,9,9.1.3,Analisis y evaluacion,Metodologia de analisis de desempeno ambiental,Metodo,No,Conviene integrar tendencias desvio legal y cumplimiento de objetivos.
+ISO 14001,9,9.2,Auditoria interna,Programa de auditorias internas | Plan de auditoria | Informe y seguimiento de hallazgos,Programa,Si,Debe cubrir alcance criterios frecuencia y tratamiento de hallazgos.
+ISO 14001,9,9.3,Revision por la direccion,Agenda o minuta de revision por la direccion | Acta de revision ambiental,Registro de direccion,Si,Conviene registrar decisiones sobre desempeno ambiental y recursos.
+ISO 14001,10,10.1,Generalidades de mejora,Plan de mejora ambiental,Plan,No,Puede consolidar oportunidades no conformidades y proyectos.
+ISO 14001,10,10.2,No conformidad y accion correctiva,Procedimiento de incidentes ambientales y acciones correctivas | Registro de acciones correctivas | Verificacion de eficacia,Procedimiento,Si,Debe contemplar desvio causa accion correctiva y verificacion.
+ISO 14001,10,10.3,Mejora continua,Metodo de mejora continua ambiental,Metodo,No,Conviene reflejar como se priorizan y sostienen mejoras ambientales.
+ISO 45001,4,4.1,Contexto de la organizacion,Matriz de contexto de SST | Analisis de contexto de seguridad y salud,Matriz,No,Conviene registrar factores internos externos y condiciones de trabajo relevantes.
+ISO 45001,4,4.2,Partes interesadas,Matriz de partes interesadas y necesidades de SST | Seguimiento de requisitos y expectativas,Matriz,No,Debe incluir trabajadores contratistas autoridades y otros interesados.
+ISO 45001,4,4.3,Alcance del sistema,Documento de alcance del sistema SST,Marco del sistema,Si,Debe definir actividades personas y sitios incluidos en el sistema.
+ISO 45001,4,4.4,Sistema de SST,Mapa del sistema y procesos de SST | Fichas de proceso con controles de SST,Arquitectura del sistema,No,Es util para vincular riesgos controles objetivos y mejora.
+ISO 45001,5,5.1,Liderazgo y compromiso,Acta o lineamientos de liderazgo en SST,Registro de direccion,No,Puede evidenciar compromiso con recursos objetivos y controles.
+ISO 45001,5,5.2,Politica de SST,Politica de seguridad y salud ocupacional,Politica,Si,La politica debe contemplar eliminacion de peligros consulta y mejora continua.
+ISO 45001,5,5.3,Roles responsabilidades y autoridades,Matriz de responsabilidades de SST | Organigrama o asignacion funcional,Matriz,No,Conviene definir responsabilidades de liderazgo mandos y especialistas.
+ISO 45001,5,5.4,Consulta y participacion,Procedimiento de consulta y participacion | Registro de consultas y participacion,Procedimiento,Si,Es importante formalizar mecanismos de participacion de trabajadores.
+ISO 45001,6,6.1.1,Acciones para riesgos y oportunidades,Metodo de evaluacion de riesgos y oportunidades de SST | Criterio de priorizacion,Metodo,No,Debe conectar contexto riesgos legales y objetivos.
+ISO 45001,6,6.1.2.1,Identificacion de peligros,Metodo de identificacion de peligros | Criterio de evaluacion inicial,Metodo,No,Conviene considerar rutina no rutina personas y cambios.
+ISO 45001,6,6.1.2.2,Evaluacion de riesgos de SST,Matriz de peligros riesgos y controles | Seguimiento de acciones de control,Matriz,Si,Es uno de los documentos nucleares del sistema y debe mantenerse actualizado.
+ISO 45001,6,6.1.2.3,Evaluacion de oportunidades de SST,Matriz de oportunidades de mejora de SST | Plan de mejora preventiva,Matriz,No,Puede integrarse con proyectos preventivos y mejoras del entorno laboral.
+ISO 45001,6,6.1.3,Requisitos legales y otros requisitos,Matriz de requisitos legales de SST | Seguimiento de cumplimiento legal,Matriz legal,Si,Debe identificar obligaciones aplicables y su forma de control.
+ISO 45001,6,6.1.4,Planificacion de acciones,Plan de acciones por riesgos y cumplimiento | Seguimiento de acciones de SST,Plan,No,Conviene definir responsables plazos y verificacion de resultados.
+ISO 45001,6,6.2.1,Objetivos de SST,Objetivos y plan de accion de SST | Indicadores de SST,Plan de gestion,Si,Deberian vincularse con riesgos significativos e indicadores preventivos.
+ISO 45001,6,6.2.2,Planificacion para lograr objetivos,Programa de SST | Cronograma y responsables,Plan,No,Puede consolidar recursos responsables hitos e indicadores.
+ISO 45001,7,7.1,Recursos,Plan de recursos del sistema SST,Plan,No,Debe reflejar medios humanos tecnicos y financieros.
+ISO 45001,7,7.2,Competencia,Plan de capacitacion y toma de conciencia | Registro de capacitacion y evaluacion,Plan,No,Puede soportarse con matriz de competencias plan anual y registros.
+ISO 45001,7,7.3,Toma de conciencia,Programa de sensibilizacion de SST,Plan,No,Conviene asegurar conocimiento de riesgos politica y consecuencias.
+ISO 45001,7,7.4,Comunicacion,Matriz o plan de comunicaciones de SST | Evidencia de comunicacion y consulta,Matriz,No,Debe ordenar comunicaciones internas externas y obligatorias.
+ISO 45001,7,7.5,Informacion documentada,Procedimiento de control documental | Listado maestro de documentos SST,Procedimiento,Si,Debe asegurar disponibilidad control de cambios y resguardo.
+ISO 45001,8,8.1.1,Planificacion y control operacional,Criterios de control operacional de SST | Instructivos y permisos de trabajo,Procedimiento,Si,Conviene ordenar controles criticos permisos inspecciones y barreras preventivas.
+ISO 45001,8,8.1.2,Eliminacion de peligros y reduccion de riesgos,Criterio jerarquia de controles | Registro de aplicacion de controles,Criterio,No,Se espera relacion con la jerarquia de controles y priorizacion preventiva.
+ISO 45001,8,8.1.3,Gestion del cambio,Procedimiento de gestion del cambio en SST | Registro de cambios evaluados,Procedimiento,No,Debe evaluar riesgos derivados de cambios temporales o permanentes.
+ISO 45001,8,8.1.4,Compras contratistas y tercerizados,Criterios de SST para compras y contratistas | Evaluacion de contratistas y proveedores,Procedimiento,No,Conviene definir requisitos de seguridad para terceros y procesos externalizados.
+ISO 45001,8,8.2,Emergencias,Plan de preparacion y respuesta ante emergencias | Registro de simulacros e incidentes,Plan de respuesta,Si,Debe incluir roles recursos simulacros y mejora posterior.
+ISO 45001,9,9.1.1,Seguimiento medicion analisis y evaluacion,Plan de seguimiento y medicion de SST | Tablero de indicadores y resultados,Plan,No,Debe establecer indicadores fuentes frecuencia y responsabilidades.
+ISO 45001,9,9.1.2,Evaluacion del cumplimiento,Procedimiento de evaluacion de cumplimiento legal | Registro de evaluaciones legales,Procedimiento,No,Conviene definir frecuencia fuente legal y evidencias de resultado.
+ISO 45001,9,9.2,Auditoria interna,Programa de auditorias internas | Plan de auditoria | Informe y seguimiento de hallazgos,Programa,Si,Se espera enfoque sobre cumplimiento eficacia y cierre de hallazgos.
+ISO 45001,9,9.3,Revision por la direccion,Agenda o minuta de revision por la direccion | Acta de revision de SST,Registro de direccion,Si,Debe registrar decisiones de liderazgo sobre SST.
+ISO 45001,10,10.1,Generalidades de mejora,Plan de mejora de SST,Plan,No,Puede consolidar oportunidades preventivas e iniciativas de mejora.
+ISO 45001,10,10.2,Incidentes y acciones correctivas,Procedimiento de investigacion de incidentes y accidentes | Registro de incidentes | Acciones correctivas y eficacia,Procedimiento,Si,Debe contemplar investigacion causa acciones y eficacia.
+ISO 45001,10,10.3,Mejora continua,Metodo de mejora continua en SST,Metodo,No,Conviene reflejar como se integran aprendizajes hallazgos y prevencion.
+IATF 16949,4,4.4.1.1,Conformidad de procesos,Mapa de procesos del sistema automotriz | Turtle diagrams o fichas de proceso,Arquitectura del sistema,Si,Conviene evidenciar procesos clave soporte secuencia y duenos de proceso.
+IATF 16949,4,4.4.1.2,Seguridad del producto,Metodologia o procedimiento de seguridad del producto | Matriz de caracteristicas especiales | Criterios de escalamiento,Procedimiento,Si,Es critico definir roles escalamiento trazabilidad y reaccion.
+IATF 16949,4,4.4.1.2,Conformidad de productos y procesos,Metodologia o procedimiento de seguridad del producto | Matriz de caracteristicas especiales | Criterios de escalamiento,Procedimiento,No,Conviene integrar verificacion liberacion y reaccion ante desvios.
+IATF 16949,5,5.1.1.1,Eficacia de procesos,Metodologia de seguimiento de efectividad de procesos | Tablero de desempeno de procesos,Metodo,No,Debe conectar resultados de proceso con revision de direccion.
+IATF 16949,5,5.1.1.2,Eficiencia de procesos,Indicadores de eficiencia de procesos | Reporte de costos de no calidad,Plan de indicadores,No,Conviene incluir scrap OEE costos tiempos y productividad.
+IATF 16949,5,5.3.1,Roles y responsabilidades,Organigrama y matriz de responsabilidades del sistema | Roles de seguridad del producto y cliente,Estructura organizativa,No,Debe aclarar ownership de calidad cliente cambios y seguridad de producto.
+IATF 16949,6,6.1.2.1,Riesgos del negocio,Matriz de riesgos del negocio y contingencias | Evaluacion de impactos operativos,Matriz,Si,Se recomienda integrar continuidad operativa clientes y supply chain.
+IATF 16949,6,6.1.2.2,Acciones preventivas,Plan preventivo por riesgos del negocio y de calidad | Seguimiento de acciones preventivas,Plan,No,Conviene vincular riesgos con responsables y validacion de acciones.
+IATF 16949,6,6.1.2.3,Planes de contingencia,Plan de contingencia | Criterios de activacion y simulacion,Plan de respuesta,Si,Debe cubrir interrupciones de procesos equipos personas y servicios criticos.
+IATF 16949,6,6.2.2.1,Objetivos de calidad y costos,Plan de objetivos de calidad con costos de no calidad | Indicadores de performance y scrap,Plan de gestion,No,Conviene incluir metas por cliente proceso y rentabilidad.
+IATF 16949,6,6.3.2,Planificacion de cambios,Gestion de cambios de producto y proceso | Registro de cambios aprobados | Validacion del cambio,Procedimiento,Si,Debe ordenar aprobaciones impacto validacion y comunicacion al cliente.
+IATF 16949,7,7.1.3.1,Planificacion de planta,Criterio de layout y capacidad de planta | Analisis de capacidad y flujo,Plan,No,Conviene vincular flujo ergonomia seguridad y capacidad.
+IATF 16949,7,7.1.4.1,Ambiente para operacion,Estandares de condiciones de manufactura | Auditorias de condiciones de planta,Instructivo,No,Debe considerar limpieza orden y condiciones que afecten la calidad.
+IATF 16949,7,7.1.5.1.1,Sistemas de medicion,Plan maestro de calibracion y MSA | Estudios MSA vigentes | Cronograma de calibracion,Programa,Si,Se espera trazabilidad estado y estudios de adecuacion del sistema de medicion.
+IATF 16949,7,7.1.5.2.1,Registros de calibracion,Criterios de registros de calibracion y verificacion | Historial de calibraciones,Procedimiento,No,Conviene definir contenido minimo y conservacion.
+IATF 16949,7,7.2,Competencia,Matriz de competencias por puesto critico | Registro de calificacion de personal,Matriz,No,Debe cubrir auditores operadores inspectores y personal especial.
+IATF 16949,7,7.2.1,Capacitacion en puesto,Plan de entrenamiento en el puesto | Evidencia de entrenamiento y liberacion,Plan,No,Es recomendable evidenciar entrenamiento inicial y recertificacion.
+IATF 16949,7,7.3.1,Concientizacion en calidad,Programa de conciencia de calidad y cliente | Evidencia de comunicacion de objetivos,Plan,No,Conviene reforzar politicas objetivos impactos y requisitos del cliente.
+IATF 16949,7,7.5.1.1,Documentacion del sistema,Manual del sistema de calidad automotriz | Matriz de correlacion con IATF,Manual,Si,Debe describir alcance interacciones y referencia a procesos del sistema.
+IATF 16949,7,7.5.3.2.1,Retencion de registros,Matriz de retencion de registros | Criterios de conservacion y destruccion,Matriz,No,Debe considerar requisitos del cliente y legales de conservacion.
+IATF 16949,8,8.2.3.1,Revision de requisitos del cliente,Proceso de revision de factibilidad y requisitos del cliente | Registro de factibilidad,Procedimiento,Si,Conviene integrar factibilidad tecnica capacidad y cambios.
+IATF 16949,8,8.3.2.1,APQP,Planificacion avanzada de calidad APQP | Cronograma APQP | Responsables por fase,Plan de calidad,Si,Conviene usar hitos responsables entregables y evidencia por fase.
+IATF 16949,8,8.3.3.1,Entradas de diseno,Checklist de entradas de diseno y requisitos especiales | Lista de requisitos del cliente,Checklist,No,Debe incluir requisitos de cliente legales y lessons learned.
+IATF 16949,8,8.3.4.1,Seguimiento de diseno,Plan de seguimiento de diseno y desarrollo | Registro de revisiones y validaciones,Plan,No,Conviene ligar revisiones hitos y validaciones.
+IATF 16949,8,8.3.4.2,AMFE de diseno,AMFE de diseno DFMEA | Acciones de mitigacion y seguimiento,Analisis tecnico,No,Aplica cuando la organizacion tenga responsabilidad de diseno.
+IATF 16949,8,8.3.5.1,Salidas de diseno,Checklist de salidas de diseno y manufactura | Paquete tecnico liberado,Checklist,No,Debe asegurar coherencia con proceso compras y control.
+IATF 16949,8,8.3.5.2,AMFE de proceso,AMFE de proceso PFMEA | Seguimiento de acciones de mitigacion,Analisis tecnico,Si,Debe mantenerse alineado con plan de control y cambios del proceso.
+IATF 16949,8,8.3.5.3,Plan de control y caracteristicas especiales,Plan de control vigente | Registro de revision y actualizacion,Plan de control,Si,Documento central para caracteristicas controles reaccion y frecuencia.
+IATF 16949,8,8.3.6.1,Cambios de diseno y desarrollo,Registro de cambios aprobados | Evidencia de validacion del cambio,Registro,No,Debe mantener historial de revision aprobacion y validacion.
+IATF 16949,8,8.4.1.2,Tipo y extension del control a proveedores,Criterios de desarrollo y control de proveedores | Evaluacion y scorecard de proveedores,Procedimiento,Si,Debe considerar criticidad riesgo performance y auditorias.
+IATF 16949,8,8.4.2.4.1,Auditorias a proveedores,Programa de auditorias de segunda parte | Plan de desarrollo de proveedores,Programa,No,Es util priorizar por riesgo y desempeno del proveedor.
+IATF 16949,8,8.4.2.4.1,Desarrollo de proveedores,Programa de auditorias de segunda parte | Plan de desarrollo de proveedores,Plan,No,Debe incluir acciones ante bajo desempeno y seguimiento.
+IATF 16949,8,8.5.1.1,Plan de control,Plan de control vigente | Evidencia de aplicacion en linea,Plan de control,Si,Debe vincularse con PFMEA instrucciones y caracteristicas especiales.
+IATF 16949,8,8.5.1.2,Trabajo estandarizado,Instrucciones de trabajo estandarizadas | Registro de aprobacion y version vigente,Instructivo,Si,Conviene incluir parametros criticos metodo visual y reaccion.
+IATF 16949,8,8.5.1.3,Verificacion de setup,Metodo de verificacion de setup y arranque | Checklist de primera pieza,Procedimiento,No,Debe asegurar primera pieza y reinicios controlados.
+IATF 16949,8,8.5.1.5,Gestion del mantenimiento,Plan de mantenimiento preventivo y predictivo | Registro de mantenimiento y MTBF,Plan,No,Conviene integrar criticidad disponibilidad y repuestos.
+IATF 16949,8,8.5.1.6,Gestion de herramientas,Plan de gestion de herramentales | Registro de mantenimiento y vida util,Plan,No,Aplica a disponibilidad mantenimiento ubicacion y cambios.
+IATF 16949,8,8.5.2.1,Trazabilidad,Procedimiento de trazabilidad e identificacion | Etiquetas y registros de trazabilidad,Procedimiento,Si,Debe asegurar identificacion lote estado y recupero de informacion.
+IATF 16949,8,8.5.4.1,Preservacion,Criterios de preservacion embalaje y almacenamiento | Instrucciones logisticas y de preservacion,Criterio,No,Conviene asegurar FIFO FEFO limpieza y proteccion del producto.
+IATF 16949,8,8.5.5.1,Servicio post entrega,Proceso de gestion de reclamos garantias y devoluciones | Analisis de causa y respuesta al cliente,Procedimiento,No,Debe considerar campo cliente y aprendizaje al proceso.
+IATF 16949,8,8.5.6.1.1,Control de cambios,Proceso formal de cambios de proceso | Aprobacion del cliente cuando aplique,Procedimiento,Si,Debe incluir evaluacion de riesgo validacion y aprobacion del cliente.
+IATF 16949,8,8.6.1,Liberacion de producto,Registro de liberacion y aprobacion de producto | Evidencia de conformidad final,Registro de liberacion,Si,Debe definir quien libera con que evidencia y bajo que criterios.
+IATF 16949,8,8.7.1.1,Disposicion de producto no conforme,Procedimiento de producto no conforme y retrabajo | Registro de disposicion y concesion,Procedimiento,Si,Debe contemplar segregacion disposicion concesiones y retrabajo controlado.
+IATF 16949,8,8.7.1.7,Retrabajo e instrucciones de reparacion,Instruccion de retrabajo y reparacion aprobada | Registro de retrabajos realizados,Instructivo,No,Conviene incluir aprobacion validacion y reinspeccion.
+IATF 16949,9,9.1.1.1,Seguimiento de manufactura,Plan de indicadores de manufactura y calidad | Tablero de desempe?o diario y mensual,Plan de indicadores,No,Debe integrar calidad productividad entrega y costos.
+IATF 16949,9,9.1.1.2,Identificacion de tendencias,Metodo de analisis de tendencias y alertas | Reporte de alertas tempranas,Metodo,No,Se recomienda seguimiento de drift de proceso y calidad.
+IATF 16949,9,9.1.1.3,Analisis de datos,Metodo de analisis estadistico y toma de decisiones | Estudios de capacidad y variacion,Metodo,No,Conviene ligar SPC scrap rechazos y acciones.
+IATF 16949,9,9.1.2.1,Satisfaccion del cliente,Proceso de medicion de satisfaccion del cliente | Scorecard cliente y reclamos,Metodo,No,Debe apoyarse en scorecards reclamos y desempeno logistico.
+IATF 16949,9,9.2.2.2,Auditorias del sistema,Programa de auditorias del sistema | Plan e informe de auditoria,Programa,Si,Debe considerar todos los procesos y requisitos aplicables.
+IATF 16949,9,9.2.2.3,Auditorias de proceso,Programa de auditorias de proceso | Checklist e informe de auditoria de proceso,Programa,Si,Se espera enfoque por manufactura y cumplimiento de estandares.
+IATF 16949,9,9.2.2.4,Auditorias de producto,Programa de auditorias de producto | Checklist e informe de auditoria de producto,Programa,Si,Conviene incluir verificacion del producto final y caracteristicas especiales.
+IATF 16949,9,9.3.2.1,Entradas de revision,Revision por la direccion con foco en performance automotriz | Acta y seguimiento de compromisos,Registro de direccion,Si,Debe incluir performance cliente calidad costos y capacidad.
+IATF 16949,10,10.2.3,Resolucion de problemas,Metodologia estructurada de resolucion de problemas | Reporte 8D y seguimiento,Metodo,No,Conviene usar 8D o equivalente con criterios de cierre.
+IATF 16949,10,10.3.1,Mejora continua,Plan de mejora continua del sistema automotriz | Roadmap de mejora y seguimiento,Plan,No,Debe integrar reduccion de variacion desperdicio y riesgo al cliente.

@@ -1,0 +1,169 @@
+ACTUALIZACION WEB IDEAS
+=======================
+
+Proyecto publicado:
+- Web / plataforma V2 en NiceGUI
+- Repo GitHub: https://github.com/juanleni/IDEASconsulting_VP2
+- URL Render: https://ideas-consulting-v2.onrender.com
+
+
+1. QUE EDITAR
+-------------
+
+Los cambios principales de la web y plataforma se hacen en:
+- nicegui_v2/app.py
+
+Otros archivos importantes:
+- nicegui_v2/core_data.py
+  Datos y acceso a base para la V2
+- nicegui_v2/pdf_reports.py
+  Reporte ejecutivo PDF
+- render.yaml
+  Configuracion de deploy en Render
+- requirements.txt
+  Dependencias del proyecto
+
+
+2. PROBAR LOCALMENTE
+--------------------
+
+Abrir PowerShell en:
+- C:\Users\RRHH\Documents\IDEAS
+
+Ejecutar:
+
+python nicegui_v2\app.py
+
+Abrir en navegador la URL que muestre la terminal.
+
+
+3. SUBIR CAMBIOS A GITHUB
+-------------------------
+
+Como Git no esta en el PATH, usar estos comandos:
+
+cd C:\Users\RRHH\Documents\IDEAS
+& "C:\Program Files\Git\cmd\git.exe" add .
+& "C:\Program Files\Git\cmd\git.exe" commit -m "descripcion breve del cambio"
+& "C:\Program Files\Git\cmd\git.exe" push
+
+Ejemplos de mensaje:
+- "ajustes visuales en home"
+- "mejora de resultados y graficos"
+- "correccion login plataforma"
+
+
+4. ACTUALIZAR EN RENDER
+-----------------------
+
+Normalmente Render toma los cambios del repo.
+
+Si no se actualiza solo:
+1. Entrar a https://dashboard.render.com
+2. Abrir el servicio:
+   ideas-consulting-v2
+3. Hacer clic en:
+   Manual Deploy
+4. Elegir:
+   Deploy latest commit
+
+Esperar a que el estado quede en Live.
+
+
+5. SI LA WEB NO REFLEJA EL CAMBIO
+---------------------------------
+
+Revisar en este orden:
+
+1. Ver si el cambio fue guardado en el archivo local
+2. Ver si el commit se hizo correctamente
+3. Ver si el push llego a GitHub
+4. Ver si Render hizo deploy del ultimo commit
+5. Recargar el navegador con refresh fuerte
+
+Comandos utiles:
+
+& "C:\Program Files\Git\cmd\git.exe" status
+& "C:\Program Files\Git\cmd\git.exe" log --oneline -5
+
+
+6. SI RENDER FALLA
+------------------
+
+Entrar a:
+- Render dashboard
+- servicio ideas-consulting-v2
+- Events / Logs
+
+Revisar errores de:
+- dependencias
+- imports
+- sintaxis
+- archivos faltantes
+
+Si agregas una libreria nueva:
+1. instalarla localmente
+2. agregarla a requirements.txt
+3. subir cambios a GitHub
+4. redeploy en Render
+
+
+7. LOGIN DE LA PLATAFORMA
+-------------------------
+
+Acceso actual:
+- Usuario: IDEAS
+- Contrasena: 2026
+
+Ruta:
+- /plataforma
+
+
+8. IMPORTANTE SOBRE DATOS
+-------------------------
+
+La app hoy usa:
+- ideas.db
+- archivos locales
+
+Esto sirve bien para pruebas y evaluacion.
+Para uso productivo mas serio, despues conviene migrar a una base mas robusta.
+
+
+9. RECOMENDACION DE TRABAJO
+---------------------------
+
+Siempre seguir este orden:
+
+1. editar en local
+2. probar localmente
+3. hacer commit
+4. push a GitHub
+5. verificar deploy en Render
+6. probar online
+
+
+10. ARCHIVOS MAS DELICADOS
+--------------------------
+
+Tocar con cuidado:
+- nicegui_v2/app.py
+- nicegui_v2/pdf_reports.py
+- render.yaml
+- requirements.txt
+
+Si haces un cambio grande, conviene guardar una copia antes.
+
+
+11. ENLACES CLAVE
+-----------------
+
+GitHub repo:
+https://github.com/juanleni/IDEASconsulting_VP2
+
+Render app:
+https://ideas-consulting-v2.onrender.com
+
+Render dashboard:
+https://dashboard.render.com
+

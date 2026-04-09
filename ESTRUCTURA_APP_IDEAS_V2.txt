@@ -1,0 +1,222 @@
+ESTRUCTURA APP IDEAS V2
+=======================
+
+Ubicación base del proyecto:
+- C:\Users\RRHH\Documents\IDEAS
+
+
+1. VISTA GENERAL
+----------------
+
+Hoy el proyecto convive en dos líneas:
+
+- Versión original en Streamlit
+- Versión V2 en NiceGUI
+
+La versión activa para evolución web/plataforma es:
+- nicegui_v2
+
+
+2. ARCHIVOS PRINCIPALES EN RAÍZ
+-------------------------------
+
+- IDEASapp.py
+  App original en Streamlit.
+  Mantiene la versión previa del sistema con diagnóstico, resultados, historial y exportación.
+
+- database.py
+  Crea y migra la base SQLite.
+  Define tablas principales como empresas, diagnósticos y respuestas.
+
+- ideas_data.py
+  Capa de datos usada por la versión Streamlit.
+  Incluye lectura de Excel, acceso a SQLite y guardado de diagnósticos.
+
+- ideas_utils.py
+  Utilidades de negocio compartidas de la versión Streamlit.
+  Calcula nivel, conclusiones, mensajes de dirección, responsables sugeridos, etc.
+
+- ideas.db
+  Base de datos SQLite principal del proyecto.
+
+- requirements.txt
+  Dependencias del proyecto, incluyendo NiceGUI, Streamlit, Plotly, FPDF, etc.
+
+- render.yaml
+  Configuración para deploy en Render.
+
+- ACTUALIZACION_WEB_IDEAS.txt
+  Guía operativa para actualizar la V2 y volver a desplegarla.
+
+- logo.png
+  Logo principal de IDEAS.
+
+- ideas_home_banner.png
+  Imagen institucional/hero usada en la web o dashboard.
+
+
+3. CARPETA nicegui_v2
+--------------------
+
+Esta es la arquitectura actual de la V2.
+
+- nicegui_v2/app.py
+  Entry point principal.
+  Configura imports, estilos globales, helpers comunes, navegación base y registro de módulos/páginas.
+  También contiene el arranque de NiceGUI y la configuración de host/puerto para local o Render.
+
+- nicegui_v2/core_data.py
+  Capa de datos propia de la V2.
+  Maneja lectura del Excel, consulta de empresas, diagnósticos, respuestas y guardado/actualización.
+  Está desacoplada de Streamlit.
+
+- nicegui_v2/pages_public.py
+  Páginas públicas del sitio institucional.
+  Contiene:
+  - `/`
+  - `/servicios`
+  - `/metodologia`
+  - `/contacto`
+
+- nicegui_v2/pages_platform.py
+  Páginas base de la plataforma interna.
+  Contiene:
+  - `/plataforma` login interno
+  - `/dashboard` home privada
+
+- nicegui_v2/pages_diagnostic.py
+  Módulo funcional del diagnóstico.
+  Contiene:
+  - `/empresas`
+  - `/diagnostico`
+  - `/resultados`
+  - `/historial`
+
+- nicegui_v2/pages_management.py
+  Módulo de etapa 3: sistema de gestión por empresa-cliente.
+  Contiene:
+  - `/sistema-gestion`
+  Además define la estructura base de módulos futuros:
+  - Gestión de documentos
+  - KPI
+  - Gestión ambiental
+  - Salud ocupacional
+  - Mapas de proceso
+  - Riesgos y oportunidades
+
+- nicegui_v2/pdf_reports.py
+  Generación de PDF ejecutivo premium para la V2.
+  Se usa desde resultados e historial.
+
+- nicegui_v2/README.md
+  Nota breve de la V2.
+
+- nicegui_v2/DEPLOY_RENDER.md
+  Guía resumida de publicación en Render.
+
+
+4. RUTAS PRINCIPALES DE LA V2
+-----------------------------
+
+Sitio institucional:
+- /
+- /servicios
+- /metodologia
+- /contacto
+
+Plataforma interna:
+- /plataforma
+- /dashboard
+- /empresas
+- /diagnostico
+- /resultados
+- /historial
+- /sistema-gestion
+
+
+5. ORGANIZACIÓN FUNCIONAL ACTUAL
+--------------------------------
+
+Web institucional:
+- presentación de IDEAS
+- servicios
+- metodología
+- contacto
+- acceso a la plataforma
+
+Plataforma diagnóstica:
+- alta de empresas
+- carga de diagnósticos
+- resultados ejecutivos
+- historial y acciones sobre diagnósticos
+
+Etapa 3:
+- espacio exclusivo por empresa para futuro sistema de gestión
+- módulos definidos pero aún no desarrollados operativamente
+
+
+6. CARPETAS DE APOYO
+--------------------
+
+- Data
+  Archivos fuente, especialmente diagnostico.xlsx
+
+- reportes
+  Salida de PDFs generados
+
+- portable
+  Versión portable para distribución local
+
+- Web IDEAS
+  Carpeta auxiliar/experimental relacionada con web
+
+
+7. ORDEN RECOMENDADO DE EVOLUCIÓN
+---------------------------------
+
+La estructura actual ya quedó bastante más modular.
+La evolución recomendada es:
+
+1. Mantener app.py como entrypoint liviano
+2. Seguir separando módulos futuros en archivos propios
+3. Desarrollar cada herramienta de etapa 3 en módulos nuevos, por ejemplo:
+   - modules_documents.py
+   - modules_kpi.py
+   - modules_environment.py
+   - modules_ohs.py
+   - modules_process_maps.py
+   - modules_risks.py
+
+
+8. QUÉ NO TOCAR SIN NECESIDAD
+-----------------------------
+
+- database.py
+  Porque impacta sobre la base real
+
+- ideas.db
+  Porque contiene datos reales
+
+- render.yaml
+  Porque afecta deploy
+
+- requirements.txt
+  Porque afecta instalación y arranque en Render
+
+
+9. RESUMEN CORTO
+----------------
+
+La arquitectura actual quedó así:
+
+- Streamlit viejo separado
+- NiceGUI V2 modular
+- app.py solo como núcleo
+- páginas públicas separadas
+- plataforma separada
+- diagnóstico separado
+- sistema de gestión separado
+- PDF separado
+- datos separados
+
+Es una base mucho más limpia y escalable que la anterior.
