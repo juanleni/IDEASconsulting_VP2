@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.nicegui/
+.vscode/
+
+reportes/
+portable/
+
+nicegui_v2/__pycache__/
+
+*.log
+direct_stdout.txt
+direct_stderr.txt

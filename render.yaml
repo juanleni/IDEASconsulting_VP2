@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: ideas-consulting-v2
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python nicegui_v2/app.py
+    autoDeploy: false
