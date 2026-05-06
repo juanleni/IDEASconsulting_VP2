@@ -19,16 +19,80 @@ if str(THIS_DIR) not in sys.path:
 
 from database import crear_base  # noqa: E402
 from core_data import (  # noqa: E402
+    actualizar_kpi,
+    actualizar_dashboard_principal_kpi,
+    actualizar_grupos_personalizados_kpi,
+    actualizar_kpi_meses,
+    actualizar_kpi_diario_y_periodos,
+    actualizar_problema_calidad_8d,
+    actualizar_usuario,
+    actualizar_empresa,
+    actualizar_aspecto_ambiental,
+    actualizar_item_riesgo,
+    actualizar_matriz_riesgos,
+    actualizar_proceso_mapa,
+    actualizar_requisito_legal_ambiental,
+    actualizar_simulacro_ambiental,
     actualizar_diagnostico,
+    actualizar_password_empresa,
+    agregar_kpi_empresa,
+    crear_aspecto_ambiental,
+    crear_item_riesgo,
+    crear_matriz_riesgos,
+    crear_problema_calidad_8d,
+    crear_requisito_legal_ambiental,
+    crear_simulacro_ambiental,
+    agregar_proceso_mapa_empresa,
+    eliminar_aspecto_ambiental,
+    eliminar_empresa,
     eliminar_diagnostico,
+    eliminar_kpi,
+    eliminar_item_riesgo,
+    eliminar_matriz_riesgos,
+    eliminar_accion_8d,
+    eliminar_problema_calidad_8d,
+    eliminar_usuario,
+    eliminar_proceso_mapa,
+    eliminar_requisito_legal_ambiental,
+    eliminar_simulacro_ambiental,
     guardar_diagnostico,
+    guardar_fuente_empresa,
+    guardar_5_porque_problema_calidad,
+    guardar_accion_8d,
+    guardar_ishikawa_problema_calidad,
+    guardar_kpi,
     guardar_empresa,
+    guardar_token_empresa,
+    crear_usuario,
+    crear_grupo_kpi_empresa,
     leer_diagnostico_excel,
+    obtener_aspectos_ambientales_empresa,
+    obtener_5_porque_problema_calidad,
     obtener_diagnosticos_empresa,
     obtener_empresa_detalle,
     obtener_empresas,
     obtener_historial_diagnosticos,
+    obtener_fuentes_empresa,
+    obtener_ishikawa_problema_calidad,
+    obtener_acciones_8d,
+    obtener_items_riesgos_matriz,
+    obtener_kpi_detalle,
+    obtener_kpis_empresa,
+    obtener_grupos_kpi_empresa,
+    obtener_matrices_riesgos_empresa,
+    obtener_matriz_riesgos_detalle,
+    obtener_mapa_procesos_empresa,
+    obtener_problema_calidad_detalle,
+    obtener_problemas_calidad_empresa,
+    obtener_usuarios,
+    obtener_requisitos_legales_ambientales_empresa,
     obtener_respuestas_diagnostico,
+    obtener_simulacros_ambientales_empresa,
+    obtener_alertas_globales,
+    verificar_login_empresa,
+    verificar_token_empresa,
+    verificar_usuario,
+    eliminar_fuente,
 )
 from ideas_utils import (  # noqa: E402
     obtener_conclusion,
@@ -38,6 +102,9 @@ from ideas_utils import (  # noqa: E402
     obtener_plazo_sugerido,
     obtener_prioridad_recomendada,
     obtener_responsable_sugerido,
+    enviar_correo_acceso,
+    generar_token_seguro,
+    obtener_color_contraste,
     valor_afirmativo,
 )
 from pages_management import (  # noqa: E402
@@ -52,6 +119,40 @@ from modules_documents import (  # noqa: E402
     go_to_company_documents_module,
     go_to_documents_library,
     register_documents_module,
+)
+from modules_process_maps import (  # noqa: E402
+    go_to_process_maps_module,
+    register_process_maps_module,
+)
+from modules_kpi import (  # noqa: E402
+    go_to_kpi_module,
+    register_kpi_module,
+)
+from modules_risks import (  # noqa: E402
+    go_to_risks_module,
+    register_risks_module,
+)
+from modules_environment import (  # noqa: E402
+    go_to_environment_module,
+    register_environment_module,
+)
+from modules_quality import (  # noqa: E402
+    go_to_quality_module,
+    register_quality_module,
+)
+from modules_sst import (  # noqa: E402
+    go_to_sst_module,
+    register_sst_module,
+)
+from modules_users import go_to_users_module, register_users_module  # noqa: E402
+from ai_services import explicar_requisito_iso, sugerir_causas_ishikawa, sugerir_matriz_legal_ia  # noqa: E402
+from pdf_reports import (  # noqa: E402
+    generar_pdf_8d,
+    generar_pdf_ejecutivo_v2,
+    generar_pdf_kpis,
+    generar_pdf_mapa_procesos,
+    generar_reporte_8d,
+    generar_reporte_simulacro,
 )
 
 crear_base()
@@ -151,17 +252,25 @@ def inject_global_styles() -> None:
         .ideas-table tbody tr:hover { background:rgba(31,126,214,.04); }
         .ideas-mode-banner { padding:18px 22px; border-radius:24px; background:linear-gradient(135deg, #0f172a 0%, #1f7ed6 100%); color:#eff6ff; margin-bottom:18px; }
         .ideas-mode-banner strong { display:block; font-size:1.1rem; margin-top:.2rem; }
-        .ideas-public-shell { width:100%; max-width:1320px; margin:0 auto; padding:2px 28px 48px 28px; }
-        .ideas-public-topbar { position:sticky; top:0; z-index:50; background:rgba(247,250,252,.84); backdrop-filter:blur(18px); border-bottom:1px solid var(--ideas-line); }
-        .ideas-public-nav { display:flex; align-items:center; justify-content:space-between; gap:1rem; width:100%; max-width:1320px; margin:0 auto; padding:12px 28px; }
-        .ideas-public-brand { display:flex; align-items:center; gap:.9rem; }
-        .ideas-public-brand img { width:44px; height:44px; object-fit:contain; }
-        .ideas-public-brand .name { color:var(--ideas-navy); font-weight:800; font-size:1rem; letter-spacing:.02em; }
-        .ideas-public-brand .tag { color:#64748b; font-size:.82rem; margin-top:.12rem; }
+        .ideas-public-shell { width:100%; max-width:1320px; margin:0 auto; padding:0 28px 48px 28px; }
+        .ideas-public-topbar { position:sticky; top:0; z-index:50; background:rgba(25,25,25,.92); backdrop-filter:blur(18px); border-bottom:1px solid rgba(255,255,255,.08); }
+        .ideas-public-nav { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:1rem; width:100vw; max-width:none; margin:0; padding:18px 72px; box-sizing:border-box; position:relative; left:50%; transform:translateX(-50%); }
+        .ideas-public-brand { display:flex; align-items:center; gap:1rem; }
+        .ideas-public-brand img { width:58px; height:58px; object-fit:contain; }
+        .ideas-public-brand .name { color:#f8fafc; font-weight:900; font-size:1.15rem; letter-spacing:.01em; }
+        .ideas-public-brand .tag { color:rgba(255,255,255,.58); font-size:.86rem; margin-top:.16rem; }
         .ideas-public-links { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
         .ideas-public-links a { color:#334155; text-decoration:none; font-weight:700; padding:.7rem .9rem; border-radius:999px; }
         .ideas-public-links a:hover { background:rgba(255,255,255,.9); }
-        .ideas-public-actions { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; }
+        .ideas-public-actions { display:flex; align-items:center; justify-content:flex-end; justify-self:end; gap:1.1rem; flex-wrap:wrap; }
+        .ideas-public-home-link { text-decoration:none; color:rgba(255,255,255,.72); font-weight:850; padding:8px 0; }
+        .ideas-public-home-link:hover { color:#d6df00; }
+        .ideas-public-return-link { display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 14px; border-radius:2px; text-decoration:none; color:#f8fafc; font-weight:900; border:1px solid rgba(255,255,255,.18); }
+        .ideas-public-return-link:hover { color:#171717; background:#d6df00; border-color:#d6df00; }
+        .ideas-public-return-link .material-icons { font-size:1.2rem; line-height:1; }
+        .ideas-public-login-link { display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 18px; border-radius:2px; text-decoration:none; background:#d6df00; color:#171717; font-weight:900; border:1px solid #d6df00; }
+        .ideas-public-login-link .material-icons { font-size:1.2rem; line-height:1; }
+        .ideas-public-login-link:hover { background:#f0f715; color:#171717; }
         .ideas-public-hero { display:grid; grid-template-columns:1.08fr .92fr; gap:20px; align-items:stretch; margin-top:0; }
         .ideas-public-card { border-radius:32px; background:rgba(255,255,255,.94); border:1px solid var(--ideas-line); box-shadow:var(--ideas-shadow); }
         .ideas-public-hero-copy { padding:34px 38px; position:relative; overflow:hidden; }
@@ -173,7 +282,7 @@ def inject_global_styles() -> None:
         .ideas-public-stat { padding:24px; border-radius:28px; background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,251,254,.92)); border:1px solid var(--ideas-line); box-shadow:0 16px 30px rgba(15,23,42,.05); }
         .ideas-public-stat .value { color:var(--ideas-navy); font-size:2rem; font-weight:800; letter-spacing:-.04em; }
         .ideas-public-stat .label { color:#64748b; font-size:.78rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
-        .ideas-public-section { margin-top:14px; }
+        .ideas-public-section { margin-top:0; }
         .ideas-public-section h2 { color:var(--ideas-navy); font-size:2.2rem; font-weight:800; letter-spacing:-.04em; margin-bottom:10px; }
         .ideas-public-section p { color:#526172; line-height:1.8; }
         .ideas-service-card { padding:28px; border-radius:28px; background:rgba(255,255,255,.96); border:1px solid var(--ideas-line); box-shadow:var(--ideas-shadow); min-height:100%; overflow:hidden; }
@@ -190,7 +299,8 @@ def inject_global_styles() -> None:
         .ideas-editorial-band .block p { margin:0; color:#526172; line-height:1.8; }
         .ideas-whatsapp-link { display:inline-flex; align-items:center; gap:.7rem; margin-top:16px; padding:.85rem 1.1rem; border-radius:16px; text-decoration:none; background:linear-gradient(180deg, rgba(37,211,102,.14), rgba(37,211,102,.08)); border:1px solid rgba(37,211,102,.22); color:#166534; font-weight:800; }
         .ideas-whatsapp-link:hover { transform:translateY(-1px); box-shadow:0 12px 24px rgba(22,101,52,.12); }
-        .ideas-whatsapp-link.topbar { margin-top:0; padding:.72rem 1rem; border-radius:999px; font-size:.92rem; }
+        .ideas-whatsapp-link.topbar { margin-top:0; padding:0; border-radius:0; font-size:1rem; background:transparent; border:0; color:#25D366; box-shadow:none; }
+        .ideas-whatsapp-link.topbar:hover { box-shadow:none; color:#46f184; }
         .ideas-whatsapp-icon { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; }
         .ideas-whatsapp-icon svg { width:28px; height:28px; display:block; }
         .ideas-feature-list { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; margin-top:16px; }
@@ -203,12 +313,13 @@ def inject_global_styles() -> None:
         .ideas-login-card { max-width:560px; margin-top:8px; padding:30px 32px; }
         .ideas-login-title { color:var(--ideas-navy); font-size:1.9rem; font-weight:700; letter-spacing:-.03em; margin:0 0 10px; }
         .ideas-login-note { color:#5b6878; line-height:1.8; margin-bottom:18px; }
+        .nicegui-content, .q-page { padding:0 !important; }
         .q-drawer { background:radial-gradient(circle at top left, rgba(15,143,97,.09), transparent 28%), linear-gradient(180deg, rgba(249,252,251,.99) 0%, rgba(239,246,243,.99) 100%); border-right:1px solid var(--ideas-line); }
         .q-field__control, .q-field--outlined .q-field__control { border-radius:18px !important; background:rgba(255,255,255,.92); }
         .q-btn { text-transform:none; letter-spacing:0; font-weight:700; }
         .q-tab { border-radius:16px; min-height:44px; }
         .q-tab--active { background:rgba(31,126,214,.08); }
-        @media (max-width: 1100px) { .ideas-hero-card, .ideas-score-guide, .ideas-grid-2, .ideas-grid-3, .ideas-public-hero, .ideas-editorial-band, .ideas-feature-list, .ideas-module-grid { grid-template-columns:1fr; } .ideas-public-nav { flex-direction:column; align-items:flex-start; } }
+        @media (max-width: 1100px) { .ideas-hero-card, .ideas-score-guide, .ideas-grid-2, .ideas-grid-3, .ideas-public-hero, .ideas-editorial-band, .ideas-feature-list, .ideas-module-grid { grid-template-columns:1fr; } .ideas-public-nav { grid-template-columns:1fr; align-items:flex-start; padding:16px 24px; } .ideas-public-actions { justify-self:start; justify-content:flex-start; } }
         </style>
         '''
     )
@@ -306,45 +417,86 @@ def logout_platform() -> None:
     ui.navigate.to('/')
 
 
-def shell(page_title: str):
+def shell(page_title: str, back_route: str = None):
     inject_global_styles()
     logo = get_logo_url()
-    with ui.left_drawer(value=True, bordered=False).classes('p-4'):
-        with ui.column().classes('ideas-brand-card w-full'):
-            if logo:
-                ui.image(logo).classes('w-28 mb-3')
-            ui.label('IDEAS Consulting').classes('text-slate-900 text-lg font-bold')
-            ui.label('Consultoría estratégica').classes('text-xs uppercase tracking-widest text-slate-500')
-            ui.separator().classes('my-3')
-            ui.label('Navegación').classes('text-[11px] uppercase tracking-[0.22em] text-slate-400')
-        for label, route, icon in [('Inicio', '/dashboard', 'home'), ('Empresas', '/empresas', 'business'), ('Sistema de gestión', '/sistema-gestion', 'account_tree'), ('Diagnóstico', '/diagnostico', 'assignment'), ('Resultados', '/resultados', 'analytics'), ('Historial', '/historial', 'history')]:
-            ui.button(label, icon=icon, on_click=lambda r=route: ui.navigate.to(r)).props('flat align=left').classes('ideas-nav-btn')
-        with ui.column().classes('ideas-brand-card w-full mt-4'):
-            ui.label('Board-ready').classes('text-[11px] uppercase tracking-[0.18em] text-slate-400')
-            ui.label('Workspace ejecutivo').classes('text-slate-900 font-semibold mt-1')
-            ui.label('Más visual, más modular y preparada para evolucionar sin tocar la app actual.').classes('text-sm text-slate-500 mt-1')
-        ui.button('Volver al sitio', icon='public', on_click=lambda: ui.navigate.to('/')).props('flat align=left').classes('ideas-nav-btn mt-2')
+    user_role = str(app.storage.user.get('role') or '')
+    user_empresa_id = app.storage.user.get('logged_empresa_id')
+    empresa_sesion = app.storage.user.get('logged_empresa_nombre')
+    if not empresa_sesion and user_role != 'admin' and user_empresa_id:
+        try:
+            empresa_detalle = obtener_empresa_detalle(int(user_empresa_id))
+            empresa_sesion = fix_text(empresa_detalle.get('razon_social', '')) if empresa_detalle else ''
+            if empresa_sesion:
+                app.storage.user['logged_empresa_nombre'] = empresa_sesion
+        except Exception:
+            empresa_sesion = ''
+
+    if user_role == 'admin':
+        nav_items = [
+            ('Dashboard', '/dashboard', 'home'),
+            ('Empresas', '/empresas', 'business'),
+            ('Workspace Ejecutivo', '/sistema-gestion', 'account_tree'),
+            ('Diagnóstico', '/diagnostico', 'assignment'),
+            ('Resultados', '/resultados', 'analytics'),
+            ('Historial', '/historial', 'history'),
+            ('Usuarios', '/sistema-gestion/usuarios', 'manage_accounts'),
+        ]
+        drawer_title = 'Panel IDEAS'
+        drawer_note = 'Vista interna de consultoría'
+        drawer_support = 'Gestiona clientes, diagnósticos, usuarios y módulos desde una consola ejecutiva.'
+    else:
+        nav_items = [
+            ('Mi Workspace', '/sistema-gestion', 'dashboard_customize'),
+        ]
+        drawer_title = empresa_sesion or 'Workspace cliente'
+        drawer_note = 'Sistema de gestión'
+        drawer_support = 'Acceso simple a tus módulos habilitados, sin información de otros clientes.'
+
+    if user_role == 'admin':
+        with ui.left_drawer(value=True, bordered=False).classes('p-4'):
+            with ui.column().classes('ideas-brand-card w-full'):
+                if logo:
+                    ui.image(logo).classes('w-28 mb-3')
+                ui.label('IDEAS Consulting').classes('text-slate-900 text-lg font-bold')
+                ui.label(drawer_note).classes('text-xs uppercase tracking-widest text-slate-500')
+                ui.separator().classes('my-3')
+                ui.label('Navegación').classes('text-[11px] uppercase tracking-[0.22em] text-slate-400')
+            for label, route, icon in nav_items:
+                ui.button(label, icon=icon, on_click=lambda r=route: ui.navigate.to(r)).props('flat align=left').classes('ideas-nav-btn')
+            with ui.column().classes('ideas-brand-card w-full mt-4'):
+                ui.label('Board-ready').classes('text-[11px] uppercase tracking-[0.18em] text-slate-400')
+                ui.label(drawer_title).classes('text-slate-900 font-semibold mt-1')
+                ui.label(drawer_support).classes('text-sm text-slate-500 mt-1')
+            ui.button('Web institucional', icon='public', on_click=lambda: ui.navigate.to('/')).props('flat align=left').classes('ideas-nav-btn mt-2')
+            if is_platform_authenticated():
+                ui.button('Salir', icon='logout', on_click=logout_platform).props('flat align=left color=negative').classes('ideas-nav-btn')
     with ui.header().classes('ideas-topbar'):
         with ui.row().classes('w-full items-center justify-between px-4'):
-            if logo:
-                ui.html(
-                    f'''
-                    <div class="ideas-topbar-brand">
-                        <img src="{logo}" alt="IDEAS logo" />
-                        <div>
-                            <div class="brand-title">IDEAS Consulting</div>
-                            <div class="brand-subtitle">{page_title}</div>
+            with ui.row().classes('items-center gap-3'):
+                if back_route:
+                    ui.button(
+                        icon='arrow_back',
+                        on_click=lambda route=back_route: ui.navigate.to(route),
+                    ).props('flat round dense').classes('text-slate-600')
+                if logo:
+                    ui.html(
+                        f'''
+                        <div class="ideas-topbar-brand">
+                            <img src="{logo}" alt="IDEAS logo" />
+                            <div>
+                                <div class="brand-title">IDEAS Consulting</div>
+                                <div class="brand-subtitle">{page_title}</div>
+                            </div>
                         </div>
-                    </div>
-                    '''
-                )
-            else:
-                with ui.column().classes('gap-0'):
-                    ui.label('IDEAS Consulting V2').classes('text-slate-900 font-bold')
-                    ui.label(page_title).classes('text-sm text-slate-500')
+                        '''
+                    )
+                else:
+                    with ui.column().classes('gap-0'):
+                        ui.label('IDEAS Consulting V2').classes('text-slate-900 font-bold')
+                        ui.label(page_title).classes('text-sm text-slate-500')
             with ui.row().classes('items-center gap-2'):
-                ui.label('Executive diagnostic workspace').classes('text-sm text-slate-500')
-                ui.button('Sitio', icon='public', on_click=lambda: ui.navigate.to('/')).props('flat dense')
+                ui.button('Web institucional', icon='public', on_click=lambda: ui.navigate.to('/')).props('flat dense')
                 if is_platform_authenticated():
                     ui.button('Salir', icon='logout', on_click=logout_platform).props('flat dense color=negative')
     return ui.column().classes('ideas-shell')
@@ -365,17 +517,38 @@ def quick_card(label: str, value: str, detail: str) -> str:
 def public_shell(page_title: str):
     inject_global_styles()
     logo = get_logo_url()
-    whatsapp_html = '''
-        <a class="ideas-whatsapp-link topbar" href="https://wa.me/541170068904" target="_blank" rel="noopener noreferrer">
-            <span class="ideas-whatsapp-icon">
-                <svg viewBox="0 0 32 32" aria-hidden="true">
-                    <circle cx="16" cy="16" r="16" fill="#25D366"></circle>
-                    <path fill="#ffffff" d="M23.2 8.7A9.2 9.2 0 0 0 7.6 18.1L6 26l8.1-1.6a9.2 9.2 0 0 0 4.4 1.1h0A9.2 9.2 0 0 0 23.2 8.7zm-4.7 14.6h0a7.7 7.7 0 0 1-3.9-1.1l-.3-.2-4.8.9.9-4.7-.2-.3a7.7 7.7 0 1 1 8.3 5.4zm4.2-5.8c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.6.1s-.7.8-.8 1c-.1.1-.3.2-.5.1a6.3 6.3 0 0 1-1.9-1.2 7.1 7.1 0 0 1-1.3-1.7c-.1-.2 0-.4.1-.5l.4-.4.2-.3c.1-.1.1-.3 0-.4l-.6-1.5c-.2-.4-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3s-.8.8-.8 2 .8 2.4.9 2.5c.1.2 1.6 2.5 3.9 3.5.5.2 1 .4 1.3.6.6.2 1.1.2 1.5.1.5-.1 1.4-.6 1.6-1.1.2-.5.2-1 .2-1.1s-.2-.2-.4-.3z"></path>
-                </svg>
-            </span>
-            <span>WhatsApp</span>
-        </a>
-    '''
+    if page_title == 'Acceso':
+        actions_html = '''
+            <a class="ideas-public-return-link" href="/">
+                <span class="material-icons" aria-hidden="true">public</span>
+                <span>Volver al sitio web</span>
+            </a>
+        '''
+    else:
+        home_link_html = (
+            '<a class="ideas-public-home-link" href="/">Inicio</a>'
+            if page_title != 'Inicio'
+            else ''
+        )
+        whatsapp_html = '''
+            <a class="ideas-whatsapp-link topbar" href="https://wa.me/541170068904" target="_blank" rel="noopener noreferrer">
+                <span class="ideas-whatsapp-icon">
+                    <svg viewBox="0 0 32 32" aria-hidden="true">
+                        <circle cx="16" cy="16" r="16" fill="#25D366"></circle>
+                        <path fill="#ffffff" d="M23.2 8.7A9.2 9.2 0 0 0 7.6 18.1L6 26l8.1-1.6a9.2 9.2 0 0 0 4.4 1.1h0A9.2 9.2 0 0 0 23.2 8.7zm-4.7 14.6h0a7.7 7.7 0 0 1-3.9-1.1l-.3-.2-4.8.9.9-4.7-.2-.3a7.7 7.7 0 1 1 8.3 5.4zm4.2-5.8c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.6.1s-.7.8-.8 1c-.1.1-.3.2-.5.1a6.3 6.3 0 0 1-1.9-1.2 7.1 7.1 0 0 1-1.3-1.7c-.1-.2 0-.4.1-.5l.4-.4.2-.3c.1-.1.1-.3 0-.4l-.6-1.5c-.2-.4-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3s-.8.8-.8 2 .8 2.4.9 2.5c.1.2 1.6 2.5 3.9 3.5.5.2 1 .4 1.3.6.6.2 1.1.2 1.5.1.5-.1 1.4-.6 1.6-1.1.2-.5.2-1 .2-1.1s-.2-.2-.4-.3z"></path>
+                    </svg>
+                </span>
+                <span>WhatsApp</span>
+            </a>
+        '''
+        actions_html = f'''
+            {home_link_html}
+            <a class="ideas-public-login-link" href="/plataforma">
+                <span class="material-icons" aria-hidden="true">login</span>
+                <span>Ingresa</span>
+            </a>
+            {whatsapp_html}
+        '''
     with ui.header().classes('ideas-public-topbar'):
         ui.html(
             f'''
@@ -387,15 +560,8 @@ def public_shell(page_title: str):
                         <div class="tag">{page_title}</div>
                     </div>
                 </div>
-                <div class="ideas-public-links">
-                    <a href="/">Inicio</a>
-                    <a href="/servicios">Servicios</a>
-                    <a href="/metodologia">Metodología</a>
-                    <a href="/contacto">Contacto</a>
-                </div>
                 <div class="ideas-public-actions">
-                    {whatsapp_html}
-                    <a href="/plataforma" style="text-decoration:none;"><button class="q-btn q-btn-item non-selectable no-outline q-btn--unelevated q-btn--rectangle bg-primary text-white" style="padding:11px 16px;border-radius:999px;">Ingresar</button></a>
+                    {actions_html}
                 </div>
             </div>
             '''
@@ -433,6 +599,17 @@ def certifications_summary(company: dict | None) -> str:
 
 
 def company_options() -> dict[int, str]:
+    session_role = str(app.storage.user.get('role') or '')
+    if session_role == 'empresa':
+        empresa_id = app.storage.user.get('logged_empresa_id')
+        empresa_nombre = str(app.storage.user.get('logged_empresa_nombre') or '').strip()
+        try:
+            empresa_id = int(empresa_id) if empresa_id else None
+        except Exception:
+            empresa_id = None
+        if not empresa_id or not empresa_nombre:
+            return {}
+        return {int(empresa_id): fix_text(empresa_nombre)}
     return {int(company_id): fix_text(name) for company_id, name in obtener_empresas()}
 
 
@@ -478,7 +655,9 @@ def grouped_questions(df_base: pd.DataFrame) -> dict[str, list[str]]:
 
 
 def current_selection() -> tuple[int | None, int | None]:
-    empresa_id = app.storage.user.get('current_empresa_id')
+    session_role = str(app.storage.user.get('role') or '')
+    forced_empresa_id = app.storage.user.get('logged_empresa_id') if session_role != 'admin' else None
+    empresa_id = forced_empresa_id or app.storage.user.get('current_empresa_id')
     diagnostico_id = app.storage.user.get('current_diag_id')
     try:
         empresa_id = int(empresa_id) if empresa_id else None
@@ -492,8 +671,29 @@ def current_selection() -> tuple[int | None, int | None]:
 
 
 def set_selection(empresa_id: int | None, diagnostico_id: int | None = None) -> None:
-    app.storage.user['current_empresa_id'] = int(empresa_id) if empresa_id else None
-    app.storage.user['current_diag_id'] = int(diagnostico_id) if diagnostico_id else None
+    session_role = str(app.storage.user.get('role') or '')
+    if session_role != 'admin':
+        empresa_id = app.storage.user.get('logged_empresa_id')
+    try:
+        empresa_id = int(empresa_id) if empresa_id else None
+    except Exception:
+        empresa_id = None
+
+    diag_id = None
+    try:
+        diag_id = int(diagnostico_id) if diagnostico_id else None
+    except Exception:
+        diag_id = None
+
+    if diag_id and empresa_id:
+        diag = diagnosis_record(diag_id)
+        if not diag or int(diag.get('empresa_id') or 0) != int(empresa_id):
+            diag_id = None
+    else:
+        diag_id = None
+
+    app.storage.user['current_empresa_id'] = empresa_id
+    app.storage.user['current_diag_id'] = diag_id
 
 
 def start_edit(diagnostico_id: int, duplicate: bool = False) -> None:
@@ -553,11 +753,18 @@ def split_evidence_values(value: str) -> list[str]:
 
 
 register_public_pages(ui, {'public_shell': public_shell, 'get_banner_url': get_banner_url})
-register_management_page(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'fix_text': fix_text, 'quick_card': quick_card, 'render_metrics': render_metrics, 'certifications_summary': certifications_summary, 'set_selection': set_selection, 'go_to_documents_library': go_to_documents_library, 'go_to_company_documents_module': go_to_company_documents_module})
-register_documents_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'valor_afirmativo': valor_afirmativo, 'set_selection': set_selection})
+register_management_page(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'fix_text': fix_text, 'quick_card': quick_card, 'render_metrics': render_metrics, 'certifications_summary': certifications_summary, 'set_selection': set_selection, 'obtener_color_contraste': obtener_color_contraste, 'go_to_documents_library': go_to_documents_library, 'go_to_company_documents_module': go_to_company_documents_module, 'go_to_process_maps_module': go_to_process_maps_module, 'go_to_kpi_module': go_to_kpi_module, 'go_to_risks_module': go_to_risks_module, 'go_to_environment_module': go_to_environment_module, 'go_to_quality_module': go_to_quality_module, 'go_to_sst_module': go_to_sst_module, 'go_to_users_module': go_to_users_module})
+register_documents_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'valor_afirmativo': valor_afirmativo, 'set_selection': set_selection, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'explicar_requisito_iso': explicar_requisito_iso})
+register_process_maps_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'set_selection': set_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'agregar_proceso_mapa_empresa': agregar_proceso_mapa_empresa, 'actualizar_proceso_mapa': actualizar_proceso_mapa, 'eliminar_proceso_mapa': eliminar_proceso_mapa, 'generar_pdf_mapa_procesos': generar_pdf_mapa_procesos})
+register_kpi_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'set_selection': set_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_kpis_empresa': obtener_kpis_empresa, 'obtener_kpi_detalle': obtener_kpi_detalle, 'obtener_grupos_kpi_empresa': obtener_grupos_kpi_empresa, 'crear_grupo_kpi_empresa': crear_grupo_kpi_empresa, 'guardar_kpi': guardar_kpi, 'actualizar_kpi_meses': actualizar_kpi_meses, 'actualizar_kpi_diario_y_periodos': actualizar_kpi_diario_y_periodos, 'agregar_kpi_empresa': agregar_kpi_empresa, 'actualizar_kpi': actualizar_kpi, 'actualizar_dashboard_principal_kpi': actualizar_dashboard_principal_kpi, 'actualizar_grupos_personalizados_kpi': actualizar_grupos_personalizados_kpi, 'eliminar_kpi': eliminar_kpi, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'generar_pdf_kpis': generar_pdf_kpis, 'go': go})
+register_risks_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_matrices_riesgos_empresa': obtener_matrices_riesgos_empresa, 'obtener_matriz_riesgos_detalle': obtener_matriz_riesgos_detalle, 'obtener_items_riesgos_matriz': obtener_items_riesgos_matriz, 'crear_matriz_riesgos': crear_matriz_riesgos, 'actualizar_matriz_riesgos': actualizar_matriz_riesgos, 'eliminar_matriz_riesgos': eliminar_matriz_riesgos, 'crear_item_riesgo': crear_item_riesgo, 'actualizar_item_riesgo': actualizar_item_riesgo, 'eliminar_item_riesgo': eliminar_item_riesgo})
+register_environment_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_aspectos_ambientales_empresa': obtener_aspectos_ambientales_empresa, 'crear_aspecto_ambiental': crear_aspecto_ambiental, 'actualizar_aspecto_ambiental': actualizar_aspecto_ambiental, 'eliminar_aspecto_ambiental': eliminar_aspecto_ambiental, 'obtener_requisitos_legales_ambientales_empresa': obtener_requisitos_legales_ambientales_empresa, 'crear_requisito_legal_ambiental': crear_requisito_legal_ambiental, 'actualizar_requisito_legal_ambiental': actualizar_requisito_legal_ambiental, 'eliminar_requisito_legal_ambiental': eliminar_requisito_legal_ambiental, 'obtener_simulacros_ambientales_empresa': obtener_simulacros_ambientales_empresa, 'crear_simulacro_ambiental': crear_simulacro_ambiental, 'actualizar_simulacro_ambiental': actualizar_simulacro_ambiental, 'eliminar_simulacro_ambiental': eliminar_simulacro_ambiental, 'sugerir_matriz_legal_ia': sugerir_matriz_legal_ia, 'generar_reporte_simulacro': generar_reporte_simulacro})
+register_sst_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa})
+register_quality_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'valor_afirmativo': valor_afirmativo, 'fix_text': fix_text, 'obtener_problemas_calidad_empresa': obtener_problemas_calidad_empresa, 'obtener_problema_calidad_detalle': obtener_problema_calidad_detalle, 'crear_problema_calidad_8d': crear_problema_calidad_8d, 'actualizar_problema_calidad_8d': actualizar_problema_calidad_8d, 'eliminar_problema_calidad_8d': eliminar_problema_calidad_8d, 'obtener_5_porque_problema_calidad': obtener_5_porque_problema_calidad, 'guardar_5_porque_problema_calidad': guardar_5_porque_problema_calidad, 'obtener_ishikawa_problema_calidad': obtener_ishikawa_problema_calidad, 'guardar_ishikawa_problema_calidad': guardar_ishikawa_problema_calidad, 'obtener_acciones_8d': obtener_acciones_8d, 'guardar_accion_8d': guardar_accion_8d, 'eliminar_accion_8d': eliminar_accion_8d, 'generar_reporte_8d': generar_reporte_8d, 'generar_pdf_8d': generar_pdf_8d, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'sugerir_causas_ishikawa': sugerir_causas_ishikawa})
+register_users_module(ui, {'app': app, 'ensure_platform_access': ensure_platform_access, 'shell': shell, 'fix_text': fix_text, 'obtener_usuarios': obtener_usuarios, 'crear_usuario': crear_usuario, 'actualizar_usuario': actualizar_usuario, 'eliminar_usuario': eliminar_usuario, 'obtener_empresas': obtener_empresas})
 
-register_platform_pages(ui, app, {'public_shell': public_shell, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'get_banner_url': get_banner_url, 'get_logo_url': get_logo_url, 'quick_card': quick_card, 'PLATFORM_USER': PLATFORM_USER, 'PLATFORM_PASSWORD': PLATFORM_PASSWORD})
-register_diagnostic_pages(ui, app, {'pd': pd, 'go': go, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'guardar_empresa': guardar_empresa, 'go_to_management_workspace': go_to_management_workspace, 'set_selection': set_selection, 'leer_diagnostico_excel': leer_diagnostico_excel, 'grouped_questions': grouped_questions, 'load_criteria': load_criteria, 'company_options': company_options, 'current_selection': current_selection, 'diagnosis_record': diagnosis_record, 'diagnosis_response_dicts': diagnosis_response_dicts, 'split_evidence_values': split_evidence_values, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'actualizar_diagnostico': actualizar_diagnostico, 'guardar_diagnostico': guardar_diagnostico, 'obtener_nivel': obtener_nivel, 'obtener_conclusion': obtener_conclusion, 'diagnosis_rows': diagnosis_rows, 'diagnosis_badge_style': diagnosis_badge_style, 'diagnosis_options': diagnosis_options, 'build_eje_scores': build_eje_scores, 'build_plan': build_plan, 'short_axis_label': short_axis_label, 'obtener_mensaje_direccion': obtener_mensaje_direccion, 'quick_card': quick_card, 'obtener_prioridad_recomendada': obtener_prioridad_recomendada, 'start_edit': start_edit, 'render_metrics': render_metrics, 'eliminar_diagnostico': eliminar_diagnostico})
+register_platform_pages(ui, app, {'public_shell': public_shell, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'get_banner_url': get_banner_url, 'get_logo_url': get_logo_url, 'quick_card': quick_card, 'obtener_empresas': obtener_empresas, 'diagnosis_rows': diagnosis_rows, 'obtener_alertas_globales': obtener_alertas_globales, 'verificar_usuario': verificar_usuario, 'verificar_login_empresa': verificar_login_empresa, 'guardar_token_empresa': guardar_token_empresa, 'verificar_token_empresa': verificar_token_empresa, 'actualizar_password_empresa': actualizar_password_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'set_selection': set_selection, 'PLATFORM_USER': PLATFORM_USER, 'PLATFORM_PASSWORD': PLATFORM_PASSWORD})
+register_diagnostic_pages(ui, app, {'pd': pd, 'go': go, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'guardar_empresa': guardar_empresa, 'actualizar_empresa': actualizar_empresa, 'eliminar_empresa': eliminar_empresa, 'guardar_fuente_empresa': guardar_fuente_empresa, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'eliminar_fuente': eliminar_fuente, 'guardar_token_empresa': guardar_token_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'go_to_management_workspace': go_to_management_workspace, 'set_selection': set_selection, 'leer_diagnostico_excel': leer_diagnostico_excel, 'grouped_questions': grouped_questions, 'load_criteria': load_criteria, 'company_options': company_options, 'current_selection': current_selection, 'diagnosis_record': diagnosis_record, 'diagnosis_response_dicts': diagnosis_response_dicts, 'split_evidence_values': split_evidence_values, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'actualizar_diagnostico': actualizar_diagnostico, 'guardar_diagnostico': guardar_diagnostico, 'obtener_nivel': obtener_nivel, 'obtener_conclusion': obtener_conclusion, 'diagnosis_rows': diagnosis_rows, 'diagnosis_badge_style': diagnosis_badge_style, 'diagnosis_options': diagnosis_options, 'build_eje_scores': build_eje_scores, 'build_plan': build_plan, 'short_axis_label': short_axis_label, 'obtener_mensaje_direccion': obtener_mensaje_direccion, 'quick_card': quick_card, 'obtener_prioridad_recomendada': obtener_prioridad_recomendada, 'start_edit': start_edit, 'render_metrics': render_metrics, 'eliminar_diagnostico': eliminar_diagnostico, 'generar_pdf_ejecutivo_v2': generar_pdf_ejecutivo_v2})
 render_port = os.getenv('PORT')
 run_port = int(render_port) if render_port else get_free_port(8502)
 run_host = '0.0.0.0' if render_port else '127.0.0.1'

@@ -3,7 +3,8 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from nicegui import app, ui
+from nicegui import app, run, ui
+from knowledge_helpers import summarize_sources_for_context
 
 
 DOCUMENT_STANDARDS = {
@@ -217,7 +218,7 @@ def _render_example_button(*, row: dict) -> None:
     ui.button('Ver ejemplo', icon='article', on_click=show_example_placeholder).props('outline color=secondary')
 
 
-def _render_requirement_dialog(*, row: dict, fix_text_fn) -> None:
+def _render_requirement_dialog(*, row: dict, fix_text_fn, explain_requisito_fn=None) -> None:
     documents = split_expected_documents(row.get('documento_esperado'))
     example_key, example_path = _example_reference(row)
     with ui.dialog() as dialog, ui.card().classes('w-[780px] max-w-[96vw] p-6 rounded-[26px]'):
@@ -247,6 +248,40 @@ def _render_requirement_dialog(*, row: dict, fix_text_fn) -> None:
         with ui.card().classes('w-full mt-4 p-4 border border-slate-200 shadow-none rounded-[20px]'):
             ui.label('Guia practica del requisito').classes('text-lg font-semibold text-slate-900')
             ui.label(fix_text_fn(row['observacion_consultiva'])).classes('text-slate-600 leading-7')
+            if explain_requisito_fn:
+                async def mostrar_explicacion_ia() -> None:
+                    with ui.dialog() as ia_dialog, ui.card().classes('w-[760px] max-w-[96vw] p-6 rounded-[26px]'):
+                        with ui.row().classes('w-full items-start justify-between gap-4'):
+                            with ui.column().classes('gap-1'):
+                                ui.label('Explicacion con IA').classes('text-2xl font-bold text-slate-900')
+                                ui.label('Traduccion operativa del requisito con lenguaje simple y enfoque practico.').classes('text-slate-600')
+                            ui.button(icon='close', on_click=ia_dialog.close).props('flat round dense')
+                        content = ui.column().classes('w-full gap-3 mt-4')
+                        with content:
+                            with ui.row().classes('w-full items-center gap-3'):
+                                ui.spinner(size='lg')
+                                ui.label('Generando explicacion...').classes('text-slate-500')
+                        ia_dialog.open()
+                        try:
+                            respuesta = await run.io_bound(
+                                explain_requisito_fn,
+                                row.get('norma'),
+                                row.get('requisito'),
+                                row.get('resumen'),
+                                row.get('observacion_consultiva'),
+                            )
+                            content.clear()
+                            with content:
+                                ui.html(
+                                    f'<div style="padding:16px 18px;border-radius:18px;background:rgba(15,23,42,.04);color:#0f172a;line-height:1.8;white-space:pre-wrap;">{fix_text_fn(respuesta)}</div>'
+                                )
+                        except Exception as exc:
+                            content.clear()
+                            with content:
+                                ui.label(f'No se pudo generar la explicacion con IA: {exc}').classes('text-red-600')
+
+                with ui.row().classes('w-full justify-end mt-3'):
+                    ui.button('Explicar con IA', icon='auto_awesome', on_click=mostrar_explicacion_ia).props('unelevated color=primary')
         with ui.card().classes('w-full mt-4 p-4 border border-slate-200 shadow-none rounded-[20px]'):
             ui.label('Ejemplo de referencia').classes('text-lg font-semibold text-slate-900')
             ui.label('Esta funcion ya esta preparada para vincular un ejemplo real por requisito desde la carpeta de ejemplos de la consultora.').classes('text-slate-500 text-sm')
@@ -263,7 +298,7 @@ def _render_requirement_dialog(*, row: dict, fix_text_fn) -> None:
     ui.button('Ver detalle', icon='visibility', on_click=dialog.open).props('outline color=primary')
 
 
-def _render_compact_requirement_row(*, row: dict, fix_text_fn) -> None:
+def _render_compact_requirement_row(*, row: dict, fix_text_fn, explain_requisito_fn=None) -> None:
     documents = split_expected_documents(row.get('documento_esperado'))
     first_document = documents[0] if documents else '-'
     with ui.card().classes('w-full p-4 border border-slate-200 shadow-none rounded-[20px]'):
@@ -285,13 +320,13 @@ def _render_compact_requirement_row(*, row: dict, fix_text_fn) -> None:
             )
             with ui.row().classes('items-center gap-2'):
                 _render_example_button(row=row)
-                _render_requirement_dialog(row=row, fix_text_fn=fix_text_fn)
+                _render_requirement_dialog(row=row, fix_text_fn=fix_text_fn, explain_requisito_fn=explain_requisito_fn)
 
 
-def _render_requirement_results(*, rows: list[dict], fix_text_fn) -> None:
+def _render_requirement_results(*, rows: list[dict], fix_text_fn, explain_requisito_fn=None) -> None:
     with ui.column().classes('w-full gap-3'):
         for row in rows:
-            _render_compact_requirement_row(row=row, fix_text_fn=fix_text_fn)
+            _render_compact_requirement_row(row=row, fix_text_fn=fix_text_fn, explain_requisito_fn=explain_requisito_fn)
 
 
 def _render_reference_collection_card(*, title: str, subtitle: str, items: list[str], accent: str, icon: str, fix_text_fn) -> None:
@@ -329,7 +364,7 @@ def _render_reference_collection_card(*, title: str, subtitle: str, items: list[
             ui.button('Explorar', icon='visibility', on_click=dialog.open).props('outline color=primary')
 
 
-def _render_search_explorer(*, requirement_rows: list[dict], fix_text_fn) -> None:
+def _render_search_explorer(*, requirement_rows: list[dict], fix_text_fn, explain_requisito_fn=None) -> None:
     ui.html(
         '''
         <div style="margin-top:16px;padding:24px;border-radius:22px;border:1px dashed rgba(15,23,42,.18);background:rgba(255,255,255,.7);">
@@ -371,7 +406,7 @@ def _render_search_explorer(*, requirement_rows: list[dict], fix_text_fn) -> Non
             return
         search_feedback.set_text(f'Se encontraron {len(matches)} requisito(s) para "{term}".')
         with search_results:
-            _render_requirement_results(rows=matches, fix_text_fn=fix_text_fn)
+            _render_requirement_results(rows=matches, fix_text_fn=fix_text_fn, explain_requisito_fn=explain_requisito_fn)
 
     def on_search_input_change(_event) -> None:
         if not (search_input.value or '').strip():
@@ -382,7 +417,7 @@ def _render_search_explorer(*, requirement_rows: list[dict], fix_text_fn) -> Non
         ui.button('Buscar', icon='search', on_click=trigger_search).props('outline color=primary')
 
 
-def _render_standard_tabs(*, fix_text_fn, standard_names: list[str]) -> None:
+def _render_standard_tabs(*, fix_text_fn, standard_names: list[str], explain_requisito_fn=None) -> None:
     if not standard_names:
         ui.label('No hay normas seleccionadas para mostrar.').classes('text-slate-500')
         return
@@ -430,7 +465,7 @@ def _render_standard_tabs(*, fix_text_fn, standard_names: list[str]) -> None:
                             }
                         with ui.tab_panels(chapter_tabs, value=intro_tab).classes('w-full bg-transparent px-0'):
                             with ui.tab_panel(intro_tab).classes('px-0'):
-                                _render_search_explorer(requirement_rows=requirement_rows, fix_text_fn=fix_text_fn)
+                                _render_search_explorer(requirement_rows=requirement_rows, fix_text_fn=fix_text_fn, explain_requisito_fn=explain_requisito_fn)
                             for chapter, rows in chapter_groups:
                                 chapter_summary = CHAPTER_SUMMARIES.get(standard, {}).get(chapter, 'Este capitulo ordena requisitos relevantes para estructurar el sistema y su soporte documental.')
                                 with ui.tab_panel(chapter_tab_map[chapter]).classes('px-0'):
@@ -439,7 +474,7 @@ def _render_standard_tabs(*, fix_text_fn, standard_names: list[str]) -> None:
                                         ui.label(fix_text_fn(chapter_summary)).classes('text-slate-600 leading-7')
                                     with ui.column().classes('w-full gap-3 mt-3'):
                                         for row in rows:
-                                            _render_compact_requirement_row(row=row, fix_text_fn=fix_text_fn)
+                                            _render_compact_requirement_row(row=row, fix_text_fn=fix_text_fn, explain_requisito_fn=explain_requisito_fn)
                     else:
                         ui.label('No hay requisitos cargados para esta norma.').classes('text-slate-500 mt-3')
                 with ui.row().classes('w-full gap-4 mt-4'):
@@ -471,12 +506,14 @@ def register_documents_module(ui, deps: dict) -> None:
     certifications_summary = deps['certifications_summary']
     valor_afirmativo = deps['valor_afirmativo']
     set_selection = deps['set_selection']
+    obtener_fuentes_empresa = deps['obtener_fuentes_empresa']
+    explicar_requisito_iso = deps['explicar_requisito_iso']
 
     @ui.page('/sistema-gestion/documentos')
     def documents_library_page() -> None:
         if not ensure_platform_access():
             return
-        with shell('Gestion de documentos') as shell_container:
+        with shell('Gestion de documentos', back_route='/sistema-gestion') as shell_container:
             with shell_container:
                 ui.label('Gestion de documentos').classes('ideas-kicker')
                 ui.label('Biblioteca general de la consultora').classes('text-3xl font-bold text-slate-900')
@@ -498,7 +535,7 @@ def register_documents_module(ui, deps: dict) -> None:
                     <div class="ideas-quick-card"><div class="label">Normas disponibles</div><div class="value">{len(DOCUMENT_STANDARDS)}</div><div class="detail">{", ".join(DOCUMENT_STANDARDS.keys())}</div></div>
                     </div>'''
                 )
-                _render_standard_tabs(fix_text_fn=fix_text, standard_names=list(DOCUMENT_STANDARDS.keys()))
+                _render_standard_tabs(fix_text_fn=fix_text, standard_names=list(DOCUMENT_STANDARDS.keys()), explain_requisito_fn=explicar_requisito_iso)
                 with ui.row().classes('w-full justify-end gap-3 mt-6'):
                     ui.button('Ir a biblioteca por empresa', icon='business', on_click=lambda: ui.navigate.to('/sistema-gestion/documentos/empresa')).props('outline')
                     ui.button('Volver al sistema de gestion', icon='arrow_back', on_click=lambda: ui.navigate.to('/sistema-gestion')).props('outline')
@@ -520,12 +557,12 @@ def register_documents_module(ui, deps: dict) -> None:
         enabled = enabled_standards_for_company(selected_company, valor_afirmativo)
         visible_standards = enabled or list(DOCUMENT_STANDARDS.keys())
 
-        with shell('Gestion documental por empresa') as shell_container:
+        with shell('Gestion documental por empresa', back_route='/sistema-gestion') as shell_container:
             with shell_container:
                 ui.label('Gestion de documentos').classes('ideas-kicker')
                 ui.label('Biblioteca particular por empresa').classes('text-3xl font-bold text-slate-900')
                 ui.label('Esta vista conecta la biblioteca general con la empresa activa, para mostrar las normas y checklist que le resultan mas relevantes segun su estado de certificacion.').classes('ideas-subtitle mb-4')
-                if company_map:
+                if company_map and str(app.storage.user.get('role') or '') == 'admin':
                     company_select = ui.select(company_map, value=selected_company_id, label='Empresa de referencia').classes('w-full').props('outlined')
                     company_select.on_value_change(
                         lambda _e: (
@@ -538,13 +575,75 @@ def register_documents_module(ui, deps: dict) -> None:
                     company_name = fix_text(selected_company.get('razon_social', ''))
                     enabled_text = ', '.join(enabled) if enabled else 'Sin certificaciones registradas'
                     detail_text = 'Se muestran primero las normas asociadas a las certificaciones registradas.' if enabled else 'Como no hay certificaciones cargadas, se muestra la biblioteca completa como base de preparacion.'
+                    ia_activa = valor_afirmativo(selected_company.get('agente_ia_activo'))
+
+                    def open_document_copilot() -> None:
+                        fuentes = obtener_fuentes_empresa(int(selected_company_id)) or []
+                        context_values = [
+                            company_name,
+                            enabled_text,
+                            certifications_summary(selected_company),
+                            *visible_standards,
+                            'documentos procedimientos registros auditoria requisitos',
+                        ]
+                        matched_sources = summarize_sources_for_context(fuentes, context_values, limit=6)
+                        with ui.dialog() as dialog, ui.card().classes('w-[920px] max-w-[96vw] p-6 rounded-[26px]'):
+                            with ui.row().classes('w-full items-start justify-between gap-4'):
+                                with ui.column().classes('gap-1'):
+                                    ui.label('Copiloto IA documental').classes('text-2xl font-bold text-slate-900')
+                                    ui.label('Resumen contextual preparado a partir de la base de conocimiento de esta empresa.').classes('text-slate-600')
+                                ui.button(icon='close', on_click=dialog.close).props('flat round dense')
+
+                            ui.html(
+                                f'''<div class="ideas-grid-3" style="margin-top:16px;">
+                                <div class="ideas-quick-card"><div class="label">EMPRESA</div><div class="value">{company_name}</div><div class="detail">Contexto documental activo.</div></div>
+                                <div class="ideas-quick-card"><div class="label">FUENTES</div><div class="value">{len(fuentes)}</div><div class="detail">Fuentes cargadas en la base de conocimiento.</div></div>
+                                <div class="ideas-quick-card"><div class="label">COINCIDENCIAS</div><div class="value">{len(matched_sources)}</div><div class="detail">Bloques relevantes para normas, procedimientos y registros.</div></div>
+                                </div>'''
+                            )
+
+                            if not fuentes:
+                                with ui.card().classes('w-full mt-4 p-4 border border-amber-200 bg-amber-50 shadow-none rounded-[20px]'):
+                                    ui.label('Todavia no hay fuentes cargadas para esta empresa.').classes('text-lg font-bold text-amber-700')
+                                    ui.label('Carga manuales, procedimientos, instructivos o texto libre desde Empresas > Base de Conocimiento IA para habilitar ayuda contextual.').classes('text-amber-700')
+                            else:
+                                with ui.card().classes('w-full mt-4 p-4 border border-slate-200 shadow-none rounded-[20px]'):
+                                    ui.label('Enfoque sugerido').classes('text-lg font-bold text-slate-900')
+                                    ui.label('Usa primero estas fuentes para validar si la documentacion cubre los requisitos y registros criticos de las normas visibles.').classes('text-slate-600')
+
+                                with ui.column().classes('w-full gap-3 mt-4'):
+                                    for item in matched_sources:
+                                        with ui.card().classes('w-full p-4 border border-slate-200 shadow-none rounded-[20px]'):
+                                            with ui.row().classes('w-full items-center justify-between gap-3'):
+                                                with ui.column().classes('gap-1'):
+                                                    ui.label(fix_text(item.get('titulo', 'Fuente'))).classes('text-base font-bold text-slate-900')
+                                                    ui.label(f'Tipo: {fix_text(item.get("tipo", "texto"))}').classes('text-sm text-slate-500')
+                                                ui.badge(
+                                                    f'{len(item.get("matched_keywords", []))} coincidencias' if item.get('matched_keywords') else 'Fuente general'
+                                                ).props('color=primary outline')
+                                            if item.get('matched_keywords'):
+                                                ui.label(
+                                                    f'Palabras clave detectadas: {fix_text(", ".join(item["matched_keywords"]))}'
+                                                ).classes('text-sm text-slate-500 mt-2')
+                                            ui.label(fix_text(item.get('snippet', ''))).classes('text-slate-700 leading-7 mt-2')
+
+                            with ui.row().classes('w-full justify-end mt-5'):
+                                ui.button('Cerrar', on_click=dialog.close).props('flat')
+                        dialog.open()
                     ui.html(
                         f'''<div class="ideas-grid-2" style="margin-top:18px;">
                         <div class="ideas-quick-card"><div class="label">Empresa activa</div><div class="value">{company_name}</div><div class="detail">Certificaciones registradas: {certifications_summary(selected_company)}</div></div>
                         <div class="ideas-quick-card"><div class="label">Normas visibles</div><div class="value">{enabled_text}</div><div class="detail">{detail_text}</div></div>
                         </div>'''
                     )
-                _render_standard_tabs(fix_text_fn=fix_text, standard_names=visible_standards)
+                    if ia_activa:
+                        with ui.row().classes('w-full justify-end mt-3'):
+                            ui.button(
+                                'Copiloto IA documental',
+                                icon='auto_awesome',
+                                on_click=open_document_copilot,
+                            ).props('unelevated color=primary')
+                _render_standard_tabs(fix_text_fn=fix_text, standard_names=visible_standards, explain_requisito_fn=explicar_requisito_iso)
                 with ui.row().classes('w-full justify-end gap-3 mt-6'):
                     ui.button('Abrir biblioteca general', icon='library_books', on_click=go_to_documents_library).props('outline')
                     ui.button('Volver al sistema de gestion', icon='arrow_back', on_click=lambda: ui.navigate.to('/sistema-gestion')).props('outline')

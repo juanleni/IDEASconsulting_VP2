@@ -1,8 +1,15 @@
-import base64
+﻿import base64
 import html
 import mimetypes
 import os
+import secrets
+import smtplib
 import unicodedata
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+SMTP_USER = "ideasconsultingargentina@gmail.com"
+SMTP_PASSWORD = "ohvsamrfmbpumnbz"
 
 
 def obtener_logo_path() -> str | None:
@@ -110,17 +117,17 @@ def pdf_safe(texto: str | None) -> str:
         return ""
 
     reemplazos = {
-        "â€¢": "-",
+        "â¢": "-",
         "âš ï¸": "-",
         "âš ": "-",
-        "ðŸ”´": "",
+        "ðŸ´": "",
         "ðŸŸ¡": "",
         "ðŸŸ¢": "",
-        "â€œ": '"',
-        "â€": '"',
-        "â€™": "'",
-        "â€“": "-",
-        "â€”": "-",
+        "â": '"',
+        "â": '"',
+        "â": "'",
+        "â": "-",
+        "â": "-",
         "\xa0": " ",
     }
     limpio = str(texto)
@@ -138,6 +145,77 @@ def valor_afirmativo(valor) -> bool:
 
 def html_safe(texto) -> str:
     return html.escape("" if texto is None else str(texto))
+
+
+def generar_token_seguro() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def enviar_correo_acceso(correo_destino, nombre_empresa, token, base_url="https://ideas-consulting-v2.onrender.com"):
+    correo = str(correo_destino or "").strip()
+    empresa = str(nombre_empresa or "").strip()
+    token_val = str(token or "").strip()
+    base = str(base_url or "").rstrip("/")
+    enlace = f"{base}/crear-password/{token_val}"
+
+    asunto = "Bienvenido a IDEAS Consulting - Crea tu contrasea"
+    if not token_val:
+        asunto = "Recuperacin de contrasea"
+
+    html_body = f"""
+    <div style="margin:0;padding:24px;background:#f3f6fb;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#0f172a 0%,#1f7ed6 100%);padding:22px 28px;">
+          <img src="{base}/assets/logo.png" alt="IDEAS Consulting" width="150" style="display:block;border:0;outline:none;text-decoration:none;" />
+          <h1 style="margin:16px 0 0 0;color:#ffffff;font-size:24px;line-height:1.3;font-weight:700;">
+            Acceso seguro a tu plataforma
+          </h1>
+        </div>
+        <div style="padding:26px 28px;">
+          <p style="margin:0 0 12px 0;font-size:16px;line-height:1.6;color:#0f172a;">
+            Hola {empresa or 'equipo'},
+          </p>
+          <p style="margin:0 0 18px 0;font-size:15px;line-height:1.7;color:#334155;">
+            Para crear o restablecer tu contrasea, utiliza el siguiente enlace seguro:
+          </p>
+          <a href="{enlace}" style="display:inline-block;background:#1f7ed6;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:15px;">
+            Crear mi contrasea
+          </a>
+          <p style="margin:18px 0 0 0;font-size:13px;line-height:1.6;color:#64748b;">
+            Este enlace vence en 24 horas.<br/>
+            Si no solicitaste este acceso, puedes ignorar este correo.
+          </p>
+        </div>
+        <div style="padding:14px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;">
+          IDEAS Consulting
+        </div>
+      </div>
+    </div>
+    """
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = asunto
+        msg["From"] = SMTP_USER
+        msg["To"] = correo
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(SMTP_USER, [correo], msg.as_string())
+        server.quit()
+        return {"ok": True, "to": correo, "subject": asunto, "link": enlace, "html": html_body}
+    except Exception as exc:
+        print("=== ENVIO DE CORREO (SIMULADO / FALLBACK) ===")
+        print(f"Error SMTP: {exc}")
+        print(f"Para: {correo}")
+        print(f"Asunto: {asunto}")
+        print("HTML:")
+        print(html_body)
+        print(f"Enlace directo: {enlace}")
+        print("=== FIN CORREO (SIMULADO / FALLBACK) ===")
+        return {"ok": False, "to": correo, "subject": asunto, "link": enlace, "html": html_body, "error": str(exc)}
 
 
 def limpiar_nombre_archivo(nombre: str) -> str:
@@ -205,3 +283,23 @@ def obtener_impacto_sugerido(score_eje: float) -> str:
     if score_eje < 3:
         return "Medio"
     return "Sostener"
+
+
+def obtener_color_contraste(color_hex: str | None) -> str:
+    """Devuelve blanco o azul marino segun la luminosidad perceptiva del color."""
+    color = str(color_hex or "").strip().lstrip("#")
+    if len(color) == 3:
+        color = "".join(ch * 2 for ch in color)
+    if len(color) != 6:
+        return "#0f172a"
+
+    try:
+        red = int(color[0:2], 16)
+        green = int(color[2:4], 16)
+        blue = int(color[4:6], 16)
+    except ValueError:
+        return "#0f172a"
+
+    luminosidad = (0.299 * red + 0.587 * green + 0.114 * blue) / 255
+    return "#ffffff" if luminosidad < 0.58 else "#0f172a"
+

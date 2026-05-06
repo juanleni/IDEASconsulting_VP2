@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import base64
+import re
+from pathlib import Path
+
+try:
+    from pypdf import PdfReader
+except Exception:
+    PdfReader = None
+
 
 def register_diagnostic_pages(ui, app, deps: dict) -> None:
     pd, go = deps['pd'], deps['go']
     shell, ensure_platform_access = deps['shell'], deps['ensure_platform_access']
     obtener_empresas, obtener_empresa_detalle, guardar_empresa = deps['obtener_empresas'], deps['obtener_empresa_detalle'], deps['guardar_empresa']
+    actualizar_empresa = deps['actualizar_empresa']
+    eliminar_empresa = deps['eliminar_empresa']
     go_to_management_workspace, set_selection = deps['go_to_management_workspace'], deps['set_selection']
     leer_diagnostico_excel, grouped_questions, load_criteria = deps['leer_diagnostico_excel'], deps['grouped_questions'], deps['load_criteria']
     company_options, current_selection = deps['company_options'], deps['current_selection']
@@ -16,38 +27,378 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
     build_eje_scores, build_plan, short_axis_label = deps['build_eje_scores'], deps['build_plan'], deps['short_axis_label']
     obtener_mensaje_direccion, quick_card, obtener_prioridad_recomendada = deps['obtener_mensaje_direccion'], deps['quick_card'], deps['obtener_prioridad_recomendada']
     start_edit, render_metrics, eliminar_diagnostico = deps['start_edit'], deps['render_metrics'], deps['eliminar_diagnostico']
+    guardar_fuente_empresa = deps['guardar_fuente_empresa']
+    obtener_fuentes_empresa = deps['obtener_fuentes_empresa']
+    eliminar_fuente = deps['eliminar_fuente']
+    guardar_token_empresa = deps.get('guardar_token_empresa')
+    generar_token_seguro = deps.get('generar_token_seguro')
+    enviar_correo_acceso = deps.get('enviar_correo_acceso')
+    generar_pdf_ejecutivo_v2 = deps['generar_pdf_ejecutivo_v2']
+
+    root_dir = Path(__file__).resolve().parents[1]
+    company_logo_dir = root_dir / 'assets' / 'logos_empresas'
+
+    def logo_url_from_path(path: str) -> str:
+        clean = str(path or '').strip().replace('\\', '/')
+        if not clean:
+            return ''
+        if clean.startswith('/assets/'):
+            return clean
+        return f"/assets/{clean}"
+
+    async def save_company_logo(upload_event, prefix: str = 'empresa') -> str:
+        company_logo_dir.mkdir(parents=True, exist_ok=True)
+        uploaded_file = getattr(upload_event, 'file', None)
+        original_name = str(getattr(uploaded_file, 'name', '') or getattr(upload_event, 'name', '') or 'logo.png')
+        safe_prefix = re.sub(r'[^A-Za-z0-9_.-]+', '_', str(prefix or 'empresa')).strip('_') or 'empresa'
+        safe_name = re.sub(r'[^A-Za-z0-9_.-]+', '_', original_name).strip('_') or 'logo.png'
+        target_name = f"{safe_prefix}_{safe_name}"
+        target_path = company_logo_dir / target_name
+        if uploaded_file and hasattr(uploaded_file, 'save'):
+            if hasattr(uploaded_file, 'size') and uploaded_file.size() <= 0:
+                raise ValueError('El archivo recibido esta vacio. Intenta cargarlo nuevamente.')
+            await uploaded_file.save(target_path)
+            if not target_path.exists() or target_path.stat().st_size <= 0:
+                raise ValueError('El logo se recibio, pero no se pudo guardar con contenido. Intenta cargarlo nuevamente.')
+            return target_path.relative_to(root_dir).as_posix()
+
+        content = getattr(upload_event, 'content', None)
+        data = b''
+        if hasattr(content, 'read'):
+            if hasattr(content, 'seek'):
+                content.seek(0)
+            data = content.read()
+        elif isinstance(content, (bytes, bytearray)):
+            data = bytes(content)
+        elif isinstance(content, str):
+            data = content.encode('utf-8')
+        if not data:
+            raise ValueError('El archivo recibido esta vacio. Intentá cargarlo nuevamente.')
+        target_path.write_bytes(data)
+        return target_path.relative_to(root_dir).as_posix()
+
+    async def extract_knowledge_source(event) -> tuple[str, str, str]:
+        uploaded_file = getattr(event, 'file', None)
+        if not uploaded_file:
+            raise ValueError('No se recibió ningún archivo.')
+        nombre = str(getattr(uploaded_file, 'name', '') or 'Fuente IA').strip()
+        extension = nombre.rsplit('.', 1)[-1].lower() if '.' in nombre else 'txt'
+        tipo = 'pdf' if extension == 'pdf' else extension or 'txt'
+
+        if extension in {'txt', 'md', 'csv', 'json', 'log'} and hasattr(uploaded_file, 'text'):
+            contenido = await uploaded_file.text()
+        elif extension == 'pdf' and hasattr(uploaded_file, 'read'):
+            raw = await uploaded_file.read()
+            if PdfReader is None:
+                contenido = f"[PDF_BASE64::{nombre}]\n" + base64.b64encode(raw).decode('utf-8')
+            else:
+                try:
+                    from io import BytesIO
+
+                    reader = PdfReader(BytesIO(raw))
+                    paginas = []
+                    for index, page in enumerate(reader.pages, start=1):
+                        texto_pagina = (page.extract_text() or '').strip()
+                        if texto_pagina:
+                            paginas.append(f"[PAGINA {index}]\n{texto_pagina}")
+                    contenido = '\n\n'.join(paginas).strip()
+                    if not contenido:
+                        raise ValueError('El PDF no contiene texto extraible. Puede ser una imagen o escaneo.')
+                except Exception as exc:
+                    raise ValueError(f'No se pudo extraer texto del PDF. {exc}')
+        elif hasattr(uploaded_file, 'read'):
+            raw = await uploaded_file.read()
+            try:
+                contenido = raw.decode('utf-8')
+            except Exception:
+                contenido = raw.decode('latin-1', errors='ignore')
+        else:
+            raise ValueError('No fue posible leer el archivo cargado.')
+
+        if not str(contenido or '').strip():
+            raise ValueError('La fuente está vacía y no aporta contenido para la IA.')
+        return nombre, tipo, contenido
+
+    def render_sources_manager(container, empresa_id: int) -> None:
+        container.clear()
+        with container:
+            ui.label('Base de Conocimiento IA').classes('text-lg font-semibold text-slate-800')
+            ui.label('Sube documentos o agrega contexto textual para alimentar el conocimiento específico de esta empresa.').classes('ideas-section-note')
+            titulo_fuente = ui.input('Título de la fuente').classes('w-full')
+            texto_libre = ui.textarea('Texto libre / contexto operativo').classes('w-full').props('autogrow')
+
+            async def handle_source_upload(event) -> None:
+                try:
+                    titulo, tipo, contenido = await extract_knowledge_source(event)
+                    ok, message, _fuente_id = guardar_fuente_empresa(empresa_id, titulo, tipo, contenido)
+                    ui.notify(fix_text(message), type='positive' if ok else 'negative')
+                    if ok:
+                        render_sources_manager(container, empresa_id)
+                except Exception as exc:
+                    ui.notify(f'No se pudo cargar la fuente IA: {exc}', type='negative')
+
+            def save_free_text_source() -> None:
+                ok, message, _fuente_id = guardar_fuente_empresa(
+                    empresa_id,
+                    titulo_fuente.value or 'Contexto manual',
+                    'texto',
+                    texto_libre.value or '',
+                )
+                ui.notify(fix_text(message), type='positive' if ok else 'negative')
+                if ok:
+                    render_sources_manager(container, empresa_id)
+
+            with ui.row().classes('w-full gap-4 items-end mt-3'):
+                ui.upload(label='Cargar PDF / TXT / archivo de texto', auto_upload=True, on_upload=handle_source_upload).props('accept=".pdf,.txt,.md,.csv,.json,.log"').classes('col')
+                ui.button('Guardar texto libre', icon='note_add', on_click=save_free_text_source).props('unelevated color=primary')
+
+            fuentes = obtener_fuentes_empresa(empresa_id)
+            if not fuentes:
+                ui.label('Todavía no hay fuentes cargadas para esta empresa.').classes('ideas-section-note mt-4')
+                return
+
+            rows = [
+                {
+                    'id': item['id'],
+                    'titulo': fix_text(item.get('titulo', '')),
+                    'tipo': str(item.get('tipo', '')).upper(),
+                    'fecha_carga': fix_text(item.get('fecha_carga', '')),
+                    'contenido_resumen': (fix_text(str(item.get('contenido', '')).replace('\n', ' '))[:120] + '...') if len(str(item.get('contenido', ''))) > 120 else fix_text(item.get('contenido', '')),
+                    'acciones': '',
+                }
+                for item in fuentes
+            ]
+            table = ui.table(
+                columns=[
+                    {'name': 'titulo', 'label': 'Fuente', 'field': 'titulo', 'align': 'left'},
+                    {'name': 'tipo', 'label': 'Tipo', 'field': 'tipo', 'align': 'center'},
+                    {'name': 'fecha_carga', 'label': 'Fecha', 'field': 'fecha_carga', 'align': 'center'},
+                    {'name': 'contenido_resumen', 'label': 'Resumen', 'field': 'contenido_resumen', 'align': 'left'},
+                    {'name': 'acciones', 'label': 'Acciones', 'field': 'acciones', 'align': 'center'},
+                ],
+                rows=rows,
+                row_key='id',
+                pagination=6,
+            ).classes('w-full ideas-table mt-4')
+            table.add_slot('body-cell-acciones', '''<q-td :props="props"><div class="row items-center no-wrap q-gutter-sm"><q-btn flat round dense icon="delete" color="negative" @click="$parent.$emit('delete_source', props.row.id)" /></div></q-td>''')
+            table.on('delete_source', lambda event: (eliminar_fuente(int(event.args)), ui.notify('Fuente eliminada.', type='positive'), render_sources_manager(container, empresa_id)))
 
     @ui.page('/empresas')
     def companies_page() -> None:
         if not ensure_platform_access(): return
+        if app.storage.user.get('role') != 'admin':
+            ui.notify('Acceso denegado.', type='negative')
+            ui.navigate.to('/sistema-gestion')
+            return
         shell_container = shell('Empresas')
         companies = [{'razon_social': fix_text(name), 'id': company_id, **(obtener_empresa_detalle(company_id) or {})} for company_id, name in obtener_empresas()]
         with shell_container:
             ui.label('Base de empresas').classes('ideas-kicker')
             ui.label('Alta y administración del universo consultivo.').classes('text-3xl font-bold text-slate-900')
             ui.label('Registrá la ficha institucional de cada empresa con el nivel de detalle necesario para los reportes ejecutivos.').classes('ideas-subtitle mb-4')
-            with ui.card().classes('ideas-panel w-full'):
-                razon_social = ui.input('Razón social').classes('w-full')
-                with ui.row().classes('w-full gap-4'):
-                    ubicacion = ui.input('Ubicación').classes('col'); rubro = ui.input('Rubro').classes('col'); cantidad_empleados = ui.number('Cantidad de empleados', value=0, min=0, precision=0).classes('col')
-                ui.label('Persona de contacto').classes('text-lg font-semibold text-slate-800 mt-2')
-                with ui.row().classes('w-full gap-4'):
-                    contacto_nombre = ui.input('Nombre').classes('col'); contacto_correo = ui.input('Correo').classes('col')
-                with ui.row().classes('w-full gap-4'):
-                    contacto_telefono = ui.input('Teléfono').classes('col'); contacto_posicion = ui.input('Posición').classes('col')
-                ui.label('Certificaciones').classes('text-lg font-semibold text-slate-800 mt-2')
-                with ui.row().classes('w-full gap-4'):
-                    cert_9001 = ui.switch('ISO 9001', value=False); cert_14001 = ui.switch('ISO 14001', value=False); cert_45001 = ui.switch('ISO 45001', value=False); cert_iatf = ui.switch('IATF', value=False)
+            with ui.dialog() as dialog_empresa, ui.card().classes('w-[980px] max-w-[96vw] p-6 rounded-[26px] ideas-panel overflow-y-auto').style('max-height: 92vh;'):
+                ui.label('Nueva empresa').classes('text-2xl font-bold text-slate-900')
+                ui.label('Cargá una nueva empresa cliente con branding, certificaciones y datos institucionales completos.').classes('ideas-section-note')
+                with ui.tabs().classes('w-full mt-3') as tabs_new:
+                    tab_datos_new = ui.tab('Datos y Branding', icon='business')
+                    tab_ai_new = ui.tab('Base de Conocimiento IA', icon='psychology')
+                with ui.tab_panels(tabs_new, value=tab_datos_new).classes('w-full bg-transparent overflow-y-auto').style('max-height: 68vh;'):
+                    with ui.tab_panel(tab_datos_new).classes('w-full px-0'):
+                        razon_social = ui.input('Razón social').classes('w-full')
+                        with ui.row().classes('w-full gap-4'):
+                            ubicacion = ui.input('Ubicación').classes('col'); rubro = ui.input('Rubro').classes('col'); cantidad_empleados = ui.number('Cantidad de empleados', value=0, min=0, precision=0).classes('col')
+                        ui.label('Persona de contacto').classes('text-lg font-semibold text-slate-800 mt-2')
+                        with ui.row().classes('w-full gap-4'):
+                            contacto_nombre = ui.input('Nombre').classes('col'); contacto_correo = ui.input('Correo').classes('col')
+                        with ui.row().classes('w-full gap-4'):
+                            contacto_telefono = ui.input('Teléfono').classes('col'); contacto_posicion = ui.input('Posición').classes('col')
+                        ui.label('Acceso de la empresa').classes('text-lg font-semibold text-slate-800 mt-2')
+                        ui.label('Envía un enlace para que la empresa cree su propia contraseña.').classes('ideas-section-note')
+                        def enviar_enlace_nueva_empresa() -> None:
+                            correo = str(contacto_correo.value or '').strip()
+                            nombre = str(razon_social.value or '').strip() or 'Empresa'
+                            if not correo:
+                                ui.notify('Primero ingresa un correo de contacto.', type='warning')
+                                return
+                            if not (guardar_token_empresa and generar_token_seguro and enviar_correo_acceso):
+                                ui.notify('No se encontró la lógica de envío de acceso.', type='negative')
+                                return
+                            token = generar_token_seguro()
+                            ok = guardar_token_empresa(correo, token, expiracion_minutos=1440)
+                            if not ok:
+                                ui.notify('Guarda la empresa primero para poder enviar el enlace de acceso.', type='warning')
+                                return
+                            enviar_correo_acceso(correo, nombre, token)
+                            ui.notify('Enlace de acceso enviado correctamente.', type='positive')
+                        with ui.row().classes('w-full justify-start'):
+                            ui.button('Enviar enlace de acceso', icon='mail', on_click=enviar_enlace_nueva_empresa).props('outline color=primary')
+                        ui.label('Certificaciones').classes('text-lg font-semibold text-slate-800 mt-2')
+                        with ui.row().classes('w-full gap-4'):
+                            cert_9001 = ui.switch('ISO 9001', value=False); cert_14001 = ui.switch('ISO 14001', value=False); cert_45001 = ui.switch('ISO 45001', value=False); cert_iatf = ui.switch('IATF', value=False)
+                        logo_temporal = {'path': ''}
+                        logo_preview = ui.column().classes('w-full mt-3')
+                        with logo_preview:
+                            ui.label('Logo de la empresa').classes('text-lg font-semibold text-slate-800')
+                            ui.label('Se guardara localmente en assets/logos_empresas.').classes('ideas-section-note')
+                        async def handle_logo_upload(event) -> None:
+                            try:
+                                logo_temporal['path'] = await save_company_logo(event, prefix=fix_text(razon_social.value or 'empresa'))
+                                logo_preview.clear()
+                                with logo_preview:
+                                    ui.label('Logo de la empresa').classes('text-lg font-semibold text-slate-800')
+                                    ui.image(logo_url_from_path(logo_temporal['path'])).classes('w-32 max-h-24 object-contain')
+                                    ui.label(logo_temporal['path']).classes('text-xs text-slate-500')
+                                ui.notify('Logo cargado correctamente.', type='positive')
+                            except Exception as exc:
+                                ui.notify(f'No se pudo cargar el logo: {exc}', type='negative')
+                        ui.upload(label='Cargar logo', auto_upload=True, on_upload=handle_logo_upload).props('accept=".png,.jpg,.jpeg,.svg,.webp"').classes('w-full mt-2')
+                        with ui.card().classes('w-full mt-4 p-4 border border-violet-200 bg-violet-50 shadow-none rounded-[20px]'):
+                            ui.label('Copiloto IA').classes('text-lg font-semibold text-violet-900')
+                            ui.label('Activa o desactiva el acceso al modulo IA para esta empresa.').classes('text-sm text-violet-700')
+                            agente_ia_activo = ui.switch('Habilitar Copiloto IA para esta empresa', value=False).classes('mt-3')
+                        ui.label('Estilo visual del cliente').classes('text-lg font-semibold text-slate-800 mt-4')
+                        with ui.row().classes('w-full gap-4'):
+                            color_primario = ui.color_input('Color primario', value='#1f7ed6', preview=True).classes('col')
+                            color_secundario = ui.color_input('Color secundario', value='#0f766e', preview=True).classes('col')
+                    with ui.tab_panel(tab_ai_new).classes('w-full px-0'):
+                        with ui.card().classes('ideas-panel w-full'):
+                            ui.label('Base de Conocimiento IA').classes('ideas-section-title')
+                            ui.label('Guarda primero la empresa para habilitar la carga de documentos y contexto específico para la IA.').classes('ideas-section-note')
                 def save_company() -> None:
-                    payload = {'razon_social': razon_social.value or '', 'ubicacion': ubicacion.value or '', 'contacto_nombre': contacto_nombre.value or '', 'contacto_correo': contacto_correo.value or '', 'contacto_telefono': contacto_telefono.value or '', 'contacto_posicion': contacto_posicion.value or '', 'rubro': rubro.value or '', 'cantidad_empleados': int(cantidad_empleados.value or 0), 'cert_iso_9001': 'Sí' if cert_9001.value else 'No', 'cert_iso_14001': 'Sí' if cert_14001.value else 'No', 'cert_iso_45001': 'Sí' if cert_45001.value else 'No', 'cert_iatf': 'Sí' if cert_iatf.value else 'No'}
+                    payload = {'razon_social': razon_social.value or '', 'ubicacion': ubicacion.value or '', 'contacto_nombre': contacto_nombre.value or '', 'contacto_correo': contacto_correo.value or '', 'password': '', 'contacto_telefono': contacto_telefono.value or '', 'contacto_posicion': contacto_posicion.value or '', 'rubro': rubro.value or '', 'cantidad_empleados': int(cantidad_empleados.value or 0), 'cert_iso_9001': 'Sí' if cert_9001.value else 'No', 'cert_iso_14001': 'Sí' if cert_14001.value else 'No', 'cert_iso_45001': 'Sí' if cert_45001.value else 'No', 'cert_iatf': 'Sí' if cert_iatf.value else 'No'}
+                    payload['logo_path'] = logo_temporal['path']
+                    payload['color_primario'] = color_primario.value or ''
+                    payload['color_secundario'] = color_secundario.value or ''
+                    payload['agente_ia_activo'] = 1 if agente_ia_activo.value else 0
                     ok, message = guardar_empresa(payload); ui.notify(fix_text(message), type='positive' if ok else 'negative')
-                    if ok: ui.navigate.to('/empresas')
-                with ui.row().classes('w-full justify-end mt-3'):
+                    if ok:
+                        dialog_empresa.close()
+                        ui.navigate.to('/empresas')
+                with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                    ui.button('Cancelar', on_click=dialog_empresa.close).props('flat')
                     ui.button('Guardar empresa', icon='save', on_click=save_company).props('unelevated color=primary')
+            def open_edit_company(company_id: int) -> None:
+                company = next((item for item in companies if int(item['id']) == int(company_id)), None)
+                if not company:
+                    ui.notify('Esa empresa ya no existe en la base.', type='warning')
+                    return
+                with ui.dialog() as dialog, ui.card().classes('w-[980px] max-w-[96vw] p-6 rounded-[28px] ideas-panel overflow-y-auto').style('max-height: 92vh;'):
+                    ui.label('Editar empresa').classes('text-2xl font-bold text-slate-900')
+                    ui.label('Actualizá la ficha institucional sin salir del listado de empresas.').classes('ideas-section-note')
+                    with ui.tabs().classes('w-full mt-3') as tabs_edit:
+                        tab_datos_edit = ui.tab('Datos y Branding', icon='business')
+                        tab_ai_edit = ui.tab('Base de Conocimiento IA', icon='psychology')
+                    with ui.tab_panels(tabs_edit, value=tab_datos_edit).classes('w-full bg-transparent overflow-y-auto').style('max-height: 68vh;'):
+                        with ui.tab_panel(tab_datos_edit).classes('w-full px-0'):
+                            razon_social_edit = ui.input('Razón social', value=fix_text(company.get('razon_social', ''))).classes('w-full mt-2')
+                            with ui.row().classes('w-full gap-4'):
+                                ubicacion_edit = ui.input('Ubicación', value=fix_text(company.get('ubicacion', ''))).classes('col'); rubro_edit = ui.input('Rubro', value=fix_text(company.get('rubro', ''))).classes('col'); cantidad_empleados_edit = ui.number('Cantidad de empleados', value=int(company.get('cantidad_empleados') or 0), min=0, precision=0).classes('col')
+                            ui.label('Persona de contacto').classes('text-lg font-semibold text-slate-800 mt-2')
+                            with ui.row().classes('w-full gap-4'):
+                                contacto_nombre_edit = ui.input('Nombre', value=fix_text(company.get('contacto_nombre', ''))).classes('col'); contacto_correo_edit = ui.input('Correo', value=fix_text(company.get('contacto_correo', ''))).classes('col')
+                            with ui.row().classes('w-full gap-4'):
+                                contacto_telefono_edit = ui.input('Teléfono', value=fix_text(company.get('contacto_telefono', ''))).classes('col'); contacto_posicion_edit = ui.input('Posición', value=fix_text(company.get('contacto_posicion', ''))).classes('col')
+                            ui.label('Acceso de la empresa').classes('text-lg font-semibold text-slate-800 mt-2')
+                            ui.label('La contraseña la define la empresa desde su enlace seguro.').classes('ideas-section-note')
+                            def enviar_enlace_empresa_edit() -> None:
+                                correo = str(contacto_correo_edit.value or '').strip()
+                                nombre = str(razon_social_edit.value or '').strip() or str(company.get('razon_social') or 'Empresa')
+                                if not correo:
+                                    ui.notify('Ingresa un correo de contacto.', type='warning')
+                                    return
+                                if not (guardar_token_empresa and generar_token_seguro and enviar_correo_acceso):
+                                    ui.notify('No se encontró la lógica de envío de acceso.', type='negative')
+                                    return
+                                token = generar_token_seguro()
+                                ok = guardar_token_empresa(correo, token, expiracion_minutos=1440)
+                                if not ok:
+                                    ui.notify('No se pudo generar el enlace para este correo.', type='negative')
+                                    return
+                                enviar_correo_acceso(correo, nombre, token)
+                                ui.notify('Enlace de acceso enviado correctamente.', type='positive')
+                            with ui.row().classes('w-full justify-start'):
+                                ui.button('Enviar enlace de acceso', icon='mail', on_click=enviar_enlace_empresa_edit).props('outline color=primary')
+                            ui.label('Certificaciones').classes('text-lg font-semibold text-slate-800 mt-2')
+                            with ui.row().classes('w-full gap-4'):
+                                cert_9001_edit = ui.switch('ISO 9001', value='sí' in fix_text(company.get('cert_iso_9001', '')).lower()); cert_14001_edit = ui.switch('ISO 14001', value='sí' in fix_text(company.get('cert_iso_14001', '')).lower()); cert_45001_edit = ui.switch('ISO 45001', value='sí' in fix_text(company.get('cert_iso_45001', '')).lower()); cert_iatf_edit = ui.switch('IATF', value='sí' in fix_text(company.get('cert_iatf', '')).lower())
+                            logo_temporal_edit = {'path': str(company.get('logo_path') or '')}
+                            logo_preview_edit = ui.column().classes('w-full mt-3')
+                            with logo_preview_edit:
+                                ui.label('Logo de la empresa').classes('text-lg font-semibold text-slate-800')
+                                if logo_temporal_edit['path']:
+                                    ui.image(logo_url_from_path(logo_temporal_edit['path'])).classes('w-32 max-h-24 object-contain')
+                                    ui.label(logo_temporal_edit['path']).classes('text-xs text-slate-500')
+                                else:
+                                    ui.label('Sin logo cargado.').classes('ideas-section-note')
+                            async def handle_logo_upload_edit(event) -> None:
+                                try:
+                                    logo_temporal_edit['path'] = await save_company_logo(event, prefix=fix_text(razon_social_edit.value or 'empresa'))
+                                    logo_preview_edit.clear()
+                                    with logo_preview_edit:
+                                        ui.label('Logo de la empresa').classes('text-lg font-semibold text-slate-800')
+                                        ui.image(logo_url_from_path(logo_temporal_edit['path'])).classes('w-32 max-h-24 object-contain')
+                                        ui.label(logo_temporal_edit['path']).classes('text-xs text-slate-500')
+                                    ui.notify('Logo actualizado correctamente.', type='positive')
+                                except Exception as exc:
+                                    ui.notify(f'No se pudo cargar el logo: {exc}', type='negative')
+                            ui.upload(label='Cambiar logo', auto_upload=True, on_upload=handle_logo_upload_edit).props('accept=".png,.jpg,.jpeg,.svg,.webp"').classes('w-full mt-2')
+                            with ui.card().classes('w-full mt-4 p-4 border border-violet-200 bg-violet-50 shadow-none rounded-[20px]'):
+                                ui.label('Copiloto IA').classes('text-lg font-semibold text-violet-900')
+                                ui.label('Control comercial del acceso al copiloto IA para esta empresa.').classes('text-sm text-violet-700')
+                                agente_ia_activo_edit = ui.switch('Habilitar Copiloto IA para esta empresa', value=bool(company.get('agente_ia_activo'))).classes('mt-3')
+                            ui.label('Estilo visual del cliente').classes('text-lg font-semibold text-slate-800 mt-4')
+                            with ui.row().classes('w-full gap-4'):
+                                color_primario_edit = ui.color_input('Color primario', value=str(company.get('color_primario') or '#1f7ed6'), preview=True).classes('col')
+                                color_secundario_edit = ui.color_input('Color secundario', value=str(company.get('color_secundario') or '#0f766e'), preview=True).classes('col')
+                        with ui.tab_panel(tab_ai_edit).classes('w-full px-0'):
+                            source_container = ui.column().classes('w-full')
+                            render_sources_manager(source_container, int(company_id))
+                    def save_edit_company() -> None:
+                        payload = {'razon_social': razon_social_edit.value or '', 'ubicacion': ubicacion_edit.value or '', 'contacto_nombre': contacto_nombre_edit.value or '', 'contacto_correo': contacto_correo_edit.value or '', 'password': str(company.get('password') or ''), 'contacto_telefono': contacto_telefono_edit.value or '', 'contacto_posicion': contacto_posicion_edit.value or '', 'rubro': rubro_edit.value or '', 'cantidad_empleados': int(cantidad_empleados_edit.value or 0), 'cert_iso_9001': 'Sí' if cert_9001_edit.value else 'No', 'cert_iso_14001': 'Sí' if cert_14001_edit.value else 'No', 'cert_iso_45001': 'Sí' if cert_45001_edit.value else 'No', 'cert_iatf': 'Sí' if cert_iatf_edit.value else 'No'}
+                        payload['logo_path'] = logo_temporal_edit['path']
+                        payload['color_primario'] = color_primario_edit.value or ''
+                        payload['color_secundario'] = color_secundario_edit.value or ''
+                        payload['agente_ia_activo'] = 1 if agente_ia_activo_edit.value else 0
+                        ok, message = actualizar_empresa(int(company_id), payload)
+                        ui.notify(fix_text(message), type='positive' if ok else 'negative')
+                        if ok:
+                            dialog.close()
+                            ui.navigate.to('/empresas')
+                    with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                        ui.button('Cancelar', on_click=dialog.close).props('flat'); ui.button('Guardar cambios', icon='save', on_click=save_edit_company).props('unelevated color=primary')
+                dialog.open()
+            with ui.row().classes('w-full items-center justify-between gap-4 mt-4'):
+                with ui.column().classes('gap-1'):
+                    ui.label('Empresas registradas').classes('ideas-section-title')
+                    ui.label('Gestiona clientes, branding y acceso al workspace desde una vista limpia y centralizada.').classes('ideas-section-note')
+                ui.button('Nueva empresa', icon='add_business', on_click=dialog_empresa.open).props('unelevated color=primary')
             table_rows = [{'id': item['id'], 'razon_social': item['razon_social'], 'ubicacion': fix_text(item.get('ubicacion', '')), 'rubro': fix_text(item.get('rubro', '')), 'empleados': item.get('cantidad_empleados') or 0, 'contacto': fix_text(item.get('contacto_nombre', '')), 'certificaciones': certifications_summary(item), 'acciones': ''} for item in companies]
-            table = ui.table(columns=[{'name': 'razon_social', 'label': 'Razón social', 'field': 'razon_social', 'align': 'left'}, {'name': 'ubicacion', 'label': 'Ubicación', 'field': 'ubicacion', 'align': 'left'}, {'name': 'rubro', 'label': 'Rubro', 'field': 'rubro', 'align': 'left'}, {'name': 'empleados', 'label': 'Empleados', 'field': 'empleados', 'align': 'right'}, {'name': 'contacto', 'label': 'Contacto', 'field': 'contacto', 'align': 'left'}, {'name': 'certificaciones', 'label': 'Certificaciones', 'field': 'certificaciones', 'align': 'left'}, {'name': 'acciones', 'label': 'Acciones', 'field': 'acciones', 'align': 'center'}], rows=table_rows, row_key='id', pagination=8).classes('w-full ideas-card ideas-table p-3 mt-6')
-            table.add_slot('body-cell-acciones', '''<q-td :props="props"><div class="row items-center no-wrap q-gutter-sm"><q-btn flat round dense icon="account_tree" color="primary" @click="$parent.$emit('open_workspace', props.row.id)" /></div></q-td>''')
+            table = ui.table(columns=[{'name': 'razon_social', 'label': 'Razón social', 'field': 'razon_social', 'align': 'left'}, {'name': 'ubicacion', 'label': 'Ubicación', 'field': 'ubicacion', 'align': 'left'}, {'name': 'rubro', 'label': 'Rubro', 'field': 'rubro', 'align': 'left'}, {'name': 'empleados', 'label': 'Empleados', 'field': 'empleados', 'align': 'right'}, {'name': 'contacto', 'label': 'Contacto', 'field': 'contacto', 'align': 'left'}, {'name': 'certificaciones', 'label': 'Certificaciones', 'field': 'certificaciones', 'align': 'left'}, {'name': 'acciones', 'label': 'Acciones', 'field': 'acciones', 'align': 'center'}], rows=table_rows, row_key='id', pagination=8).classes('w-full ideas-panel ideas-table p-3 mt-4')
+            table.add_slot('body-cell-acciones', '''<q-td :props="props"><div class="row items-center no-wrap q-gutter-sm"><q-btn flat round dense icon="edit" color="secondary" @click="$parent.$emit('edit_company', props.row.id)" /><q-btn flat round dense icon="account_tree" color="primary" @click="$parent.$emit('open_workspace', props.row.id)" /><q-btn flat round dense icon="delete" color="negative" @click="$parent.$emit('delete_company', props.row.id)" /></div></q-td>''')
+            table.on('edit_company', lambda event: open_edit_company(int(event.args)))
             table.on('open_workspace', lambda event: go_to_management_workspace(int(event.args), set_selection))
+            def confirm_delete_company(company_id: int) -> None:
+                company = next((item for item in companies if int(item['id']) == int(company_id)), None)
+                if not company:
+                    ui.notify('Esa empresa ya no existe en la base.', type='warning')
+                    return
+                current_company_id, _current_diag_id = current_selection()
+                with ui.dialog() as dialog, ui.card().classes('p-5 max-w-[580px]'):
+                    ui.label('Eliminar empresa').classes('text-lg font-semibold')
+                    ui.label(f"Se eliminara permanentemente {fix_text(company['razon_social'])} junto con todos sus diagnosticos, respuestas y datos del sistema de gestion. Esta accion no se puede deshacer.").classes('text-slate-600')
+                    with ui.row().classes('w-full justify-end gap-2 mt-3'):
+                        ui.button('Cancelar', on_click=dialog.close).props('flat')
+                        def do_delete() -> None:
+                            eliminar_empresa(int(company_id))
+                            if current_company_id and int(current_company_id) == int(company_id):
+                                set_selection(None, None)
+                                app.storage.user['history_selected_id'] = None
+                            dialog.close()
+                            ui.notify('Empresa eliminada permanentemente junto con todos sus datos asociados.', type='positive')
+                            ui.navigate.to('/empresas')
+                        ui.button('Eliminar permanentemente', color='negative', on_click=do_delete)
+                dialog.open()
+            table.on('delete_company', lambda event: confirm_delete_company(int(event.args)))
 
     @ui.page('/diagnostico')
     def diagnostic_page() -> None:
@@ -105,54 +456,194 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
 
     @ui.page('/resultados')
     def results_page() -> None:
-        if not ensure_platform_access(): return
-        shell_container = shell('Resultados'); empresa_id, diagnostico_id = current_selection(); companies = company_options()
-        if not empresa_id and companies: empresa_id = next(iter(companies.keys()))
+        if not ensure_platform_access():
+            return
+        shell_container = shell('Resultados del Diagnóstico')
+        empresa_id, diag_id = current_selection()
+        companies = company_options()
+        if not empresa_id and companies:
+            empresa_id = next(iter(companies.keys()))
         diag_map = diagnosis_options(empresa_id)
-        if not diagnostico_id and diag_map: diagnostico_id = next(iter(diag_map.keys()))
-        if diagnostico_id: set_selection(empresa_id, diagnostico_id)
+        if not diag_id and diag_map:
+            diag_id = next(iter(diag_map.keys()))
+        if diag_id:
+            set_selection(empresa_id, diag_id)
+
         with shell_container:
-            ui.label('Resultados').classes('ideas-kicker'); ui.label('Lectura ejecutiva del diagnóstico seleccionado.').classes('text-3xl font-bold text-slate-900'); ui.label('Unificá score global, lectura por eje y oportunidades prioritarias en una vista de decisión rápida.').classes('ideas-subtitle mb-4')
             with ui.card().classes('ideas-panel w-full'):
                 with ui.row().classes('w-full gap-4'):
-                    company_select = ui.select(companies, value=empresa_id, label='Empresa').classes('col').props('outlined'); diagnosis_select = ui.select(diag_map, value=diagnostico_id, label='Diagnóstico').classes('col').props('outlined')
+                    company_select = ui.select(companies, value=empresa_id, label='Empresa').classes('col').props('outlined')
+                    diagnosis_select = ui.select(diag_map, value=diag_id, label='Diagnóstico').classes('col').props('outlined')
+
             company_select.on_value_change(lambda _e: (set_selection(int(company_select.value) if company_select.value else None, None), ui.navigate.to('/resultados')))
             diagnosis_select.on_value_change(lambda _e: (set_selection(int(company_select.value) if company_select.value else None, int(diagnosis_select.value) if diagnosis_select.value else None), ui.navigate.to('/resultados')))
-            selected = diagnosis_record(diagnostico_id)
-            if not selected: ui.label('Todavía no hay un diagnóstico seleccionado para mostrar resultados.').classes('text-slate-500 mt-6'); return
-            responses = diagnosis_response_dicts(diagnostico_id); df_resp, eje_scores_df = build_eje_scores(responses); company = obtener_empresa_detalle(selected['empresa_id']); plan_df = build_plan(df_resp, eje_scores_df); nivel = fix_text(selected['nivel'])
-            ui.html(f'''<div class="ideas-result-banner mt-6"><div class="eyebrow">Resultado general</div><div class="headline">{selected['empresa']} · Nivel {nivel}</div><div class="support">{selected['fecha']} · {fix_text(obtener_mensaje_direccion(nivel))}</div></div>''')
-            fig = go.Figure(go.Bar(x=eje_scores_df['RESPUESTA'], y=eje_scores_df['EJE'], orientation='h', marker_color='#1f7ed6', text=[f'{value:.2f}' for value in eje_scores_df['RESPUESTA']], textposition='outside')); fig.update_layout(height=430, margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            radar_base_labels = eje_scores_df['EJE'].tolist(); radar_labels = [short_axis_label(label) for label in radar_base_labels]; radar_values = eje_scores_df['RESPUESTA'].tolist()
-            if radar_labels: radar_labels = radar_labels + [radar_labels[0]]; radar_values = radar_values + [radar_values[0]]
-            radar = go.Figure(); radar.add_trace(go.Scatterpolar(r=radar_values, theta=radar_labels, fill='toself', line=dict(color='#0f8f61', width=3), fillcolor='rgba(15, 143, 97, 0.22)', name='Madurez por área')); radar.update_layout(height=430, margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor='rgba(0,0,0,0)', polar=dict(bgcolor='rgba(0,0,0,0)', radialaxis=dict(visible=True, range=[1, 4], tickvals=[1, 2, 3, 4], gridcolor='rgba(148,163,184,0.25)'), angularaxis=dict(gridcolor='rgba(148,163,184,0.18)', tickfont=dict(size=10))), showlegend=False)
-            gap_values = [max(0, 4 - float(value)) for value in eje_scores_df['RESPUESTA'].tolist()]; gap_chart = go.Figure(go.Bar(x=gap_values, y=eje_scores_df['EJE'], orientation='h', marker_color='#f59e0b', text=[f'{value:.2f}' for value in gap_values], textposition='outside')); gap_chart.update_layout(height=360, margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis=dict(range=[0, 4], title='Brecha a estándar 4'), yaxis=dict(autorange='reversed'))
-            score_distribution = pd.DataFrame({'Nivel': ['1', '2', '3', '4'], 'Cantidad': [int((df_resp['RESPUESTA'] == 1).sum()) if not df_resp.empty else 0, int((df_resp['RESPUESTA'] == 2).sum()) if not df_resp.empty else 0, int((df_resp['RESPUESTA'] == 3).sum()) if not df_resp.empty else 0, int((df_resp['RESPUESTA'] == 4).sum()) if not df_resp.empty else 0]})
-            distribution_chart = go.Figure(go.Bar(x=score_distribution['Nivel'], y=score_distribution['Cantidad'], marker_color=['#dc2626', '#f59e0b', '#38bdf8', '#16a34a'], text=score_distribution['Cantidad'], textposition='outside')); distribution_chart.update_layout(height=360, margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_title='Puntaje', yaxis_title='Cantidad de respuestas')
-            with ui.tabs().classes('w-full mt-6') as tabs:
-                summary_tab = ui.tab('Resumen ejecutivo', icon='dashboard'); plan_tab = ui.tab('Plan de acción', icon='task_alt')
-            with ui.tab_panels(tabs, value=summary_tab).classes('w-full bg-transparent'):
-                with ui.tab_panel(summary_tab).classes('px-0'):
-                    ui.html(f'''<div class="ideas-grid-3">{quick_card('Empresa', selected['empresa'], 'Corte seleccionado para lectura ejecutiva.')}{quick_card('Fecha del corte', selected['fecha'], 'Toma vigente dentro del historial registrado.')}{quick_card('Prioridad recomendada', fix_text(obtener_prioridad_recomendada(nivel)), 'Enfoque sugerido para dirección.')}</div>''')
-                    with ui.row().classes('w-full gap-4 mt-6'):
-                        with ui.card().classes('ideas-panel col'):
-                            ui.label('Performance por área').classes('ideas-section-title'); ui.label('Comparativo visual de madurez por eje para detectar fortalezas y focos de intervención.').classes('ideas-section-note'); ui.plotly(fig).classes('w-full')
-                        with ui.card().classes('ideas-panel col'):
-                            ui.label('Radar de brechas por área').classes('ideas-section-title'); ui.label('Vista sintética para observar equilibrio, amplitud de capacidades y gaps entre ejes.').classes('ideas-section-note'); ui.plotly(radar).classes('w-full')
-                            legend_rows = [{'sigla': short_axis_label(label), 'area': label} for label in radar_base_labels]; ui.table(columns=[{'name': 'sigla', 'label': 'Etiqueta', 'field': 'sigla', 'align': 'left'}, {'name': 'area', 'label': 'Área completa', 'field': 'area', 'align': 'left'}], rows=legend_rows, pagination=6).classes('w-full ideas-table mt-3')
-                    with ui.row().classes('w-full gap-4 mt-4'):
-                        with ui.card().classes('ideas-panel col'):
-                            ui.label('Brecha a estándar objetivo').classes('ideas-section-title'); ui.label('Muestra en formato ejecutivo cuánto le falta a cada eje para alcanzar un nivel 4 estandarizado.').classes('ideas-section-note'); ui.plotly(gap_chart).classes('w-full')
-                        with ui.card().classes('ideas-panel col'):
-                            ui.label('Distribución de respuestas').classes('ideas-section-title'); ui.label('Resume la concentración del diagnóstico por nivel de cumplimiento.').classes('ideas-section-note'); ui.plotly(distribution_chart).classes('w-full')
-                    with ui.row().classes('w-full gap-4 mt-4'):
-                        with ui.card().classes('ideas-panel w-full'):
-                            ui.label('Ficha ejecutiva').classes('ideas-section-title')
-                            ui.label(f"Razón social: {fix_text(company.get('razon_social', selected['empresa'])) if company else selected['empresa']}").classes('text-slate-700'); ui.label(f"Ubicación: {fix_text(company.get('ubicacion', '')) if company else ''}").classes('text-slate-700'); ui.label(f"Rubro: {fix_text(company.get('rubro', '')) if company else ''}").classes('text-slate-700'); ui.label(f"Empleados: {company.get('cantidad_empleados', 0) if company else 0}").classes('text-slate-700'); ui.label(f"Certificaciones: {certifications_summary(company)}").classes('text-slate-700'); ui.separator().classes('my-3'); ui.label(fix_text(obtener_prioridad_recomendada(nivel))).classes('text-slate-800 font-medium')
-                with ui.tab_panel(plan_tab).classes('px-0'):
-                    ui.label('Plan de acción sugerido').classes('ideas-section-title'); ui.label('Incluye acciones prioritarias para respuestas de 2 o menos y oportunidades de mejora para respuestas de 3.').classes('ideas-section-note'); ui.table(columns=[{'name': 'categoria', 'label': 'Categoría', 'field': 'categoria', 'align': 'left'}, {'name': 'area', 'label': 'Área', 'field': 'area', 'align': 'left'}, {'name': 'prioridad', 'label': 'Prioridad', 'field': 'prioridad', 'align': 'left'}, {'name': 'responsable', 'label': 'Responsable', 'field': 'responsable', 'align': 'left'}, {'name': 'plazo', 'label': 'Plazo', 'field': 'plazo', 'align': 'left'}, {'name': 'impacto', 'label': 'Impacto', 'field': 'impacto', 'align': 'left'}, {'name': 'accion', 'label': 'Acción sugerida', 'field': 'accion', 'align': 'left'}], rows=plan_df.to_dict('records'), pagination=10).classes('w-full ideas-card ideas-table p-3 mt-3')
-            with ui.row().classes('w-full justify-end gap-3 mt-6'):
-                ui.button('Editar diagnóstico', icon='edit', on_click=lambda: (start_edit(int(diagnostico_id), duplicate=False), ui.navigate.to('/diagnostico'))).props('outline'); ui.button('Duplicar como nuevo', icon='content_copy', on_click=lambda: (start_edit(int(diagnostico_id), duplicate=True), ui.navigate.to('/diagnostico'))).props('unelevated color=primary')
+
+            if not diag_id:
+                with ui.card().classes('ideas-panel w-full mt-6'):
+                    ui.label('Todavía no hay un diagnóstico seleccionado.').classes('ideas-section-title')
+                    ui.label('Selecciona un corte desde historial para abrir el dashboard ejecutivo del diagnóstico.').classes('ideas-section-note')
+                    with ui.row().classes('w-full justify-center mt-4'):
+                        ui.button('Volver al historial', icon='history', on_click=lambda: ui.navigate.to('/historial')).props('unelevated color=primary')
+                return
+
+            diag = diagnosis_record(diag_id)
+            if not diag:
+                with ui.card().classes('ideas-panel w-full mt-6'):
+                    ui.label('No se encontró el diagnóstico seleccionado.').classes('ideas-section-title')
+                    ui.label('Puede haber sido eliminado o ya no estar disponible en la base.').classes('ideas-section-note')
+                    with ui.row().classes('w-full justify-center mt-4'):
+                        ui.button('Volver al historial', icon='history', on_click=lambda: ui.navigate.to('/historial')).props('unelevated color=primary')
+                return
+
+            respuestas = diagnosis_response_dicts(diag_id)
+            df_resp, eje_scores_df = build_eje_scores(respuestas)
+            plan_df = build_plan(df_resp, eje_scores_df)
+            prioridad_alta = int((plan_df['prioridad'] == 'Alta').sum()) if not plan_df.empty and 'prioridad' in plan_df.columns else 0
+            nivel = fix_text(diag.get('nivel', 'Sin nivel'))
+            conclusion = fix_text(diag.get('conclusion', '')) or fix_text(obtener_mensaje_direccion(nivel))
+
+            async def export_results_pdf() -> None:
+                try:
+                    company_info = obtener_empresa_detalle(int(diag.get('empresa_id') or empresa_id)) or {}
+                    eje_scores = {
+                        str(row['EJE']): float(row['RESPUESTA'])
+                        for row in eje_scores_df.to_dict('records')
+                    } if not eje_scores_df.empty else {}
+                    criticas = []
+                    if not plan_df.empty and 'accion' in plan_df.columns:
+                        criticas = [fix_text(item) for item in plan_df['accion'].head(8).tolist()]
+                    pdf_path = generar_pdf_ejecutivo_v2(
+                        fix_text(diag.get('empresa', company_info.get('razon_social', 'Empresa'))),
+                        fix_text(diag.get('fecha', 'Sin fecha')),
+                        float(diag.get('score', 0) or 0),
+                        nivel,
+                        conclusion,
+                        eje_scores,
+                        criticas,
+                        company_info,
+                    )
+                    ui.download(str(pdf_path))
+                except Exception as exc:
+                    ui.notify(f'No se pudo generar el PDF: {exc}', type='negative')
+
+            with ui.row().classes('w-full justify-end mt-4'):
+                ui.button(
+                    'Exportar PDF',
+                    icon='picture_as_pdf',
+                    color='red-8',
+                    on_click=export_results_pdf,
+                ).props('unelevated')
+
+            ui.html(
+                f'''
+                <div class="ideas-result-banner mt-6">
+                    <div class="eyebrow">RESULTADOS DEL DIAGNÓSTICO</div>
+                    <div class="headline">{fix_text(diag.get('empresa', 'Sin empresa'))} - Nivel {nivel}</div>
+                    <div class="support">{conclusion}</div>
+                </div>
+                '''
+            )
+
+            ui.html(
+                f'''
+                <div class="ideas-grid-3" style="margin-top:24px;">
+                    {quick_card('SCORE GLOBAL', f"{float(diag.get('score', 0)):.2f}", 'Síntesis cuantitativa del corte seleccionado.')}
+                    {quick_card('NIVEL DE MADUREZ', nivel, 'Lectura consolidada del estado de desarrollo actual.')}
+                    {quick_card('ACCIONES PRIORITARIAS', str(prioridad_alta), 'Brechas críticas priorizadas para intervención inmediata.')}
+                </div>
+                '''
+            )
+
+            radar_labels = eje_scores_df['EJE'].tolist() if not eje_scores_df.empty else []
+            radar_values = [float(value) for value in eje_scores_df['RESPUESTA'].tolist()] if not eje_scores_df.empty else []
+            if radar_labels and radar_values:
+                radar_theta = radar_labels + [radar_labels[0]]
+                radar_radius = radar_values + [radar_values[0]]
+            else:
+                radar_theta = ['Sin datos']
+                radar_radius = [0]
+
+            radar_fig = go.Figure(
+                data=go.Scatterpolar(
+                    r=radar_radius,
+                    theta=radar_theta,
+                    fill='toself',
+                    line=dict(color='#1f7ed6', width=3),
+                    fillcolor='rgba(31,126,214,0.18)',
+                    marker=dict(color='#1f7ed6', size=7),
+                    hovertemplate='%{theta}<br>Score: %{r:.2f}<extra></extra>',
+                    name='Madurez',
+                )
+            )
+            radar_fig.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=20, r=20, t=30, b=20),
+                showlegend=False,
+                polar=dict(
+                    bgcolor='rgba(0,0,0,0)',
+                    radialaxis=dict(visible=True, range=[0, 4], tickvals=[1, 2, 3, 4], gridcolor='rgba(148,163,184,0.24)'),
+                    angularaxis=dict(gridcolor='rgba(148,163,184,0.16)', tickfont=dict(size=11)),
+                ),
+            )
+
+            críticos_df = eje_scores_df.sort_values('RESPUESTA', ascending=True).head(5).sort_values('RESPUESTA', ascending=True) if not eje_scores_df.empty else pd.DataFrame(columns=['EJE', 'RESPUESTA'])
+            critical_fig = go.Figure(
+                data=go.Bar(
+                    x=críticos_df['RESPUESTA'] if not críticos_df.empty else [],
+                    y=críticos_df['EJE'] if not críticos_df.empty else [],
+                    orientation='h',
+                    marker=dict(color='#f59e0b'),
+                    text=[f'{float(value):.2f}' for value in críticos_df['RESPUESTA'].tolist()] if not críticos_df.empty else [],
+                    textposition='outside',
+                    hovertemplate='%{y}<br>Score: %{x:.2f}<extra></extra>',
+                )
+            )
+            critical_fig.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=20, r=20, t=30, b=20),
+                xaxis=dict(range=[0, 4], title='Score'),
+                yaxis=dict(autorange='reversed'),
+            )
+
+            with ui.grid(columns=2).classes('ideas-grid-2 w-full mt-6'):
+                with ui.card().classes('ideas-panel'):
+                    ui.label('Balance de Madurez por Eje').classes('ideas-section-title')
+                    ui.label('Vista integral del equilibrio y desempeño relativo de cada eje del diagnóstico.').classes('ideas-section-note')
+                    ui.plotly(radar_fig).classes('w-full h-64')
+
+                with ui.card().classes('ideas-panel'):
+                    ui.label('Áreas Críticas de Mejora').classes('ideas-section-title')
+                    ui.label('Top 5 de ejes con menor puntaje para orientar la intervención ejecutiva.').classes('ideas-section-note')
+                    ui.plotly(critical_fig).classes('w-full h-64')
+
+            with ui.card().classes('ideas-panel w-full mt-6'):
+                ui.label('Plan de Acción Ejecutivo').classes('ideas-section-title')
+                ui.label('Principales acciones priorizadas según las brechas detectadas.').classes('ideas-section-note')
+                columns = [
+                    {'name': 'area', 'label': 'Área / Eje', 'field': 'area', 'align': 'left'},
+                    {'name': 'accion', 'label': 'Acción Requerida', 'field': 'accion', 'align': 'left'},
+                    {'name': 'prioridad', 'label': 'Prioridad', 'field': 'prioridad', 'align': 'center'},
+                    {'name': 'plazo', 'label': 'Plazo Sugerido', 'field': 'plazo', 'align': 'left'},
+                ]
+                rows = plan_df.to_dict('records') if not plan_df.empty else []
+                action_table = ui.table(columns=columns, rows=rows, pagination={'rowsPerPage': 5}).classes('w-full ideas-table mt-4')
+                action_table.props('flat bordered')
+                action_table.add_slot('body-cell-prioridad', '''
+                <q-td :props="props">
+                    <q-badge :color="props.value === 'Alta' ? 'negative' : (props.value === 'Media' ? 'warning' : 'primary')" rounded>
+                        {{ props.value }}
+                    </q-badge>
+                </q-td>
+                ''')
+
+            with ui.row().classes('w-full justify-center mt-6'):
+                ui.button(
+                    'Descargar Reporte Ejecutivo (PDF)',
+                    icon='download',
+                    on_click=lambda: ui.notify('La descarga del PDF ejecutivo quedará conectada en el siguiente paso.', type='info'),
+                ).props('unelevated color=primary size=lg')
 
     @ui.page('/historial')
     def history_page() -> None:
