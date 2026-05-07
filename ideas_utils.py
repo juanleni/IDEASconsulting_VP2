@@ -218,6 +218,91 @@ def enviar_correo_acceso(correo_destino, nombre_empresa, token, base_url="https:
         return {"ok": False, "to": correo, "subject": asunto, "link": enlace, "html": html_body, "error": str(exc)}
 
 
+def enviar_correo_cotizacion(nombre, contacto, servicio, detalles):
+    nombre_text = str(nombre or "").strip()
+    contacto_text = str(contacto or "").strip()
+    servicio_text = str(servicio or "Otro").strip() or "Otro"
+    detalles_text = str(detalles or "").strip()
+    asunto = f"Nuevo Lead: Solicitud de {servicio_text}"
+
+    html_body = f"""
+    <div style="margin:0;padding:24px;background:#f3f6fb;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+      <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#0f172a 0%,#1f7ed6 55%,#0f8f61 100%);padding:24px 30px;">
+          <h1 style="margin:0;color:#ffffff;font-size:24px;line-height:1.3;font-weight:800;">
+            Nueva solicitud de cotización
+          </h1>
+          <p style="margin:10px 0 0 0;color:rgba(255,255,255,.84);font-size:15px;line-height:1.6;">
+            Tienes una nueva solicitud de cotización desde la plataforma web.
+          </p>
+        </div>
+        <div style="padding:28px 30px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+            <tr>
+              <td style="padding:14px 0;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;width:170px;">
+                Nombre/Empresa
+              </td>
+              <td style="padding:14px 0;border-bottom:1px solid #e2e8f0;color:#0f172a;font-size:15px;line-height:1.6;">
+                {html_safe(nombre_text)}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:14px 0;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">
+                Contacto
+              </td>
+              <td style="padding:14px 0;border-bottom:1px solid #e2e8f0;color:#0f172a;font-size:15px;line-height:1.6;">
+                {html_safe(contacto_text)}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:14px 0;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">
+                Servicio
+              </td>
+              <td style="padding:14px 0;border-bottom:1px solid #e2e8f0;color:#0f172a;font-size:15px;line-height:1.6;">
+                {html_safe(servicio_text)}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:14px 0;color:#64748b;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;vertical-align:top;">
+                Detalles
+              </td>
+              <td style="padding:14px 0;color:#0f172a;font-size:15px;line-height:1.7;white-space:pre-wrap;">
+                {html_safe(detalles_text) or 'Sin detalles adicionales.'}
+              </td>
+            </tr>
+          </table>
+        </div>
+        <div style="padding:15px 30px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;">
+          IDEAS Consulting · Lead generado desde la web institucional
+        </div>
+      </div>
+    </div>
+    """
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = asunto
+        msg["From"] = SMTP_USER
+        msg["To"] = SMTP_USER
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(SMTP_USER, [SMTP_USER], msg.as_string())
+        server.quit()
+        return {"ok": True, "to": SMTP_USER, "subject": asunto, "html": html_body}
+    except Exception as exc:
+        print("=== ENVIO DE COTIZACION (SIMULADO / FALLBACK) ===")
+        print(f"Error SMTP: {exc}")
+        print(f"Para: {SMTP_USER}")
+        print(f"Asunto: {asunto}")
+        print("HTML:")
+        print(html_body)
+        print("=== FIN COTIZACION (SIMULADO / FALLBACK) ===")
+        return {"ok": False, "to": SMTP_USER, "subject": asunto, "html": html_body, "error": str(exc)}
+
+
 def limpiar_nombre_archivo(nombre: str) -> str:
     permitido = "".join(ch if ch.isalnum() or ch in ("_", "-") else "_" for ch in nombre.strip())
     while "__" in permitido:

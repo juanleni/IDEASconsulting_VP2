@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ideas_utils import enviar_correo_cotizacion
+
 
 def register_public_pages(ui, deps: dict) -> None:
     public_shell = deps['public_shell']
@@ -75,6 +77,53 @@ def register_public_pages(ui, deps: dict) -> None:
                 background: #d6df00 !important;
                 border-color: #d6df00 !important;
                 color: #171717 !important;
+            }
+            .ideas-quote-dialog {
+                background: #1e293b !important;
+                color: #f8fafc !important;
+            }
+            .ideas-quote-dialog .q-field__control {
+                background: rgba(15, 23, 42, .96) !important;
+                color: #f8fafc !important;
+                border: 1px solid rgba(148, 163, 184, .34) !important;
+            }
+            .ideas-quote-dialog .q-field__native,
+            .ideas-quote-dialog .q-field__input,
+            .ideas-quote-dialog textarea {
+                color: #f8fafc !important;
+                -webkit-text-fill-color: #f8fafc !important;
+            }
+            .ideas-quote-dialog input,
+            .ideas-quote-dialog textarea {
+                background: transparent !important;
+                color: #f8fafc !important;
+                caret-color: #93c5fd !important;
+            }
+            .ideas-quote-dialog input:-webkit-autofill,
+            .ideas-quote-dialog input:-webkit-autofill:hover,
+            .ideas-quote-dialog input:-webkit-autofill:focus,
+            .ideas-quote-dialog textarea:-webkit-autofill {
+                -webkit-text-fill-color: #f8fafc !important;
+                box-shadow: 0 0 0 1000px #0f172a inset !important;
+                transition: background-color 9999s ease-in-out 0s !important;
+                caret-color: #93c5fd !important;
+            }
+            .ideas-quote-dialog .q-field__label,
+            .ideas-quote-dialog .q-field__marginal,
+            .ideas-quote-dialog .q-placeholder {
+                color: rgba(226, 232, 240, .78) !important;
+            }
+            .ideas-quote-dialog .q-field--focused .q-field__label,
+            .ideas-quote-dialog .q-field--float .q-field__label {
+                color: #93c5fd !important;
+            }
+            .ideas-quote-dialog .q-field__control::before,
+            .ideas-quote-dialog .q-field__control::after {
+                border-color: rgba(147, 197, 253, .58) !important;
+            }
+            .ideas-quote-dialog .q-menu {
+                background: #0f172a !important;
+                color: #f8fafc !important;
             }
             .ideas-public-home {
                 width: 100%;
@@ -675,7 +724,7 @@ def register_public_pages(ui, deps: dict) -> None:
                             </div>
                             <div class="ideas-visual-card">
                                 <div class="ideas-visual-stat"><strong>20+</strong><span>Años de experiencia industrial</span></div>
-                                <div class="ideas-visual-stat"><strong>100%</strong><span>Personalizacion SaaS por cliente</span></div>
+                                <div class="ideas-visual-stat"><strong>100%</strong><span>Personalización SaaS por cliente</span></div>
                                 <div class="ideas-visual-stat"><strong>IA</strong><span>Inteligencia aplicada a gestión</span></div>
                             </div>
                             '''
@@ -766,14 +815,66 @@ def register_public_pages(ui, deps: dict) -> None:
                                         )
 
                     with ui.tab_panel(tab_services).classes('p-0'):
+                        dialog_cotizacion = ui.dialog()
+
+                        def procesar_cotizacion() -> None:
+                            nombre = str(inp_nombre.value or '').strip()
+                            correo = str(inp_correo.value or '').strip()
+                            telefono = str(inp_telefono.value or '').strip()
+                            if not nombre or (not correo and not telefono):
+                                ui.notify('Por favor, completa tus datos de contacto.', type='warning')
+                                return
+                            contacto = f"Correo: {correo or 'No informado'} | Teléfono: {telefono or 'No informado'}"
+
+                            enviar_correo_cotizacion(
+                                nombre,
+                                contacto,
+                                sel_servicio.value,
+                                txt_detalles.value,
+                            )
+                            ui.notify('¡Gracias! Hemos recibido tu solicitud y te contactaremos a la brevedad.', type='positive')
+                            dialog_cotizacion.close()
+                            inp_nombre.value = ''
+                            inp_correo.value = ''
+                            inp_telefono.value = ''
+                            sel_servicio.value = None
+                            txt_detalles.value = ''
+
+                        with dialog_cotizacion:
+                            with ui.card().classes('ideas-quote-dialog bg-slate-800 border border-slate-700 shadow-2xl p-8 rounded-2xl text-white w-[500px] max-w-[95vw]'):
+                                ui.label('¡Hola! Contanos qué necesitas.').classes('text-2xl font-bold text-white mb-2')
+                                inp_nombre = ui.input('Tu nombre / Empresa').classes('w-full mb-3').props('outlined dark')
+                                inp_correo = ui.input('Correo de contacto').classes('w-full mb-3').props('outlined dark type=email')
+                                inp_telefono = ui.input('Número de contacto').classes('w-full mb-3').props('outlined dark type=tel')
+                                sel_servicio = ui.select(
+                                    ['Soporte Operativo y Sorting', 'Consultoría / Auditoría', 'Plataforma SaaS', 'Otro'],
+                                    label='¿En qué te podemos ayudar?',
+                                ).classes('w-full mb-3').props('outlined dark')
+                                txt_detalles = ui.textarea('Detalles (Ej: tipo de trabajo, cantidad de personas, fechas...)').classes('w-full mb-4').props('outlined dark')
+                                ui.button(
+                                    'Enviar solicitud',
+                                    on_click=procesar_cotizacion,
+                                ).classes('w-full rounded-xl bg-blue-600 text-white font-bold py-2')
+                                ui.button('Cerrar', on_click=dialog_cotizacion.close).props('flat text-color=grey-4 w-full mt-2')
+
                         with ui.element('section').classes('ideas-public-inner ideas-section'):
                             ui.html('<div class="ideas-kicker-dark">Servicios y Soluciones</div>')
                             ui.html('<h2>Consultoría potenciada por tecnología.</h2>')
                             with ui.element('div').classes('ideas-card-grid mt-8'):
-                                card('assignment', 'Sistemas de Gestión', 'Ordenamos y estructuramos sistemas de gestión con foco en requisitos, evidencia y operación real.')
-                                card('bolt', 'Aceleración de decisiones', 'Convertimos datos dispersos en tableros, prioridades, alertas y planes accionables.')
-                                card('sync_alt', 'Mejora continua', 'Acompañamos rutinas, acciones correctivas, problemas 8D y seguimiento de compromisos.')
-                                card('cloud_done', 'Plataforma SaaS', 'Un entorno digital personalizado para cada cliente, con módulos vivos y trazabilidad total.')
+                                services = [
+                                    ('assignment', 'Sistemas de Gestión', 'Ordenamos y estructuramos sistemas de gestión con foco en requisitos, evidencia y operación real.'),
+                                    ('bolt', 'Aceleración de decisiones', 'Convertimos datos dispersos en tableros, prioridades, alertas y planes accionables.'),
+                                    ('sync_alt', 'Mejora continua', 'Acompañamos rutinas, acciones correctivas, problemas 8D y seguimiento de compromisos.'),
+                                    ('cloud_done', 'Plataforma SaaS', 'Un entorno digital personalizado para cada cliente, con módulos vivos y trazabilidad total.'),
+                                    ('engineering', 'Soporte Operativo y Sorting', 'Facilitación de personal calificado para tareas de inspección, sorting y retrabajos en su planta o en instalaciones del cliente. Gestionamos integralmente los requisitos de ingreso, reportes de avance, indicadores de calidad (KPIs) y trazabilidad del trabajo.'),
+                                ]
+                                for icon, title, text in services:
+                                    card(icon, title, text)
+                                with ui.element('article').classes('bg-slate-800/80 border-2 border-blue-500/50 shadow-xl p-6 rounded-xl text-white cursor-pointer hover:bg-slate-700 transition-all').on('click', lambda _e: dialog_cotizacion.open()):
+                                    ui.icon('request_quote').classes('text-blue-300 text-3xl mb-4')
+                                    ui.label('¿Necesitas una cotización a medida?').classes('text-lg font-bold text-white')
+                                    ui.label('Escríbenos y contanos qué estás buscando. Somos rápidos, directos y nos adaptamos a tu necesidad operativa.').classes('text-slate-300 mt-3 leading-relaxed')
+                                    ui.button('Solicitar ahora', on_click=dialog_cotizacion.open).props('outline color=blue').classes('mt-4 rounded-full')
 
                     with ui.tab_panel(tab_method).classes('p-0'):
                         with ui.element('section').classes('ideas-public-inner ideas-section'):
@@ -782,8 +883,8 @@ def register_public_pages(ui, deps: dict) -> None:
                             ui.html(
                                 '''
                                 <p class="ideas-copy">
-                                Cada etapa esta pensada para generar valor tangible y sostenerlo: entender el estado actual,
-                                disenar el camino, implementar con los equipos y medir la evolucion.
+                                Cada etapa está pensada para generar valor tangible y sostenerlo: entender el estado actual,
+                                diseñar el camino, implementar con los equipos y medir la evolución.
                                 </p>
                                 '''
                             )
