@@ -118,6 +118,9 @@ def register_public_pages(ui, deps: dict) -> None:
                 letter-spacing: 0;
                 max-width: 680px;
             }
+            .ideas-mobile-title-break {
+                display: block;
+            }
             .ideas-stage-lead {
                 max-width: 720px;
                 color: rgba(255, 255, 255, .76);
@@ -442,23 +445,162 @@ def register_public_pages(ui, deps: dict) -> None:
                 background: rgba(37, 211, 102, .14) !important;
             }
             @media (max-width: 980px) {
+                .ideas-public-nav {
+                    grid-template-columns: 1fr !important;
+                    gap: 14px !important;
+                    padding: 14px 18px !important;
+                    left: 0 !important;
+                    transform: none !important;
+                    width: 100% !important;
+                }
+                .ideas-public-brand {
+                    width: 100% !important;
+                    min-width: 0 !important;
+                }
+                .ideas-public-brand img {
+                    width: 42px !important;
+                    height: 42px !important;
+                }
+                .ideas-public-brand .name {
+                    font-size: 1rem !important;
+                    line-height: 1.05 !important;
+                }
+                .ideas-public-brand .tag {
+                    font-size: .78rem !important;
+                }
+                .ideas-public-actions {
+                    width: 100% !important;
+                    margin-left: 0 !important;
+                    justify-content: space-between !important;
+                    justify-self: stretch !important;
+                    gap: 12px !important;
+                }
+                .ideas-public-login-link {
+                    min-height: 40px !important;
+                    padding: 0 14px !important;
+                    flex: 1 1 auto !important;
+                    justify-content: center !important;
+                }
+                .ideas-whatsapp-link.topbar {
+                    flex: 0 0 auto !important;
+                    font-size: .92rem !important;
+                }
+                .ideas-public-inner {
+                    width: min(100% - 28px, 1180px) !important;
+                }
                 .ideas-stage,
                 .ideas-section-grid,
                 .ideas-platform-band {
-                    grid-template-columns: 1fr;
+                    grid-template-columns: 1fr !important;
                 }
                 .ideas-process,
                 .ideas-card-grid,
                 .ideas-visual-card,
                 .ideas-wide-stats {
-                    grid-template-columns: 1fr;
+                    grid-template-columns: 1fr !important;
                 }
                 .ideas-stage {
-                    min-height: auto;
-                    padding-top: 18px;
+                    gap: 24px !important;
+                    padding: 18px 0 34px !important;
+                }
+                .ideas-stage h1 {
+                    font-size: clamp(3.2rem, 17vw, 5.1rem);
+                    line-height: .88;
+                    max-width: 100%;
+                    overflow-wrap: anywhere;
+                }
+                .ideas-mobile-title-break {
+                    display: block;
+                }
+                .ideas-mobile-title-consulting {
+                    display: block;
+                    font-size: .86em;
+                    line-height: .9;
+                    white-space: nowrap;
+                }
+                .ideas-stage-lead {
+                    font-size: 1rem;
+                    line-height: 1.58;
+                }
+                .ideas-stage-actions {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                .ideas-primary-action,
+                .ideas-secondary-action {
+                    width: 100%;
+                    justify-content: center;
+                }
+                .ideas-hero-visual {
+                    min-height: 360px;
+                }
+                .ideas-visual-message {
+                    left: 18px;
+                    right: 18px;
+                    top: 18px;
+                }
+                .ideas-visual-message .title {
+                    font-size: clamp(1.55rem, 8vw, 2.25rem);
+                    max-width: 100%;
+                }
+                .ideas-visual-card {
+                    left: 18px;
+                    right: 18px;
+                    bottom: 18px;
+                }
+                .ideas-visual-stat {
+                    padding: 13px 14px;
+                }
+                .ideas-visual-stat strong {
+                    font-size: 1.4rem;
                 }
                 .ideas-tab-wrap {
-                    top: 98px;
+                    position: static;
+                    overflow-x: auto;
+                }
+                .ideas-tab-wrap .q-tabs {
+                    min-height: 62px;
+                    justify-content: flex-start;
+                    width: max-content;
+                    min-width: 100%;
+                }
+                .ideas-tab-wrap .q-tab {
+                    min-height: 62px;
+                    padding: 7px 12px;
+                    font-size: .78rem;
+                }
+                .ideas-section {
+                    padding: 56px 0;
+                }
+                .ideas-section-grid {
+                    gap: 28px;
+                }
+                .ideas-section h2 {
+                    font-size: clamp(2rem, 11vw, 3.1rem);
+                }
+                .ideas-copy {
+                    font-size: .98rem;
+                    line-height: 1.68;
+                }
+                .ideas-about-visual,
+                .ideas-about-visual img {
+                    min-height: 220px;
+                }
+                .ideas-dark-card,
+                .ideas-step,
+                .ideas-platform-panel {
+                    padding: 20px;
+                    min-height: auto;
+                }
+                .ideas-process {
+                    margin-top: 24px;
+                }
+                .ideas-wide-image,
+                .ideas-wide-image .overlay {
+                    min-height: 260px;
+                }
+                .ideas-wide-stats {
+                    gap: 20px;
                 }
                 .ideas-step {
                     border-right: 0;
@@ -466,6 +608,31 @@ def register_public_pages(ui, deps: dict) -> None:
                 }
                 .ideas-step:last-child {
                     border-bottom: 0;
+                }
+            }
+            @media (max-width: 520px) {
+                .ideas-public-actions {
+                    align-items: center !important;
+                }
+                .ideas-whatsapp-link.topbar span:last-child {
+                    display: none;
+                }
+                .ideas-whatsapp-icon,
+                .ideas-whatsapp-icon svg {
+                    width: 30px;
+                    height: 30px;
+                }
+                .ideas-kicker-dark {
+                    font-size: .62rem;
+                }
+                .ideas-stage h1 {
+                    font-size: clamp(2.7rem, 18vw, 3.9rem);
+                }
+                .ideas-mobile-title-consulting {
+                    font-size: .78em;
+                }
+                .ideas-hero-visual {
+                    min-height: 430px;
                 }
             }
             </style>
@@ -486,7 +653,7 @@ def register_public_pages(ui, deps: dict) -> None:
                 with ui.element('section').classes('ideas-public-inner ideas-stage'):
                     with ui.element('div'):
                         ui.html('<div class="ideas-kicker-dark">Consultoría + SaaS</div>')
-                        ui.html('<h1>IDEAS<br>CONSULTING</h1>')
+                        ui.html('<h1>IDEAS<br class="ideas-mobile-title-break"><span class="ideas-mobile-title-consulting">CONSULTING</span></h1>')
                         ui.html(
                             '''
                             <p class="ideas-stage-lead">

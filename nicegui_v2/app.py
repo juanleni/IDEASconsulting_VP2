@@ -319,7 +319,8 @@ def inject_global_styles() -> None:
         .q-btn { text-transform:none; letter-spacing:0; font-weight:700; }
         .q-tab { border-radius:16px; min-height:44px; }
         .q-tab--active { background:rgba(31,126,214,.08); }
-        @media (max-width: 1100px) { .ideas-hero-card, .ideas-score-guide, .ideas-grid-2, .ideas-grid-3, .ideas-public-hero, .ideas-editorial-band, .ideas-feature-list, .ideas-module-grid { grid-template-columns:1fr; } .ideas-public-nav { grid-template-columns:1fr; align-items:flex-start; padding:16px 24px; } .ideas-public-actions { justify-self:start; justify-content:flex-start; } }
+        @media (max-width: 1100px) { .ideas-hero-card, .ideas-score-guide, .ideas-grid-2, .ideas-grid-3, .ideas-public-hero, .ideas-editorial-band, .ideas-feature-list, .ideas-module-grid { grid-template-columns:1fr; } .ideas-public-nav { grid-template-columns:1fr; align-items:flex-start; padding:16px 24px; left:0; transform:none; width:100%; } .ideas-public-actions { justify-self:start; justify-content:flex-start; } }
+        @media (max-width: 520px) { .ideas-public-shell { padding:0 16px 36px 16px; } .ideas-public-nav { padding:14px 18px; gap:14px; } .ideas-public-brand img { width:42px; height:42px; } .ideas-public-brand .name { font-size:1rem; } .ideas-public-brand .tag { font-size:.78rem; } .ideas-public-actions { width:100%; justify-content:space-between; gap:12px; } .ideas-public-login-link, .ideas-public-return-link { min-height:40px; padding:0 14px; } .ideas-whatsapp-link.topbar span:last-child { display:none; } .ideas-login-card { max-width:100%; padding:24px 20px; } .ideas-public-section h2 { font-size:1.8rem; } }
         </style>
         '''
     )
