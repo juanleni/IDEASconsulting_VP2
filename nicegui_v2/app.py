@@ -101,19 +101,31 @@ from core_data import (  # noqa: E402
     obtener_respuestas_diagnostico,
     obtener_simulacros_ambientales_empresa,
     obtener_alertas_globales,
-    obtener_memoria_asistente_empresa,
-    limpiar_memoria_asistente_empresa,
     verificar_login_empresa,
     verificar_token_empresa,
     verificar_usuario,
     eliminar_fuente,
-    guardar_evento_memoria_asistente,
 )
 try:
     from core_data import provisionar_acceso_empresa  # noqa: E402
 except Exception:  # pragma: no cover - compatibilidad con despliegues intermedios
     def provisionar_acceso_empresa(*_args, **_kwargs):
         return False, 'Provisionamiento no disponible en esta version.'
+try:
+    from core_data import (  # noqa: E402
+        obtener_memoria_asistente_empresa,
+        limpiar_memoria_asistente_empresa,
+        guardar_evento_memoria_asistente,
+    )
+except Exception:  # pragma: no cover - compatibilidad con despliegues intermedios
+    def obtener_memoria_asistente_empresa(*_args, **_kwargs):
+        return []
+
+    def limpiar_memoria_asistente_empresa(*_args, **_kwargs):
+        return 0
+
+    def guardar_evento_memoria_asistente(*_args, **_kwargs):
+        return None
 try:
     from core_data import crear_backup_db, listar_backups_db, restaurar_backup_db  # noqa: E402
 except Exception:  # pragma: no cover - compatibilidad con despliegues intermedios
