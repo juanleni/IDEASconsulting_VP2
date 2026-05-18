@@ -78,7 +78,6 @@ from core_data import (  # noqa: E402
     guardar_kpi,
     guardar_empresa,
     guardar_token_empresa,
-    crear_backup_db,
     crear_usuario,
     crear_grupo_kpi_empresa,
     leer_diagnostico_excel,
@@ -105,7 +104,6 @@ from core_data import (  # noqa: E402
     obtener_respuestas_diagnostico,
     obtener_simulacros_ambientales_empresa,
     obtener_alertas_globales,
-    listar_backups_db,
     obtener_memoria_asistente_empresa,
     limpiar_memoria_asistente_empresa,
     verificar_login_empresa,
@@ -113,13 +111,23 @@ from core_data import (  # noqa: E402
     verificar_usuario,
     eliminar_fuente,
     guardar_evento_memoria_asistente,
-    restaurar_backup_db,
 )
 try:
     from core_data import provisionar_acceso_empresa  # noqa: E402
 except Exception:  # pragma: no cover - compatibilidad con despliegues intermedios
     def provisionar_acceso_empresa(*_args, **_kwargs):
         return False, 'Provisionamiento no disponible en esta version.'
+try:
+    from core_data import crear_backup_db, listar_backups_db, restaurar_backup_db  # noqa: E402
+except Exception:  # pragma: no cover - compatibilidad con despliegues intermedios
+    def crear_backup_db(*_args, **_kwargs):
+        return False, 'Backups no disponibles en esta version.'
+
+    def listar_backups_db(*_args, **_kwargs):
+        return []
+
+    def restaurar_backup_db(*_args, **_kwargs):
+        return False, 'Restauracion no disponible en esta version.'
 from ideas_utils import (  # noqa: E402
     obtener_conclusion,
     obtener_impacto_sugerido,
