@@ -50,7 +50,6 @@ from core_data import (  # noqa: E402
     actualizar_simulacro_ambiental,
     actualizar_diagnostico,
     actualizar_password_empresa,
-    provisionar_acceso_empresa,
     agregar_kpi_empresa,
     crear_aspecto_ambiental,
     crear_item_riesgo,
@@ -116,6 +115,11 @@ from core_data import (  # noqa: E402
     guardar_evento_memoria_asistente,
     restaurar_backup_db,
 )
+try:
+    from core_data import provisionar_acceso_empresa  # noqa: E402
+except Exception:  # pragma: no cover - compatibilidad con despliegues intermedios
+    def provisionar_acceso_empresa(*_args, **_kwargs):
+        return False, 'Provisionamiento no disponible en esta version.'
 from ideas_utils import (  # noqa: E402
     obtener_conclusion,
     obtener_impacto_sugerido,
