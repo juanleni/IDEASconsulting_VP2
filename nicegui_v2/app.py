@@ -188,7 +188,20 @@ from modules_sst import (  # noqa: E402
     register_sst_module,
 )
 from modules_users import go_to_users_module, register_users_module  # noqa: E402
-from ai_services import consultar_asistente_iso, explicar_requisito_iso, sugerir_causas_ishikawa, sugerir_matriz_legal_ia  # noqa: E402
+try:
+    from ai_services import consultar_asistente_iso, explicar_requisito_iso, sugerir_causas_ishikawa, sugerir_matriz_legal_ia  # noqa: E402
+except Exception:  # pragma: no cover - compatibilidad con despliegues intermedios
+    async def consultar_asistente_iso(*_args, **_kwargs):
+        return 'Smart Assist no disponible temporalmente en esta version desplegada.'
+
+    def explicar_requisito_iso(*_args, **_kwargs):
+        return 'Explicacion IA no disponible temporalmente.'
+
+    def sugerir_causas_ishikawa(*_args, **_kwargs):
+        return 'Sugerencia IA no disponible temporalmente.'
+
+    def sugerir_matriz_legal_ia(*_args, **_kwargs):
+        return []
 from pdf_reports import (  # noqa: E402
     generar_pdf_8d,
     generar_pdf_ejecutivo_v2,
