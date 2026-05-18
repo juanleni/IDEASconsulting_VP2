@@ -16,9 +16,6 @@ from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 from nicegui import app, ui
-from nicegui import run as nicegui_run
-
-nicegui_run.setup = lambda: None
 
 ROOT = Path(__file__).resolve().parents[1]
 THIS_DIR = Path(__file__).resolve().parent
