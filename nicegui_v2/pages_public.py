@@ -5,6 +5,7 @@ from ideas_utils import enviar_correo_cotizacion
 
 def register_public_pages(ui, deps: dict) -> None:
     public_shell = deps['public_shell']
+    platform_enabled = bool(deps.get('platform_enabled', True))
 
     whatsapp_html = '''
         <a class="ideas-whatsapp-link ideas-public-whatsapp" href="https://wa.me/541170068904" target="_blank" rel="noopener noreferrer">
@@ -956,7 +957,10 @@ def register_public_pages(ui, deps: dict) -> None:
                             '''
                         )
                         with ui.element('div').classes('ideas-stage-actions'):
-                            ui.html('<a class="ideas-primary-action" href="/plataforma">Ingresar a plataforma</a>')
+                            if platform_enabled:
+                                ui.html('<a class="ideas-primary-action" href="/plataforma">Ingresar a plataforma</a>')
+                            else:
+                                ui.html('<a class="ideas-primary-action" href="/contacto">Solicitar asesoramiento</a>')
                             ui.html('<a class="ideas-secondary-action" href="#contenido">Conocer propuesta</a>')
                     with ui.element('aside').classes('ideas-hero-visual'):
                         ui.html(
