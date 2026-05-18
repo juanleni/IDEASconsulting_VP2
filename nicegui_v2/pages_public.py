@@ -488,6 +488,137 @@ def register_public_pages(ui, deps: dict) -> None:
                 color: rgba(255, 255, 255, .68);
                 line-height: 1.75;
             }
+            .ideas-saas-page {
+                padding-bottom: 70px;
+            }
+            .ideas-saas-hero h1 {
+                max-width: 1040px;
+                margin: 0 auto;
+                color: #ffffff;
+                font-size: clamp(2.1rem, 4.2vw, 4rem);
+                line-height: 1.08;
+                font-weight: 700;
+                letter-spacing: 0;
+                text-wrap: balance;
+            }
+            .ideas-saas-hero p {
+                max-width: 850px;
+                margin: 18px auto 0;
+                color: rgba(255, 255, 255, .72);
+                font-size: clamp(1.02rem, 1.55vw, 1.25rem);
+                line-height: 1.7;
+            }
+            .ideas-saas-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
+            .ideas-saas-card {
+                min-height: 245px;
+                border-radius: 0;
+                transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+            }
+            .ideas-saas-card:hover {
+                transform: translateY(-4px);
+                border-color: rgba(214, 223, 0, .38);
+                box-shadow: 0 22px 42px rgba(0, 0, 0, .22);
+                background: #343434;
+            }
+            .ideas-saas-feature {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 18px;
+            }
+            .ideas-saas-feature .ideas-dark-card {
+                min-height: 280px;
+            }
+            .ideas-saas-proof {
+                display: grid;
+                grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+                gap: 22px;
+                align-items: stretch;
+                margin: 20px auto 0;
+            }
+            .ideas-saas-proof-copy {
+                padding: 28px;
+                background: #303030;
+                border-left: 6px solid #d6df00;
+            }
+            .ideas-saas-proof-copy h2 {
+                margin: 0 0 14px;
+                color: #ffffff;
+                font-size: clamp(1.8rem, 2.8vw, 2.8rem);
+                line-height: 1.05;
+                font-weight: 900;
+            }
+            .ideas-saas-proof-copy p {
+                margin: 0;
+                color: rgba(255, 255, 255, .68);
+                line-height: 1.72;
+            }
+            .ideas-saas-bullets {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px;
+                grid-auto-rows: 1fr;
+            }
+            .ideas-saas-bullet {
+                height: 100%;
+                min-height: 148px;
+                padding: 18px;
+                background: #303030;
+                border: 1px solid rgba(255, 255, 255, .08);
+                box-sizing: border-box;
+            }
+            .ideas-saas-bullet strong {
+                display: block;
+                color: #ffffff;
+                font-size: 1rem;
+                margin-bottom: 8px;
+            }
+            .ideas-saas-bullet span {
+                display: block;
+                color: rgba(255, 255, 255, .64);
+                line-height: 1.55;
+                font-size: .94rem;
+            }
+            .ideas-saas-service-card {
+                position: relative;
+                cursor: pointer;
+                border-left: 6px solid #d6df00;
+            }
+            .ideas-saas-service-card .tag {
+                display: inline-flex;
+                width: max-content;
+                margin-top: 14px;
+                padding: 6px 10px;
+                background: #d6df00;
+                color: #171717;
+                font-size: .72rem;
+                font-weight: 900;
+                letter-spacing: .04em;
+                text-transform: uppercase;
+            }
+            .ideas-saas-cta {
+                margin-top: 28px;
+                padding: 38px 28px;
+                background: #303030;
+                border: 1px solid rgba(255, 255, 255, .08);
+                border-left: 6px solid #d6df00;
+                text-align: center;
+            }
+            .ideas-saas-cta h2 {
+                margin: 0;
+                color: #ffffff;
+                font-size: clamp(1.9rem, 3vw, 3rem);
+                line-height: 1.05;
+                font-weight: 900;
+            }
+            .ideas-saas-cta-actions {
+                display: flex;
+                justify-content: center;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-top: 24px;
+            }
             .ideas-public-whatsapp {
                 color: #f8fafc !important;
                 border-radius: 2px !important;
@@ -539,7 +670,11 @@ def register_public_pages(ui, deps: dict) -> None:
                 }
                 .ideas-stage,
                 .ideas-section-grid,
-                .ideas-platform-band {
+                .ideas-platform-band,
+                .ideas-saas-feature,
+                .ideas-saas-grid,
+                .ideas-saas-proof,
+                .ideas-saas-bullets {
                     grid-template-columns: 1fr !important;
                 }
                 .ideas-process,
@@ -693,6 +828,114 @@ def register_public_pages(ui, deps: dict) -> None:
             ui.icon(icon).classes('icon')
             ui.html(f'<h3>{title}</h3><p>{text}</p>')
 
+    def saas_card(icon: str, title: str, text: str) -> None:
+        with ui.card().classes('ideas-dark-card ideas-saas-card shadow-lg hover:shadow-2xl'):
+            ui.icon(icon).classes('icon')
+            ui.html(f'<h3>{title}</h3><p>{text}</p>')
+
+    def render_platform_saas_content() -> None:
+        modules = [
+            (
+                'account_tree',
+                'Mapas de Procesos Dinamicos',
+                'Modela procesos, responsables, entradas, salidas y controles para visualizar como opera la organizacion y detectar oportunidades de mejora.',
+            ),
+            (
+                'warning',
+                'Matrices de Riesgos Inteligentes',
+                'Evalua riesgos por proceso, impacto y probabilidad, priorizando acciones con trazabilidad y foco en decisiones preventivas.',
+            ),
+            (
+                'eco',
+                'Medio Ambiente y SST',
+                'Centraliza aspectos ambientales, requisitos legales, simulacros, incidentes y controles de seguridad y salud ocupacional.',
+            ),
+            (
+                'dashboard',
+                'Dashboards y KPIs',
+                'Convierte datos operativos en indicadores claros, alertas y tableros ejecutivos para seguir desempeno, tendencias y desvio.',
+            ),
+            (
+                'library_books',
+                'Gestion Documental Activa',
+                'Organiza normas, procedimientos, registros y evidencias para que cada equipo trabaje con informacion vigente y disponible.',
+            ),
+            (
+                'fact_check',
+                'Gestion de Calidad y Resolucion',
+                'Gestiona no conformidades, problemas 8D, causas raiz, acciones correctivas y aprendizaje organizacional con seguimiento real.',
+            ),
+        ]
+
+        with ui.element('main').classes('ideas-public-home ideas-saas-page'):
+            with ui.column().classes('w-full items-center text-center py-12 ideas-public-inner ideas-saas-hero'):
+                ui.html(
+                    '<div class="ideas-kicker-dark">Plataforma SaaS</div>'
+                    '<h1>IDEAS Workspace: El Copiloto Inteligente para la Gestión Integral de tu Organización</h1>'
+                    '<p>Transforma la forma en que administras tu empresa con una plataforma SaaS agil, centralizada y potenciada por Inteligencia Artificial.</p>'
+                )
+
+            with ui.element('section').classes('w-full max-w-6xl mx-auto ideas-saas-proof'):
+                ui.html(
+                    '''
+                    <div class="ideas-saas-proof-copy">
+                        <div class="ideas-kicker-dark">Por que elegirlo</div>
+                        <h2>Una plataforma para dejar de perseguir informacion y empezar a dirigir con evidencia.</h2>
+                        <p>
+                        IDEAS Workspace ordena el sistema de gestion completo: procesos, riesgos, documentos,
+                        indicadores, calidad, ambiente, SST y acciones. Cada modulo trabaja conectado, con responsables,
+                        vencimientos, trazabilidad y asistencia IA entrenada sobre el contexto real de la empresa.
+                        </p>
+                    </div>
+                    '''
+                )
+                with ui.element('div').classes('ideas-saas-bullets'):
+                    for title, text in [
+                        ('Centralizacion real', 'Toda la gestion clave vive en un unico workspace, evitando planillas dispersas, versiones duplicadas y perdida de seguimiento.'),
+                        ('Implementacion mas rapida', 'La plataforma se configura sobre la realidad operativa del cliente para acelerar adopcion y reducir burocracia.'),
+                        ('Decision ejecutiva', 'KPIs, alertas, riesgos y acciones quedan visibles para priorizar lo importante antes de que se convierta en urgencia.'),
+                        ('IA con contexto', 'Smart Assist consulta documentos y modulo activo para responder con criterio aplicado, no con informacion generica.'),
+                    ]:
+                        ui.html(f'<div class="ideas-saas-bullet"><strong>{title}</strong><span>{text}</span></div>')
+
+            with ui.grid(columns=3).classes('w-full max-w-6xl gap-6 py-8 mx-auto ideas-saas-grid'):
+                for icon, title, text in modules:
+                    saas_card(icon, title, text)
+
+            with ui.row().classes('w-full max-w-6xl justify-between py-12 mx-auto ideas-saas-feature'):
+                with ui.card().classes('ideas-dark-card shadow-lg'):
+                    ui.icon('psychology').classes('icon')
+                    ui.html(
+                        '''
+                        <h3>🧠 Smart Assist: Tu Consultor IA 24/7</h3>
+                        <p>
+                        La IA entiende el modulo donde estas trabajando y consulta los documentos propios de tu empresa.
+                        Responde con contexto, evidencia y foco practico, evitando respuestas genericas que no reflejan
+                        tu sistema de gestion real.
+                        </p>
+                        '''
+                    )
+                with ui.card().classes('ideas-dark-card shadow-lg'):
+                    ui.icon('shield').classes('icon')
+                    ui.html(
+                        '''
+                        <h3>🔒 Seguridad de Nivel Corporativo</h3>
+                        <p>
+                        Cada empresa opera en un entorno aislado multi-tenant. La sesion usa tokens seguros, el acceso
+                        queda segmentado por rol y la informacion documental se consulta solo dentro del contexto autorizado.
+                        </p>
+                        '''
+                    )
+
+            with ui.element('section').classes('ideas-public-inner ideas-saas-cta'):
+                ui.html('<h2>Menos burocracia. Mas vision estrategica. Mejores resultados.</h2>')
+                with ui.element('div').classes('ideas-saas-cta-actions'):
+                    ui.button('Solicitar una Demo', on_click=lambda: ui.navigate.to('/contacto')).props('unelevated color=primary rounded')
+                    ui.button(
+                        'Hablar con un Asesor',
+                        on_click=lambda: ui.run_javascript("window.open('https://wa.me/541170068904', '_blank')"),
+                    ).props('outline color=primary rounded')
+
     @ui.page('/')
     def website_home_page() -> None:
         shell_container = public_shell('Inicio')
@@ -721,11 +964,6 @@ def register_public_pages(ui, deps: dict) -> None:
                             <div class="ideas-visual-message">
                                 <div class="label">Sistema de gestión vivo</div>
                                 <div class="title">Diagnóstico, acción y seguimiento en un solo flujo.</div>
-                            </div>
-                            <div class="ideas-visual-card">
-                                <div class="ideas-visual-stat"><strong>20+</strong><span>Años de experiencia industrial</span></div>
-                                <div class="ideas-visual-stat"><strong>100%</strong><span>Personalización SaaS por cliente</span></div>
-                                <div class="ideas-visual-stat"><strong>IA</strong><span>Inteligencia aplicada a gestión</span></div>
                             </div>
                             '''
                         )
@@ -865,11 +1103,24 @@ def register_public_pages(ui, deps: dict) -> None:
                                     ('assignment', 'Sistemas de Gestión', 'Ordenamos y estructuramos sistemas de gestión con foco en requisitos, evidencia y operación real.'),
                                     ('bolt', 'Aceleración de decisiones', 'Convertimos datos dispersos en tableros, prioridades, alertas y planes accionables.'),
                                     ('sync_alt', 'Mejora continua', 'Acompañamos rutinas, acciones correctivas, problemas 8D y seguimiento de compromisos.'),
-                                    ('cloud_done', 'Plataforma SaaS', 'Un entorno digital personalizado para cada cliente, con módulos vivos y trazabilidad total.'),
                                     ('engineering', 'Soporte Operativo y Sorting', 'Facilitación de personal calificado para tareas de inspección, sorting y retrabajos en su planta o en instalaciones del cliente. Gestionamos integralmente los requisitos de ingreso, reportes de avance, indicadores de calidad (KPIs) y trazabilidad del trabajo.'),
                                 ]
                                 for icon, title, text in services:
                                     card(icon, title, text)
+                                with ui.element('article').classes('ideas-dark-card ideas-saas-service-card').on('click', lambda _e: ui.navigate.to('/soluciones/plataforma-saas')):
+                                    ui.icon('cloud_done').classes('icon')
+                                    ui.html(
+                                        '''
+                                        <h3>Plataforma SaaS</h3>
+                                        <p>
+                                        IDEAS Workspace es el sistema operativo de gestion para empresas que necesitan ordenar
+                                        procesos, documentos, riesgos, KPIs, calidad, ambiente y SST en un solo lugar. Integra
+                                        trazabilidad, responsables, vencimientos y Smart Assist para transformar informacion
+                                        dispersa en accion concreta.
+                                        </p>
+                                        <div class="tag">Conocer IDEAS Workspace</div>
+                                        '''
+                                    )
                                 with ui.element('article').classes('bg-slate-800/80 border-2 border-blue-500/50 shadow-xl p-6 rounded-xl text-white cursor-pointer hover:bg-slate-700 transition-all').on('click', lambda _e: dialog_cotizacion.open()):
                                     ui.icon('request_quote').classes('text-blue-300 text-3xl mb-4')
                                     ui.label('¿Necesitas una cotización a medida?').classes('text-lg font-bold text-white')
@@ -891,7 +1142,7 @@ def register_public_pages(ui, deps: dict) -> None:
                             with ui.element('div').classes('ideas-process'):
                                 for number, title, text in [
                                     ('01', 'Diagnóstico', 'Relevamos madurez, brechas, evidencias y riesgos críticos.'),
-                                    ('02', 'Diseno', 'Definimos estructura, prioridades, responsables y herramientas.'),
+                                    ('02', 'Diseño', 'Definimos estructura, prioridades, responsables y herramientas.'),
                                     ('03', 'Implementación', 'Acompañamos ejecución en planta, procesos y rutinas de gestión.'),
                                     ('04', 'Seguimiento', 'Medimos avance, ajustamos desvio y sostenemos mejora continua.'),
                                 ]:
@@ -901,11 +1152,7 @@ def register_public_pages(ui, deps: dict) -> None:
                                 ui.html(
                                     '''
                                     <div class="overlay">
-                                        <div class="ideas-wide-stats">
-                                            <div><strong>20+</strong><span>Años de experiencia</span></div>
-                                            <div><strong>100%</strong><span>Soluciones configurables</span></div>
-                                            <div><strong>IA</strong><span>Soporte inteligente</span></div>
-                                        </div>
+                                        
                                     </div>
                                     '''
                                 )
@@ -956,6 +1203,13 @@ def register_public_pages(ui, deps: dict) -> None:
                 with ui.element('section').classes('ideas-public-inner ideas-section'):
                     ui.html('<div class="ideas-kicker-dark">Servicios</div>')
                     ui.html('<h2>Consultoría potenciada por tecnología.</h2>')
+
+    @ui.page('/soluciones/plataforma-saas')
+    def website_platform_saas_page() -> None:
+        shell_container = public_shell('Plataforma SaaS')
+        public_styles()
+        with shell_container:
+            render_platform_saas_content()
 
     @ui.page('/metodologia')
     def website_method_page() -> None:
