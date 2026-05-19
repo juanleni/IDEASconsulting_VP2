@@ -17,7 +17,7 @@ from pages_public import register_public_pages  # noqa: E402
 
 app.add_static_files('/assets', str(ROOT))
 FAVICON_ICO_PATH = ROOT / 'favicon.ico'
-app.add_static_file('/favicon.ico', str(FAVICON_ICO_PATH))
+app.add_static_file(local_file=FAVICON_ICO_PATH, url_path='/favicon.ico')
 
 
 def get_banner_url() -> str:
