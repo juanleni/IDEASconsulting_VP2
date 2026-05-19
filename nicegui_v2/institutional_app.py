@@ -16,6 +16,8 @@ if str(THIS_DIR) not in sys.path:
 from pages_public import register_public_pages  # noqa: E402
 
 app.add_static_files('/assets', str(ROOT))
+FAVICON_ICO_PATH = ROOT / 'favicon.ico'
+app.add_static_file('/favicon.ico', str(FAVICON_ICO_PATH))
 
 
 def get_banner_url() -> str:
@@ -66,10 +68,10 @@ render_port = os.getenv('PORT')
 run_port = int(render_port) if render_port else 8502
 ui.run(
     title='IDEAS Consulting',
+    favicon=FAVICON_ICO_PATH,
     host='0.0.0.0',
     port=run_port,
     reload=False,
     native=False,
     storage_secret='ideas-consulting-v2-public',
 )
-

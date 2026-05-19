@@ -213,6 +213,8 @@ from pdf_reports import (  # noqa: E402
 
 crear_base()
 app.add_static_files('/assets', str(ROOT))
+FAVICON_ICO_PATH = ROOT / 'favicon.ico'
+app.add_static_file('/favicon.ico', str(FAVICON_ICO_PATH))
 
 PLATFORM_USER = 'IDEAS'
 PLATFORM_PASSWORD = '2026'
@@ -2295,6 +2297,7 @@ run_host = '0.0.0.0'
 
 ui.run(
     title='IDEAS Consulting V2',
+    favicon=FAVICON_ICO_PATH,
     host=run_host,
     port=run_port,
     reload=False,
