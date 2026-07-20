@@ -14,3 +14,18 @@ nicegui_v2/__pycache__/
 *.log
 direct_stdout.txt
 direct_stderr.txt
+
+# Secrets
+.env
+API KEY.txt
+
+# Build / runtime artifacts
+dist/
+backups/
+uploads/
+
+# Reference library and AI-tool exports (not app source)
+Biblioteca/
+notebooklm_export/
+notebooklm_package/
+notebooklm_package_*.zip
