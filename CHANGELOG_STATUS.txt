@@ -1,0 +1,84 @@
+IDEAS Consulting V2
+Changelog ejecutivo de avance
+
+Formato sugerido de uso
+- Fecha
+- Modulo / area
+- Que se cambio
+- Impacto funcional
+- Pendientes
+
+==================================================
+2026-04-20
+Modulo / area
+Calidad / 8D / Paquete NotebookLM
+
+Que se cambio
+- Se agrego la tabla calidad_8d_acciones para soportar acciones separadas de D5 y D6.
+- Se agrego CRUD en core_data.py para obtener, guardar y eliminar acciones 8D.
+- Se conecto el modulo quality con las nuevas dependencias desde app.py.
+- Se rediseño el editor 8D para trabajar con:
+  - Reporte 8D
+  - Ishikawa 6M
+  - 5 Porques
+  - Evidencia General
+- D5 y D6 dejaron de ser solo texto y pasaron a funcionar como plan de accion con:
+  - accion
+  - responsable
+  - fecha limite
+  - progreso
+  - evidencia
+- Se mejoro Ishikawa para trabajar factores retenidos que luego se usan en 5 Porques.
+- Se reorganizo el analisis de 5 Porques en paralelo:
+  - ocurrencia
+  - no deteccion
+- Se convirtio D1 en equipo multifuncional:
+  - nombre del participante
+  - funcion / area
+  - primer integrante marcado como lider
+- Se genero paquete limpio para NotebookLM con resumen de estado y archivos clave.
+
+Impacto funcional
+- El modulo de calidad ya soporta una logica mucho mas cercana a un flujo automotriz / IATF real.
+- El proyecto ahora tiene un paquete portable de contexto para NotebookLM.
+- La estructura del editor de calidad es mas usable para consultoria y seguimiento.
+
+Pendientes
+- Permitir editar y eliminar acciones individuales D5/D6 desde la tabla.
+- Mejorar aun mas la gestion de factores retenidos en Ishikawa.
+- Permitir multiples arboles de 5 Porques por factor retenido.
+- Llevar acciones D5/D6 al PDF ejecutivo.
+
+==================================================
+2026-04-17
+Modulo / area
+Calidad / Navegacion / Workspace
+
+Que se cambio
+- Se incorporo soporte de back_route en shell para navegacion superior con boton volver.
+- Se integro back_route en modulos del sistema de gestion.
+- Se amplio el modulo de calidad con tabs y una primera version de 8D, Ishikawa y 5 Porques.
+
+Impacto funcional
+- Mejoro la navegacion entre workspace y modulos.
+- Se sentaron las bases del modulo de Herramientas de Calidad.
+
+Pendientes
+- Completar planes de accion D5/D6.
+- Mejorar persistencia avanzada del editor 8D.
+
+==================================================
+2026-04-08
+Modulo / area
+Render / NiceGUI / Migracion base
+
+Que se cambio
+- Se consolido NiceGUI V2 como app principal para evolucion.
+- Se separo la web institucional, plataforma interna y sistema de gestion dentro de una misma arquitectura modular.
+- Se publico en Render una version online.
+
+Impacto funcional
+- El proyecto quedo accesible desde navegador y con una base modular mas profesional.
+
+Pendientes
+- Seguir profundizando modulos especificos del sistema de gestion.
