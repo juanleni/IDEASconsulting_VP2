@@ -1,4 +1,11 @@
 from __future__ import annotations
+from datetime import datetime
+
+import httpx
+from sqlalchemy import select
+
+
+AUTH_API_BASE_URL = 'http://127.0.0.1:8000/api'
 
 
 def register_platform_pages(ui, app, deps: dict) -> None:
@@ -7,6 +14,7 @@ def register_platform_pages(ui, app, deps: dict) -> None:
     ensure_platform_access = deps['ensure_platform_access']
     quick_card = deps['quick_card']
     obtener_empresas = deps['obtener_empresas']
+    obtener_empresa_detalle = deps.get('obtener_empresa_detalle')
     diagnosis_rows = deps['diagnosis_rows']
     obtener_alertas_globales = deps['obtener_alertas_globales']
     verificar_usuario = deps['verificar_usuario']
@@ -14,10 +22,51 @@ def register_platform_pages(ui, app, deps: dict) -> None:
     guardar_token_empresa = deps.get('guardar_token_empresa')
     verificar_token_empresa = deps.get('verificar_token_empresa')
     actualizar_password_empresa = deps.get('actualizar_password_empresa')
+    provisionar_acceso_empresa = deps.get('provisionar_acceso_empresa')
     generar_token_seguro = deps.get('generar_token_seguro')
     enviar_correo_acceso = deps.get('enviar_correo_acceso')
     PLATFORM_USER = deps['PLATFORM_USER']
     PLATFORM_PASSWORD = deps['PLATFORM_PASSWORD']
+
+    async def _provisionar_usuario_api(empresa_nombre: str, username: str, password: str) -> tuple[bool, str]:
+        try:
+            from app.db.session import AsyncSessionLocal
+            from app.models.empresa import Empresa
+            from app.models.usuario import Usuario
+            from app.services.auth_service import hash_password, normalize_login_identifier
+        except Exception:
+            return False, 'No se pudo cargar el servicio de autenticacion.'
+
+        email = normalize_login_identifier(username)
+        empresa_nombre_clean = str(empresa_nombre or '').strip() or 'Empresa Demo'
+        rol_empresa = 'empresa_admin'
+        try:
+            async with AsyncSessionLocal() as session:
+                empresa_result = await session.execute(select(Empresa).where(Empresa.razon_social == empresa_nombre_clean))
+                empresa = empresa_result.scalar_one_or_none()
+                if not empresa:
+                    empresa = Empresa(razon_social=empresa_nombre_clean, is_active=True)
+                    session.add(empresa)
+                    await session.flush()
+
+                user_result = await session.execute(select(Usuario).where(Usuario.email == email))
+                api_user = user_result.scalar_one_or_none()
+                if api_user:
+                    api_user.empresa_id = int(empresa.id)
+                    api_user.password_hash = hash_password(password)
+                    api_user.rol = rol_empresa
+                else:
+                    api_user = Usuario(
+                        empresa_id=int(empresa.id),
+                        email=email,
+                        password_hash=hash_password(password),
+                        rol=rol_empresa,
+                    )
+                    session.add(api_user)
+                await session.commit()
+                return True, email
+        except Exception:
+            return False, 'No se pudo guardar el usuario en la API.'
 
     def _emitir_link_acceso(correo: str, nombre_empresa: str) -> bool:
         if not (guardar_token_empresa and generar_token_seguro and enviar_correo_acceso):
@@ -65,32 +114,60 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                 return
 
             with ui.card().classes('ideas-public-card ideas-login-card'):
-                ui.html('<div class="ideas-login-title">Crear nueva contraseña</div><div class="ideas-login-note">Define tu nueva contraseña para ingresar a la plataforma.</div>')
+                ui.html('<div class="ideas-login-title">Crear acceso</div><div class="ideas-login-note">Define usuario y contraseña para ingresar a la plataforma.</div>')
+                username_input = ui.input('Usuario').classes('w-full').props('outlined')
                 password_input = ui.input('Nueva contraseña', password=True, password_toggle_button=True).classes('w-full').props('outlined')
                 confirm_input = ui.input('Confirmar contraseña', password=True, password_toggle_button=True).classes('w-full').props('outlined')
 
-                def guardar_password() -> None:
+                async def guardar_password() -> None:
+                    user_name = str(username_input.value or '').strip()
                     p1 = str(password_input.value or '').strip()
                     p2 = str(confirm_input.value or '').strip()
+                    if not user_name:
+                        ui.notify('El usuario no puede estar vacío.', type='warning')
+                        return
                     if not p1:
                         ui.notify('La contraseña no puede estar vacía.', type='warning')
                         return
                     if p1 != p2:
                         ui.notify('Las contraseñas no coinciden.', type='negative')
                         return
-                    ok = actualizar_password_empresa(int(empresa_id), p1) if callable(actualizar_password_empresa) else False
-                    if not ok:
-                        ui.notify('No se pudo actualizar la contraseña.', type='negative')
+                    ok_local = False
+                    mensaje = 'No se pudo actualizar el acceso.'
+                    if callable(provisionar_acceso_empresa):
+                        ok_local, mensaje = provisionar_acceso_empresa(int(empresa_id), user_name, p1)
+                    elif callable(actualizar_password_empresa):
+                        ok_local = actualizar_password_empresa(int(empresa_id), p1)
+                    if not ok_local:
+                        ui.notify(mensaje, type='negative')
                         return
-                    ui.notify('Contraseña actualizada correctamente.', type='positive')
+
+                    empresa_nombre = f'Empresa {int(empresa_id)}'
+                    if callable(obtener_empresa_detalle):
+                        detalle = obtener_empresa_detalle(int(empresa_id))
+                        if isinstance(detalle, dict):
+                            empresa_nombre = str(detalle.get('razon_social') or empresa_nombre).strip()
+
+                    ok_api, user_email = await _provisionar_usuario_api(empresa_nombre, user_name, p1)
+                    if not ok_api:
+                        ui.notify('Se guardo acceso local, pero fallo alta en API. Contacta a soporte.', type='negative')
+                        return
+
+                    ui.notify(f'Usuario y contraseña creados correctamente. Ingresa con {user_email}.', type='positive')
                     ui.navigate.to('/plataforma')
 
                 with ui.row().classes('w-full justify-end mt-2'):
-                    ui.button('Guardar contraseña', icon='save', on_click=guardar_password).props('unelevated color=primary')
+                    ui.button('Guardar acceso', icon='save', on_click=guardar_password).props('unelevated color=primary')
 
     @ui.page('/plataforma')
     def platform_login_page() -> None:
-        app.storage.user.clear()
+        # Evitar clear(): en Windows puede fallar con WinError 32 por lock del archivo de storage.
+        for key in [
+            'jwt_token', 'auth_source', 'role', 'api_role', 'logged_empresa_id',
+            'logged_empresa_nombre', 'management_company_id', 'current_empresa_id',
+            'session_user_key', 'permisos', 'last_activity_at', 'local_user_id', 'local_user_role',
+        ]:
+            app.storage.user.pop(key, None)
         app.storage.user['platform_auth'] = False
         shell_container = public_shell('Acceso')
         with shell_container:
@@ -100,62 +177,156 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                 usuario = ui.input('Usuario').classes('w-full').props('outlined')
                 password = ui.input('Contrasena', password=True, password_toggle_button=True).classes('w-full').props('outlined')
 
-                def do_login() -> None:
+                async def do_login() -> None:
                     user = (usuario.value or '').strip()
                     pwd = (password.value or '').strip()
-                    company_name_by_id = {int(company_id): str(name or '').strip() for company_id, name in obtener_empresas()}
+                    if not user or not pwd:
+                        ui.notify('Ingresa usuario y contrasena.', type='warning')
+                        return
 
-                    if user == PLATFORM_USER and pwd == PLATFORM_PASSWORD:
+                    set_selection = deps.get('set_selection')
+                    company_name_by_id = {int(company_id): str(name or '').strip() for company_id, name in obtener_empresas()}
+                    local_user_match = None
+                    if callable(verificar_usuario):
+                        local_user_match = verificar_usuario(user, pwd)
+                        if not local_user_match and '@' in user:
+                            local_user_match = verificar_usuario(user.split('@', 1)[0], pwd)
+
+                    def login_local() -> bool:
+                        if not isinstance(local_user_match, dict):
+                            return False
+                        local_role = str(local_user_match.get('rol') or '').strip().upper()
+                        local_company_id = local_user_match.get('empresa_id')
+                        try:
+                            local_company_id = int(local_company_id) if local_company_id else None
+                        except Exception:
+                            local_company_id = None
+                        role = 'admin' if local_role == 'IDEAS_ADMIN' else 'empresa'
                         app.storage.user['platform_auth'] = True
-                        app.storage.user['role'] = 'admin'
+                        app.storage.user['jwt_token'] = ''
+                        app.storage.user['auth_source'] = 'local'
+                        app.storage.user['last_activity_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        app.storage.user['api_user_id'] = None
+                        app.storage.user['api_role'] = ''
+                        app.storage.user['permisos'] = str(local_user_match.get('permisos') or 'ALL').strip()
+                        app.storage.user['role'] = role
+                        app.storage.user['session_user_key'] = str(local_user_match.get('username') or user).strip().lower()
+                        app.storage.user['session_user_name'] = str(local_user_match.get('username') or user).strip()
+                        app.storage.user['local_user_id'] = int(local_user_match.get('id')) if local_user_match.get('id') else None
+                        app.storage.user['local_user_role'] = local_role
+
+                        if role == 'admin':
+                            app.storage.user['logged_empresa_id'] = None
+                            app.storage.user['logged_empresa_nombre'] = ''
+                            ui.notify('Acceso concedido (local).', type='positive')
+                            ui.navigate.to('/dashboard')
+                            return True
+
+                        resolved_empresa_id = local_company_id if local_company_id in company_name_by_id else None
+                        if not resolved_empresa_id and len(company_name_by_id) == 1:
+                            resolved_empresa_id = next(iter(company_name_by_id.keys()))
+                        app.storage.user['logged_empresa_id'] = resolved_empresa_id
+                        app.storage.user['logged_empresa_nombre'] = company_name_by_id.get(resolved_empresa_id, '')
+                        if callable(set_selection) and resolved_empresa_id:
+                            set_selection(resolved_empresa_id)
+                        ui.notify('Acceso concedido (local).', type='positive')
+                        ui.navigate.to('/sistema-gestion')
+                        return True
+
+                    try:
+                        async with httpx.AsyncClient(timeout=12.0) as client:
+                            login_response = await client.post(
+                                f'{AUTH_API_BASE_URL}/auth/login',
+                                data={'username': user, 'password': pwd},
+                                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                            )
+                            if login_response.status_code == 422:
+                                login_response = await client.post(
+                                    f'{AUTH_API_BASE_URL}/auth/login',
+                                    json={'email': user, 'password': pwd},
+                            )
+                            if login_response.status_code == 401:
+                                if login_local():
+                                    return
+                                ui.notify('Credenciales invalidas', type='negative')
+                                return
+                            login_response.raise_for_status()
+                            token_payload = login_response.json()
+                            access_token = str(token_payload.get('access_token') or '').strip()
+                            if not access_token:
+                                ui.notify('La API no devolvio un token de acceso.', type='negative')
+                                return
+
+                            me_response = await client.get(
+                                f'{AUTH_API_BASE_URL}/auth/me',
+                                headers={'Authorization': f'Bearer {access_token}'},
+                            )
+                            me_response.raise_for_status()
+                            session_payload = me_response.json()
+                    except httpx.HTTPStatusError:
+                        ui.notify('Credenciales invalidas', type='negative')
+                        return
+                    except httpx.RequestError:
+                        if login_local():
+                            return
+                        ui.notify('No se pudo conectar con el servicio de autenticacion.', type='negative')
+                        return
+                    except Exception:
+                        ui.notify('No se pudo iniciar sesion.', type='negative')
+                        return
+
+                    empresa_id = session_payload.get('empresa_id')
+                    try:
+                        empresa_id_int = int(empresa_id) if empresa_id else None
+                    except Exception:
+                        empresa_id_int = None
+
+                    api_rol = str(session_payload.get('rol') or '').strip()
+                    internal_roles = {'ideas_admin', 'ideas_superadmin', 'superadmin'}
+                    role = 'admin' if api_rol.lower() in internal_roles else 'empresa'
+                    email = str(session_payload.get('email') or user).strip()
+
+                    app.storage.user['platform_auth'] = True
+                    app.storage.user['jwt_token'] = access_token
+                    app.storage.user['auth_source'] = 'api'
+                    app.storage.user['last_activity_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    app.storage.user['api_user_id'] = session_payload.get('user_id')
+                    app.storage.user['api_role'] = api_rol
+                    app.storage.user['permisos'] = 'ALL'
+                    app.storage.user['role'] = role
+                    app.storage.user['session_user_key'] = email.lower()
+                    app.storage.user['session_user_name'] = email
+                    app.storage.user['local_user_id'] = int(local_user_match.get('id')) if isinstance(local_user_match, dict) and local_user_match.get('id') else None
+                    app.storage.user['local_user_role'] = str(local_user_match.get('rol') or '') if isinstance(local_user_match, dict) else ''
+                    if isinstance(local_user_match, dict) and str(local_user_match.get('permisos') or '').strip():
+                        app.storage.user['permisos'] = str(local_user_match.get('permisos') or 'ALL').strip()
+
+                    if role == 'admin':
                         app.storage.user['logged_empresa_id'] = None
                         app.storage.user['logged_empresa_nombre'] = ''
-                        app.storage.user['permisos'] = 'ALL'
                         ui.notify('Acceso concedido.', type='positive')
                         ui.navigate.to('/dashboard')
                         return
 
-                    set_selection = deps.get('set_selection')
-                    found_user = verificar_usuario(user, pwd)
-                    if found_user:
-                        db_rol = str(found_user.get('rol') or '').strip()
-                        empresa_id = found_user.get('empresa_id')
-                        app.storage.user['platform_auth'] = True
-                        app.storage.user['permisos'] = found_user.get('permisos', 'ALL')
-                        if db_rol == 'IDEAS_ADMIN':
-                            app.storage.user['role'] = 'admin'
-                            app.storage.user['logged_empresa_id'] = None
-                            app.storage.user['logged_empresa_nombre'] = ''
-                            ui.notify('Acceso concedido.', type='positive')
-                            ui.navigate.to('/dashboard')
-                            return
-                        empresa_id_int = int(empresa_id) if empresa_id else None
-                        app.storage.user['role'] = 'empresa'
-                        app.storage.user['logged_empresa_id'] = empresa_id_int
-                        app.storage.user['logged_empresa_nombre'] = company_name_by_id.get(empresa_id_int, '')
-                        if callable(set_selection) and empresa_id:
-                            set_selection(int(empresa_id))
-                        ui.notify('Acceso concedido.', type='positive')
-                        ui.navigate.to('/sistema-gestion')
-                        return
+                    resolved_empresa_id = empresa_id_int if empresa_id_int in company_name_by_id else None
+                    if not resolved_empresa_id and isinstance(local_user_match, dict):
+                        local_empresa_id = local_user_match.get('empresa_id')
+                        try:
+                            local_empresa_id = int(local_empresa_id) if local_empresa_id else None
+                        except Exception:
+                            local_empresa_id = None
+                        if local_empresa_id in company_name_by_id:
+                            resolved_empresa_id = local_empresa_id
+                    if not resolved_empresa_id and len(company_name_by_id) == 1:
+                        resolved_empresa_id = next(iter(company_name_by_id.keys()))
 
-                    if callable(verificar_login_empresa):
-                        found_empresa = verificar_login_empresa(user, pwd)
-                        if found_empresa:
-                            empresa_id_int = int(found_empresa[0])
-                            empresa_nombre = str(found_empresa[1] or '').strip()
-                            app.storage.user['platform_auth'] = True
-                            app.storage.user['permisos'] = 'ALL'
-                            app.storage.user['role'] = 'empresa'
-                            app.storage.user['logged_empresa_id'] = empresa_id_int
-                            app.storage.user['logged_empresa_nombre'] = empresa_nombre
-                            if callable(set_selection):
-                                set_selection(empresa_id_int)
-                            ui.notify('Acceso concedido.', type='positive')
-                            ui.navigate.to('/sistema-gestion')
-                            return
-
-                    ui.notify('Credenciales inválidas', type='negative')
+                    app.storage.user['logged_empresa_id'] = resolved_empresa_id
+                    app.storage.user['logged_empresa_nombre'] = company_name_by_id.get(resolved_empresa_id, '')
+                    if callable(set_selection) and resolved_empresa_id:
+                        set_selection(resolved_empresa_id)
+                    ui.notify('Acceso concedido.', type='positive')
+                    ui.navigate.to('/sistema-gestion')
+                    return
 
                 with ui.row().classes('w-full justify-between items-center mt-2'):
                     ui.button('Volver al sitio', icon='public', on_click=lambda: ui.navigate.to('/')).props('flat')
@@ -167,7 +338,14 @@ def register_platform_pages(ui, app, deps: dict) -> None:
     def home_page() -> None:
         if not ensure_platform_access():
             return
-        if app.storage.user.get('role') != 'admin':
+        api_role = str(app.storage.user.get('api_role') or '').strip().lower()
+        local_role = str(app.storage.user.get('local_user_role') or '').strip().upper()
+        is_api_admin = api_role in {'ideas_admin', 'ideas_superadmin', 'superadmin'}
+        is_local_admin = (
+            str(app.storage.user.get('auth_source') or '').strip().lower() == 'local'
+            and local_role == 'IDEAS_ADMIN'
+        )
+        if app.storage.user.get('role') != 'admin' or not (is_api_admin or is_local_admin):
             ui.notify('Acceso denegado.', type='negative')
             ui.navigate.to('/sistema-gestion')
             return

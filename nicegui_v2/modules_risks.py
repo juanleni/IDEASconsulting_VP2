@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from nicegui import app, ui
+from dashboard_customizer import render_dashboard_customizer
 
 
 RISK_SCALE_OPTIONS = {
@@ -294,13 +295,14 @@ def register_risks_module(ui, deps: dict) -> None:
     crear_item_riesgo = deps['crear_item_riesgo']
     actualizar_item_riesgo = deps['actualizar_item_riesgo']
     eliminar_item_riesgo = deps['eliminar_item_riesgo']
+    set_ai_focus_context = deps.get('set_ai_focus_context')
 
     @ui.page('/sistema-gestion/riesgos')
     def risks_module_page() -> None:
         if not ensure_platform_access():
             return
 
-        shell_container = shell('Riesgos y oportunidades', back_route='/sistema-gestion')
+        shell_container = shell('Riesgos y oportunidades', back_route='/sistema-gestion', module_key='risks')
         company_map = company_options()
         selected_company_id = app.storage.user.get('management_company_id') or current_selection()[0]
         try:
@@ -338,6 +340,15 @@ def register_risks_module(ui, deps: dict) -> None:
             company = obtener_empresa_detalle(selected_company_id)
             company_name = fix_text(company.get('razon_social', company_map.get(selected_company_id, ''))) if company else fix_text(company_map.get(selected_company_id, ''))
             matrices = obtener_matrices_riesgos_empresa(int(selected_company_id))
+            if callable(set_ai_focus_context):
+                set_ai_focus_context(
+                    'riesgos',
+                    {
+                        'empresa_id': int(selected_company_id),
+                        'matrices_total': len(matrices or []),
+                        'matriz_reciente': fix_text(str((matrices or [{}])[0].get('proceso_nombre') or '')).strip() if matrices else '',
+                    },
+                )
             all_items = []
             for matrix in matrices:
                 all_items.extend(obtener_items_riesgos_matriz(int(matrix['id'])))
@@ -352,7 +363,8 @@ def register_risks_module(ui, deps: dict) -> None:
             acciones_tomadas = sum(1 for item in all_items if str(item.get('acciones_tomadas') or '').strip())
             acciones_eficaces = sum(1 for item in all_items if bool(item.get('eficaz')))
 
-            ui.html(
+            if False:
+                ui.html(
                 f'''
                 <div class="ideas-workspace-banner w-full mt-4">
                     <div class="eyebrow">Sistema de gestion · Riesgos</div>
@@ -364,96 +376,148 @@ def register_risks_module(ui, deps: dict) -> None:
                 '''
             )
 
-            render_metrics(
-                ui.row().classes('w-full mt-4'),
-                [
-                    ('Riesgos relevados', str(total_riesgos), 'Cantidad total de riesgos registrados en las matrices de la empresa activa.'),
-                    ('Riesgos con acciones definidas', str(riesgos_con_accion), 'Cantidad de riesgos relevados que ya tienen una accion definida para su tratamiento.'),
-                    ('Tomadas / eficaces', f'{acciones_tomadas} / {acciones_eficaces}', 'Cantidad de acciones registradas y cuantas ya fueron marcadas como eficaces.'),
-                ],
-            )
+            with ui.tabs().classes('w-full mt-5 ideas-panel p-2 rounded-[24px]') as risk_tabs:
+                tab_dashboard = ui.tab('Dashboard', icon='insights').props('no-caps').classes('text-slate-700')
+                tab_create = ui.tab('Crear nueva matriz de riesgos & oportunidades', icon='add_chart').props('no-caps').classes('text-slate-700')
+                tab_view = ui.tab('Ver matrices de Riesgos & Oportunidades', icon='table_view').props('no-caps').classes('text-slate-700')
+                tab_stats = ui.tab('Gestion estadistica', icon='analytics').props('no-caps').classes('text-slate-700')
 
-            ui.html(
-                f'''<div class="ideas-grid-3" style="margin-top:18px;">
-                {quick_card('Empresa activa', company_name, 'Contexto actual sobre el que se construyen las matrices del modulo.')}
-                {quick_card('Certificaciones', certifications_summary(company), 'Sirve para priorizar matrices y temas de control por proceso.')}
-                {quick_card('Matrices activas', str(len(matrices)), 'Cantidad de matrices actualmente registradas para esta empresa.')}
-                </div>'''
-            )
+            with ui.tab_panels(risk_tabs, value=tab_dashboard).classes('w-full bg-transparent'):
+                with ui.tab_panel(tab_dashboard).classes('px-0'):
+                    criticos = sum(1 for item in all_items if _risk_status(item, fix_text)[0] == 'Critico')
+                    moderados = sum(1 for item in all_items if _risk_status(item, fix_text)[0] == 'Moderado')
+                    bajos = max(0, len(all_items) - criticos - moderados)
+                    cobertura = int((riesgos_con_accion / total_riesgos) * 100) if total_riesgos else 0
+                    with ui.grid(columns=3).classes('w-full gap-3 mt-4'):
+                        with ui.card().classes('ideas-panel').style('background:rgba(255,255,255,0.58);border:1px solid rgba(148,163,184,.18);box-shadow:none;backdrop-filter:blur(10px);'):
+                            ui.label('Coverage de acciones').classes('text-[0.82rem] font-normal text-slate-500 tracking-[0.08em] uppercase')
+                            ui.echart({
+                                'series': [{
+                                    'type': 'gauge', 'min': 0, 'max': 100, 'startAngle': 210, 'endAngle': -30, 'radius': '88%',
+                                    'progress': {'show': True, 'width': 8, 'roundCap': True},
+                                    'axisLine': {'lineStyle': {'width': 8, 'color': [[1, 'rgba(148,163,184,.22)']]}},
+                                    'axisTick': {'show': False}, 'splitLine': {'show': False}, 'axisLabel': {'show': False},
+                                    'pointer': {'show': False}, 'anchor': {'show': False},
+                                    'title': {'show': True, 'offsetCenter': [0, '18%'], 'fontSize': 11, 'fontWeight': 'normal', 'color': 'rgba(71,85,105,.78)'},
+                                    'detail': {'formatter': '{value}%', 'offsetCenter': [0, '-8%'], 'fontSize': 20, 'fontWeight': 'normal', 'color': 'rgba(15,23,42,.86)'},
+                                    'data': [{'value': cobertura, 'name': 'cobertura'}],
+                                }]
+                            }).classes('w-full h-56')
+                        with ui.card().classes('ideas-panel'):
+                            ui.label('Perfil de criticidad').classes('ideas-section-title')
+                            ui.echart({
+                                'tooltip': {'trigger': 'item'},
+                                'series': [{'type': 'pie', 'radius': ['40%', '70%'], 'data': [
+                                    {'name': 'Criticos', 'value': criticos},
+                                    {'name': 'Moderados', 'value': moderados},
+                                    {'name': 'Bajos', 'value': bajos},
+                                ]}]
+                            }).classes('w-full h-64')
+                        with ui.card().classes('ideas-panel'):
+                            ui.label('Matriz ejecutiva').classes('ideas-section-title')
+                            ui.echart({
+                                'xAxis': {'type': 'category', 'data': ['Matrices', 'Riesgos', 'Con accion', 'Eficaces']},
+                                'yAxis': {'type': 'value'},
+                                'series': [{'type': 'bar', 'barWidth': '42%', 'data': [len(matrices), total_riesgos, riesgos_con_accion, acciones_eficaces]}],
+                                'grid': {'left': 28, 'right': 12, 'top': 24, 'bottom': 26},
+                            }).classes('w-full h-64')
+                    render_dashboard_customizer(
+                        module_key='risks',
+                        company_id=int(selected_company_id),
+                        metric_catalog=[
+                            ('matrices_total', 'Matrices totales', len(matrices)),
+                            ('riesgos_totales', 'Riesgos totales', total_riesgos),
+                            ('riesgos_con_accion', 'Riesgos con accion', riesgos_con_accion),
+                            ('acciones_eficaces', 'Acciones eficaces', acciones_eficaces),
+                            ('criticos', 'Riesgos criticos', criticos),
+                            ('moderados', 'Riesgos moderados', moderados),
+                            ('bajos', 'Riesgos bajos', bajos),
+                            ('cobertura', 'Coverage de acciones', cobertura),
+                        ],
+                    )
+                with ui.tab_panel(tab_create).classes('px-0'):
+                    with ui.card().classes('ideas-panel w-full mt-4'):
+                        ui.label('Crear nueva matriz').classes('ideas-section-title')
+                        ui.label('Genera una matriz por proceso para trabajar riesgos y oportunidades de forma ordenada.').classes('ideas-section-note')
+                        process_options = {
+                            fix_text(item.get('proceso_nombre') or ''): fix_text(item.get('proceso_nombre') or '')
+                            for item in obtener_mapa_procesos_empresa(int(selected_company_id))
+                            if fix_text(item.get('proceso_nombre') or '').strip()
+                        }
+                        with ui.row().classes('w-full gap-4 mt-3'):
+                            proceso_input = ui.select(process_options, label='Proceso / matriz').classes('col').props('outlined')
 
-            with ui.card().classes('ideas-panel w-full mt-6'):
-                ui.label('Crear nueva matriz').classes('ideas-section-title')
-                ui.label('Genera una matriz por proceso para trabajar riesgos y oportunidades de forma ordenada.').classes('ideas-section-note')
-                process_options = {
-                    fix_text(item.get('proceso_nombre') or ''): fix_text(item.get('proceso_nombre') or '')
-                    for item in obtener_mapa_procesos_empresa(int(selected_company_id))
-                    if fix_text(item.get('proceso_nombre') or '').strip()
-                }
-                with ui.row().classes('w-full gap-4 mt-3'):
-                    proceso_input = ui.select(
-                        process_options,
-                        label='Proceso / matriz',
-                    ).classes('col').props('outlined')
+                        def save_matrix() -> None:
+                            ok, message = crear_matriz_riesgos(int(selected_company_id), proceso_input.value or '')
+                            ui.notify(fix_text(message), type='positive' if ok else 'negative')
+                            if ok:
+                                ui.navigate.to('/sistema-gestion/riesgos')
 
-                def save_matrix() -> None:
-                    ok, message = crear_matriz_riesgos(int(selected_company_id), proceso_input.value or '')
-                    ui.notify(fix_text(message), type='positive' if ok else 'negative')
-                    if ok:
-                        ui.navigate.to('/sistema-gestion/riesgos')
-
-                if process_options:
-                    with ui.row().classes('w-full justify-end mt-3'):
-                        ui.button('Crear matriz', icon='add_chart', on_click=save_matrix).props('unelevated color=primary')
-                else:
-                    ui.label('No hay procesos cargados para esta empresa. Primero registra procesos en Mapas de proceso y luego crea la matriz desde aqui.').classes('text-amber-700 mt-3')
-
-            ui.label('Overview de matrices').classes('ideas-section-title mt-6')
-            ui.label('Haz click sobre una matriz para abrir su editor detallado y gestionar riesgos u oportunidades del proceso.').classes('ideas-section-note')
-
-            if matrices:
-                with ui.row().classes('w-full gap-4 mt-4'):
-                    for matrix in matrices:
-                        items = obtener_items_riesgos_matriz(int(matrix['id']))
-                        critical = sum(1 for item in items if _risk_status(item, fix_text)[0] == 'Critico')
-                        moderate = sum(1 for item in items if _risk_status(item, fix_text)[0] == 'Moderado')
-                        with ui.card().classes('ideas-module-card col cursor-pointer').on(
-                            'click',
-                            lambda _e, current_matrix=matrix: _show_matrix_editor(
-                                ui=ui,
-                                fix_text_fn=fix_text,
-                                matrix=current_matrix,
-                                obtener_items_riesgos_matriz_fn=obtener_items_riesgos_matriz,
-                                crear_item_riesgo_fn=crear_item_riesgo,
-                                actualizar_item_riesgo_fn=actualizar_item_riesgo,
-                                eliminar_item_riesgo_fn=eliminar_item_riesgo,
-                                actualizar_matriz_riesgos_fn=actualizar_matriz_riesgos,
-                            ),
-                        ):
-                            with ui.row().classes('items-start justify-between w-full'):
-                                with ui.column().classes('gap-1'):
-                                    ui.label(fix_text(matrix.get('proceso_nombre') or 'Proceso sin nombre')).classes('text-lg font-bold text-slate-900')
-                                    ui.label(f"Ultima actualizacion: {fix_text(matrix.get('fecha_actualizacion') or 'Pendiente')}").classes('text-slate-500')
-                                ui.icon('warning_amber').classes('text-slate-400')
-                            with ui.row().classes('w-full gap-2 mt-2'):
-                                ui.badge(f'{len(items)} items').props('color=primary outline')
-                                ui.badge(f'{critical} criticos').props('color=negative outline')
-                                ui.badge(f'{moderate} moderados').props('color=warning outline')
-                            ui.label('Abre la matriz para editar proceso, cargar items, revisar NPR y registrar acciones.').classes('text-slate-600 mt-3')
+                        if process_options:
                             with ui.row().classes('w-full justify-end mt-3'):
-                                ui.button('Abrir matriz', icon='open_in_full', on_click=lambda current_matrix=matrix: _show_matrix_editor(
-                                    ui=ui,
-                                    fix_text_fn=fix_text,
-                                    matrix=current_matrix,
-                                    obtener_items_riesgos_matriz_fn=obtener_items_riesgos_matriz,
-                                    crear_item_riesgo_fn=crear_item_riesgo,
-                                    actualizar_item_riesgo_fn=actualizar_item_riesgo,
-                                    eliminar_item_riesgo_fn=eliminar_item_riesgo,
-                                    actualizar_matriz_riesgos_fn=actualizar_matriz_riesgos,
-                                )).props('flat color=primary')
-                                ui.button(
-                                    '',
-                                    icon='delete',
-                                    on_click=lambda current_matrix=matrix: (eliminar_matriz_riesgos(int(current_matrix['id'])), ui.notify('Matriz eliminada correctamente.', type='positive'), ui.navigate.to('/sistema-gestion/riesgos')),
-                                ).props('flat color=negative round dense')
-            else:
-                ui.label('Todavia no hay matrices creadas para esta empresa.').classes('text-slate-500 mt-4')
+                                ui.button('Crear matriz', icon='add_chart', on_click=save_matrix).props('unelevated color=primary')
+                        else:
+                            ui.label('No hay procesos cargados para esta empresa. Primero registra procesos en Mapas de proceso y luego crea la matriz desde aqui.').classes('text-amber-700 mt-3')
+
+                with ui.tab_panel(tab_view).classes('px-0'):
+                    ui.label('Ver matrices de Riesgos & Oportunidades').classes('ideas-section-title mt-4')
+                    ui.label('Haz click sobre una matriz para abrir su editor detallado y gestionar riesgos u oportunidades del proceso.').classes('ideas-section-note')
+                    if matrices:
+                        with ui.row().classes('w-full gap-4 mt-4'):
+                            for matrix in matrices:
+                                items = obtener_items_riesgos_matriz(int(matrix['id']))
+                                critical = sum(1 for item in items if _risk_status(item, fix_text)[0] == 'Critico')
+                                moderate = sum(1 for item in items if _risk_status(item, fix_text)[0] == 'Moderado')
+                                with ui.card().classes('ideas-module-card col cursor-pointer').on(
+                                    'click',
+                                    lambda _e, current_matrix=matrix: _show_matrix_editor(
+                                        ui=ui,
+                                        fix_text_fn=fix_text,
+                                        matrix=current_matrix,
+                                        obtener_items_riesgos_matriz_fn=obtener_items_riesgos_matriz,
+                                        crear_item_riesgo_fn=crear_item_riesgo,
+                                        actualizar_item_riesgo_fn=actualizar_item_riesgo,
+                                        eliminar_item_riesgo_fn=eliminar_item_riesgo,
+                                        actualizar_matriz_riesgos_fn=actualizar_matriz_riesgos,
+                                    ),
+                                ):
+                                    with ui.row().classes('items-start justify-between w-full'):
+                                        with ui.column().classes('gap-1'):
+                                            ui.label(fix_text(matrix.get('proceso_nombre') or 'Proceso sin nombre')).classes('text-lg font-bold text-slate-900')
+                                            ui.label(f"Ultima actualizacion: {fix_text(matrix.get('fecha_actualizacion') or 'Pendiente')}").classes('text-slate-500')
+                                        ui.icon('warning_amber').classes('text-slate-400')
+                                    with ui.row().classes('w-full gap-2 mt-2'):
+                                        ui.badge(f'{len(items)} items').props('color=primary outline')
+                                        ui.badge(f'{critical} criticos').props('color=negative outline')
+                                        ui.badge(f'{moderate} moderados').props('color=warning outline')
+                                    ui.label('Abre la matriz para editar proceso, cargar items, revisar NPR y registrar acciones.').classes('text-slate-600 mt-3')
+                                    with ui.row().classes('w-full justify-end mt-3'):
+                                        ui.button('Abrir matriz', icon='open_in_full', on_click=lambda current_matrix=matrix: _show_matrix_editor(
+                                            ui=ui,
+                                            fix_text_fn=fix_text,
+                                            matrix=current_matrix,
+                                            obtener_items_riesgos_matriz_fn=obtener_items_riesgos_matriz,
+                                            crear_item_riesgo_fn=crear_item_riesgo,
+                                            actualizar_item_riesgo_fn=actualizar_item_riesgo,
+                                            eliminar_item_riesgo_fn=eliminar_item_riesgo,
+                                            actualizar_matriz_riesgos_fn=actualizar_matriz_riesgos,
+                                        )).props('flat color=primary')
+                                        ui.button(
+                                            '',
+                                            icon='delete',
+                                            on_click=lambda current_matrix=matrix: (eliminar_matriz_riesgos(int(current_matrix['id'])), ui.notify('Matriz eliminada correctamente.', type='positive'), ui.navigate.to('/sistema-gestion/riesgos')),
+                                        ).props('flat color=negative round dense')
+                    else:
+                        ui.label('Todavia no hay matrices creadas para esta empresa.').classes('text-slate-500 mt-4')
+
+                with ui.tab_panel(tab_stats).classes('px-0'):
+                    ui.label('Gestion estadistica').classes('ideas-section-title mt-4')
+                    ui.label('Indicadores ejecutivos del modulo para priorizar la gestion de riesgos y oportunidades.').classes('ideas-section-note')
+                    render_metrics(
+                        ui.row().classes('w-full mt-4'),
+                        [
+                            ('Riesgos relevados', str(total_riesgos), 'Cantidad total de riesgos registrados en las matrices de la empresa activa.'),
+                            ('Riesgos con acciones definidas', str(riesgos_con_accion), 'Cantidad de riesgos relevados que ya tienen una accion definida para su tratamiento.'),
+                            ('Tomadas / eficaces', f'{acciones_tomadas} / {acciones_eficaces}', 'Cantidad de acciones registradas y cuantas ya fueron marcadas como eficaces.'),
+                        ],
+                    )

@@ -61,6 +61,16 @@ def estructurar_sistemas() -> dict[str, dict]:
                 {'titulo': 'Riesgos y Oportunidades', 'icono': 'shield', 'accion': 'riesgos'},
             ],
         },
+        'cert_iso_17025': {
+            'titulo': 'Sistema de Gestion de Laboratorio',
+            'norma': 'ISO/IEC 17025',
+            'icono': 'science',
+            'resumen': 'Gestion integral de laboratorio tipo LIMS + Sistema de Gestion + IA para trazabilidad, metodos, muestras y auditoria.',
+            'campos_contratacion': ['cert_iso_17025'],
+            'herramientas': [
+                {'titulo': 'LAB ISO 17025', 'icono': 'science', 'accion': 'lab17025'},
+            ],
+        },
     }
 
 
@@ -119,9 +129,12 @@ def render_management_workspace_page(
     go_to_kpi_module_fn=None,
     go_to_process_maps_module_fn=None,
     go_to_environment_module_fn=None,
+    go_to_legal_matrix_module_fn=None,
     go_to_sst_module_fn=None,
     go_to_quality_module_fn=None,
     go_to_users_module_fn=None,
+    go_to_lab_module_fn=None,
+    can_access_module_fn=None,
 ) -> None:
     shell_container = shell_fn('Sistema de gestion')
     company_map = company_options_fn()
@@ -193,65 +206,94 @@ def render_management_workspace_page(
             </div>
             '''
         ).classes('w-full').style('display:block;width:100%;margin:0;')
-        cert_items = []
-        if selected_company and valor_afirmativo_local(selected_company.get('cert_iso_9001')):
-            cert_items.append(('ISO 9001', 'verified'))
-        if selected_company and valor_afirmativo_local(selected_company.get('cert_iatf')):
-            cert_items.append(('IATF 16949', 'precision_manufacturing'))
-        if selected_company and valor_afirmativo_local(selected_company.get('cert_iso_14001')):
-            cert_items.append(('ISO 14001', 'eco'))
-        if selected_company and valor_afirmativo_local(selected_company.get('cert_iso_45001')):
-            cert_items.append(('ISO 45001', 'health_and_safety'))
-
-        with ui.column().classes('w-full mt-2 gap-2'):
-            ui.label('Certificaciones').classes('ideas-section-title')
-            with ui.row().classes('w-full flex-wrap items-center gap-2'):
-                if cert_items:
-                    for cert_label, cert_icon in cert_items:
-                        with ui.row().classes('items-center gap-2 px-3 py-2 rounded-[999px] bg-white/80 border border-slate-200 text-slate-700'):
-                            ui.icon(cert_icon).classes('text-[1rem] text-slate-600')
-                            ui.label(cert_label).classes('text-sm font-semibold')
-                else:
-                    ui.label('Sin certificaciones declaradas').classes('ideas-section-note')
         if session_role == 'empresa':
-            module_cards = [
+            all_module_cards = [
                 ('Documentos', 'description', 'documentos', go_to_company_documents_module_fn),
                 ('Mapas', 'alt_route', 'mapas-proceso', go_to_process_maps_module_fn),
                 ('KPIs', 'query_stats', 'kpis', go_to_kpi_module_fn),
                 ('Riesgos', 'shield', 'riesgos', go_to_risks_module_fn),
                 ('Ambiental', 'eco', 'ambiental', go_to_environment_module_fn),
+                ('Matriz Legal', 'gavel', 'matriz-legal', go_to_legal_matrix_module_fn),
                 ('Salud Ocupacional', 'health_and_safety', 'salud-ocupacional', go_to_sst_module_fn),
                 ('Calidad', 'plumbing', 'calidad', go_to_quality_module_fn),
+                ('LAB ISO 17025', 'science', 'lab-iso-17025', go_to_lab_module_fn),
             ]
+            local_role = str(app.storage.user.get('local_user_role') or '').strip().upper()
+            if local_role == 'EMPRESA_ADMIN':
+                all_module_cards.append(('Usuarios', 'manage_accounts', 'usuarios', go_to_users_module_fn))
+            route_to_module_code = {
+                'documentos': 'documents',
+                'mapas-proceso': 'process_maps',
+                'kpis': 'kpi',
+                'riesgos': 'risks',
+                'ambiental': 'environment',
+                'matriz-legal': 'legal_matrix',
+                'salud-ocupacional': 'sst',
+                'calidad': 'quality',
+                'lab-iso-17025': 'lab_17025',
+                'usuarios': 'users',
+            }
+            module_cards = []
+            for title, icon, route, action_fn in all_module_cards:
+                if callable(can_access_module_fn):
+                    module_code = route_to_module_code.get(route, '')
+                    if module_code and not bool(can_access_module_fn(module_code)):
+                        continue
+                module_cards.append((title, icon, route, action_fn))
             with ui.row().classes('w-full items-center justify-between mt-6'):
                 ui.label('Módulos Operativos').classes('ideas-section-title')
-                ui.label('Acceso directo al workspace corporativo').classes('ideas-section-note')
-            ui.add_css(
+                ui.label('Vista compacta: despliega solo el modulo que necesites.').classes('ideas-section-note')
+            with ui.tabs().classes('w-full mt-3 ideas-panel p-2 rounded-[24px]') as ops_tabs:
+                module_tabs = {}
+                for title, icon, _route, _action_fn in module_cards:
+                    module_tabs[title] = ui.tab(title, icon=icon).props('no-caps').classes('text-slate-700')
+
+            def _open_operational_module(title: str) -> None:
+                for item_title, _item_icon, route, action_fn in module_cards:
+                    if item_title != title:
+                        continue
+                    if action_fn:
+                        action_fn(selected_company_id, set_selection_fn)
+                    else:
+                        ui.navigate.to(f'/sistema-gestion/{route}')
+                    return
+
+            for title, tab_obj in module_tabs.items():
+                tab_obj.on('click', lambda _e, tab_title=title: _open_operational_module(tab_title))
+
+            if False:
+                ui.add_css(
                 '''
-                .ideas-ops-tabs .q-tab {
-                    min-height: 94px;
-                    padding: 0 30px;
-                    border-radius: 16px;
-                    margin: 3px 6px;
+                .ideas-ops-compact .q-expansion-item__container {
+                    border: 1px solid rgba(148,163,184,.22);
+                    border-radius: 14px;
+                    background: rgba(255,255,255,.9);
                 }
-                .ideas-ops-tabs .q-tab__label {
-                    font-size: 1.18rem;
+                .ideas-ops-compact .q-item__label {
                     font-weight: 700;
-                    letter-spacing: 0;
-                }
-                .ideas-ops-tabs .q-tab__icon {
-                    font-size: 1.95rem;
-                    margin-right: 10px;
+                    color: #334155;
                 }
                 '''
             )
-            with ui.tabs().classes('w-full mt-3 ideas-panel p-3 rounded-[24px] ideas-ops-tabs'):
-                for title, icon, route, action_fn in module_cards:
-                    tab = ui.tab(title, icon=icon).props('inline-label no-caps').classes('text-slate-700 cursor-pointer')
-                    if action_fn:
-                        tab.on('click', lambda _e, fn=action_fn: fn(selected_company_id, set_selection_fn))
-                    else:
-                        tab.on('click', lambda _e, path=route: ui.navigate.to(f'/sistema-gestion/{path}'))
+            if False:
+                with ui.grid(columns=2).classes('w-full mt-3 gap-3 ideas-grid-2'):
+                    for title, icon, route, action_fn in module_cards:
+                        with ui.expansion(text=title, icon=icon).classes('w-full ideas-ops-compact'):
+                            with ui.column().classes('w-full gap-2 pb-2 px-2'):
+                                ui.label(f'Accede al modulo de {title.lower()} con un click.').classes('ideas-section-note')
+                                with ui.row().classes('w-full justify-end'):
+                                    if action_fn:
+                                        ui.button(
+                                            'Entrar',
+                                            icon='open_in_new',
+                                            on_click=lambda fn=action_fn: fn(selected_company_id, set_selection_fn),
+                                        ).props('unelevated color=primary')
+                                    else:
+                                        ui.button(
+                                            'Entrar',
+                                            icon='open_in_new',
+                                            on_click=lambda path=route: ui.navigate.to(f'/sistema-gestion/{path}'),
+                                        ).props('unelevated color=primary')
             return
             with ui.grid(columns=3).classes('ideas-module-grid w-full mt-3'):
                 for title, icon, route, action_fn in module_cards:
@@ -310,6 +352,7 @@ def render_management_workspace_page(
             'mapas': (go_to_process_maps_module_fn, selected_company_id),
             'riesgos': (go_to_risks_module_fn, selected_company_id),
             'calidad': (go_to_quality_module_fn, selected_company_id),
+            'lab17025': (go_to_lab_module_fn, selected_company_id),
         }
 
         selected_system_state = {'id': None}
@@ -446,9 +489,12 @@ def register_management_page(ui, deps: dict) -> None:
     go_to_kpi_module = deps['go_to_kpi_module']
     go_to_risks_module = deps['go_to_risks_module']
     go_to_environment_module = deps['go_to_environment_module']
+    go_to_legal_matrix_module = deps.get('go_to_legal_matrix_module')
     go_to_sst_module = deps['go_to_sst_module']
     go_to_quality_module = deps['go_to_quality_module']
     go_to_users_module = deps['go_to_users_module']
+    go_to_lab_module = deps.get('go_to_lab_module')
+    can_access_module = deps.get('can_access_module')
 
     @ui.page('/sistema-gestion')
     def management_workspace_page() -> None:
@@ -476,7 +522,10 @@ def register_management_page(ui, deps: dict) -> None:
             go_to_kpi_module_fn=go_to_kpi_module,
             go_to_process_maps_module_fn=go_to_process_maps_module,
             go_to_environment_module_fn=go_to_environment_module,
+            go_to_legal_matrix_module_fn=go_to_legal_matrix_module,
             go_to_sst_module_fn=go_to_sst_module,
             go_to_quality_module_fn=go_to_quality_module,
             go_to_users_module_fn=go_to_users_module,
+            go_to_lab_module_fn=go_to_lab_module,
+            can_access_module_fn=can_access_module,
         )

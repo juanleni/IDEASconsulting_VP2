@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from nicegui import app, ui
+from dashboard_customizer import render_dashboard_customizer
 
 
 STANDARD_PROCESSES = [
@@ -329,6 +330,7 @@ def register_process_maps_module(ui, deps: dict) -> None:
     actualizar_proceso_mapa = deps['actualizar_proceso_mapa']
     eliminar_proceso_mapa = deps['eliminar_proceso_mapa']
     generar_pdf_mapa_procesos = deps.get('generar_pdf_mapa_procesos')
+    set_ai_focus_context = deps.get('set_ai_focus_context')
 
     @ui.page('/sistema-gestion/mapas-proceso')
     def process_maps_page() -> None:
@@ -347,9 +349,22 @@ def register_process_maps_module(ui, deps: dict) -> None:
 
         selected_company = obtener_empresa_detalle(selected_company_id) if selected_company_id else None
         existing_rows = obtener_mapa_procesos_empresa(selected_company_id) if selected_company_id else []
+        if callable(set_ai_focus_context):
+            set_ai_focus_context(
+                'procesos',
+                {
+                    'empresa_id': int(selected_company_id) if selected_company_id else None,
+                    'procesos_total': len(existing_rows or []),
+                    'procesos_visibles': [
+                        fix_text(str(item.get('proceso_nombre') or '')).strip()
+                        for item in (existing_rows or [])[:6]
+                        if fix_text(str(item.get('proceso_nombre') or '')).strip()
+                    ],
+                },
+            )
         available_options = _available_process_options(existing_rows)
 
-        with shell('Mapas de proceso', back_route='/sistema-gestion') as shell_container:
+        with shell('Mapas de proceso', back_route='/sistema-gestion', module_key='process_maps') as shell_container:
             with shell_container:
                 def export_process_map_pdf() -> None:
                     if not generar_pdf_mapa_procesos:
@@ -390,6 +405,130 @@ def register_process_maps_module(ui, deps: dict) -> None:
                     set_selection(int(selected_company_id), None)
 
                 company_name = fix_text(selected_company.get('razon_social', company_map.get(selected_company_id, 'Sin empresa activa'))) if selected_company else 'Sin empresa activa'
+                grouped_counts = {'Estrategicos': 0, 'Operativos': 0, 'Soporte': 0, 'Personalizados': 0}
+                for row in existing_rows:
+                    category = _process_category(row)
+                    if 'Estrat' in category:
+                        grouped_counts['Estrategicos'] += 1
+                    elif 'Operativos' in category:
+                        grouped_counts['Operativos'] += 1
+                    elif 'Soporte' in category:
+                        grouped_counts['Soporte'] += 1
+                    else:
+                        grouped_counts['Personalizados'] += 1
+
+                with ui.tabs().classes('w-full mt-4 ideas-panel p-2 rounded-[24px]') as maps_tabs:
+                    tab_dashboard = ui.tab('Dashboard', icon='insights').props('no-caps').classes('text-slate-700')
+                    tab_new = ui.tab('Agregar procesos', icon='add_circle').props('no-caps').classes('text-slate-700')
+                    tab_landscape = ui.tab('Landscape de procesos', icon='account_tree').props('no-caps').classes('text-slate-700')
+                    tab_stats = ui.tab('Gestion estadistica', icon='analytics').props('no-caps').classes('text-slate-700')
+
+                with ui.tab_panels(maps_tabs, value=tab_dashboard).classes('w-full bg-transparent'):
+                    with ui.tab_panel(tab_dashboard).classes('px-0'):
+                        cobertura = int((len(existing_rows) / max(1, len(existing_rows) + len(available_options))) * 100) if available_options else 100
+                        with ui.grid(columns=3).classes('w-full gap-3 mt-4'):
+                            with ui.card().classes('ideas-panel').style('background:rgba(255,255,255,0.58);border:1px solid rgba(148,163,184,.18);box-shadow:none;backdrop-filter:blur(10px);'):
+                                ui.label('Cobertura del mapa').classes('text-[0.82rem] font-normal text-slate-500 tracking-[0.08em] uppercase')
+                                ui.echart({
+                                    'series': [{
+                                        'type': 'gauge', 'min': 0, 'max': 100, 'startAngle': 210, 'endAngle': -30, 'radius': '88%',
+                                        'progress': {'show': True, 'width': 8, 'roundCap': True},
+                                        'axisLine': {'lineStyle': {'width': 8, 'color': [[1, 'rgba(148,163,184,.22)']]}},
+                                        'axisTick': {'show': False}, 'splitLine': {'show': False}, 'axisLabel': {'show': False},
+                                        'pointer': {'show': False}, 'anchor': {'show': False},
+                                        'title': {'show': True, 'offsetCenter': [0, '18%'], 'fontSize': 11, 'fontWeight': 'normal', 'color': 'rgba(71,85,105,.78)'},
+                                        'detail': {'formatter': '{value}%', 'offsetCenter': [0, '-8%'], 'fontSize': 20, 'fontWeight': 'normal', 'color': 'rgba(15,23,42,.86)'},
+                                        'data': [{'value': cobertura, 'name': 'mapa'}],
+                                    }]
+                                }).classes('w-full h-56')
+                            with ui.card().classes('ideas-panel'):
+                                ui.label('Distribucion de procesos').classes('ideas-section-title')
+                                ui.echart({
+                                    'xAxis': {'type': 'category', 'data': list(grouped_counts.keys())},
+                                    'yAxis': {'type': 'value'},
+                                    'series': [{'type': 'bar', 'barWidth': '42%', 'data': list(grouped_counts.values())}],
+                                    'grid': {'left': 28, 'right': 12, 'top': 24, 'bottom': 26},
+                                }).classes('w-full h-64')
+                            with ui.card().classes('ideas-panel'):
+                                ui.label('Estado de arquitectura').classes('ideas-section-title')
+                                ui.echart({
+                                    'tooltip': {'trigger': 'item'},
+                                    'series': [{'type': 'pie', 'radius': ['40%', '70%'], 'data': [
+                                        {'name': 'Cargados', 'value': len(existing_rows)},
+                                        {'name': 'Disponibles', 'value': len(available_options)},
+                                    ]}]
+                                }).classes('w-full h-64')
+                        render_dashboard_customizer(
+                            module_key='process_maps',
+                            company_id=int(selected_company_id),
+                            metric_catalog=[
+                                ('procesos_cargados', 'Procesos cargados', len(existing_rows)),
+                                ('procesos_disponibles', 'Procesos disponibles', len(available_options)),
+                                ('cobertura_mapa', 'Cobertura del mapa', cobertura),
+                                ('estrategicos', 'Procesos estrategicos', int(grouped_counts.get('Estrategicos', 0))),
+                                ('operativos', 'Procesos operativos', int(grouped_counts.get('Operativos', 0))),
+                                ('soporte', 'Procesos de soporte', int(grouped_counts.get('Soporte', 0))),
+                                ('personalizados', 'Procesos personalizados', int(grouped_counts.get('Personalizados', 0))),
+                            ],
+                        )
+                    with ui.tab_panel(tab_new).classes('px-0'):
+                        with ui.card().classes('ideas-panel w-full mt-4'):
+                            ui.label('Agregar procesos al landscape').classes('ideas-section-title')
+                            ui.label('Selecciona procesos estandar de la consultora y sumalos al mapa especifico de la empresa.').classes('ideas-section-note')
+                            process_select = ui.select(available_options, label='Proceso estandar disponible').classes('w-full mt-4').props('outlined')
+                            custom_process_input = ui.input('O agregar proceso personalizado', placeholder='Ejemplo: Mantenimiento, Legal, Customer Care...').classes('w-full mt-3').props('outlined clearable')
+
+                            def add_process_tab() -> None:
+                                custom_name = (custom_process_input.value or '').strip()
+                                if custom_name:
+                                    code = _slugify_process_name(custom_name)
+                                    process_name = custom_name
+                                else:
+                                    code = process_select.value
+                                    if not code:
+                                        ui.notify('Selecciona un proceso o escribe uno nuevo para agregar.', color='warning')
+                                        return
+                                    process_name = available_options[code]
+                                ok, message = agregar_proceso_mapa_empresa(selected_company_id, code, process_name)
+                                ui.notify(message, color='positive' if ok else 'warning')
+                                ui.navigate.to('/sistema-gestion/mapas-proceso')
+
+                            with ui.row().classes('w-full justify-end mt-3'):
+                                ui.button('Agregar proceso al landscape', icon='add', on_click=add_process_tab).props('unelevated color=primary')
+
+                    with ui.tab_panel(tab_landscape).classes('px-0'):
+                        ui.label('Procesos del mapa').classes('ideas-section-title mt-4')
+                        ui.label('Haz clic en cada tarjeta para entrar al proceso y completar su tortuga.').classes('ideas-section-note')
+                        if existing_rows:
+                            grouped_rows = {'EstratÃ©gicos': [], 'Operativos': [], 'Soporte': [], 'Personalizados': []}
+                            for row in existing_rows:
+                                grouped_rows[_process_category(row)].append(row)
+
+                            def open_process_from_landscape_tab(row: dict) -> None:
+                                _render_process_editor(
+                                    row=row,
+                                    fix_text_fn=fix_text,
+                                    actualizar_proceso_mapa_fn=actualizar_proceso_mapa,
+                                )
+
+                            _render_landscape_overview(
+                                grouped_rows=grouped_rows,
+                                fix_text_fn=fix_text,
+                                open_process_fn=open_process_from_landscape_tab,
+                            )
+                        else:
+                            ui.label('Aun no hay procesos en el mapa.').classes('text-slate-500 mt-4')
+
+                    with ui.tab_panel(tab_stats).classes('px-0'):
+                        ui.html(
+                            f'''<div class="ideas-grid-3" style="margin-top:18px;">
+                            <div class="ideas-quick-card"><div class="label">Empresa activa</div><div class="value">{company_name}</div><div class="detail">Mapa de procesos especifico de la empresa seleccionada.</div></div>
+                            <div class="ideas-quick-card"><div class="label">Procesos en landscape</div><div class="value">{len(existing_rows)}</div><div class="detail">Cada proceso se visualiza como tarjeta y se edita de forma puntual.</div></div>
+                            <div class="ideas-quick-card"><div class="label">Certificaciones</div><div class="value">{certifications_summary(selected_company)}</div><div class="detail">Referencia util para orientar el mapa y la profundidad del diseÃ±o.</div></div>
+                            </div>'''
+                        )
+                return
+
                 ui.html(
                     f'''<div class="ideas-grid-3" style="margin-top:18px;">
                     <div class="ideas-quick-card"><div class="label">Empresa activa</div><div class="value">{company_name}</div><div class="detail">Mapa de procesos especifico de la empresa seleccionada.</div></div>

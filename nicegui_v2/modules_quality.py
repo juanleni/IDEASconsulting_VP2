@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from nicegui import app, events, run, ui
+from dashboard_customizer import render_dashboard_customizer
 from knowledge_helpers import build_quality_brainstorm_lines, summarize_sources_for_context
 
 
@@ -478,7 +479,7 @@ def _show_quality_editor(
         {'name': 'acciones', 'label': 'Acciones', 'field': 'acciones', 'align': 'center'},
     ]
 
-    with ui.dialog() as dialog, ui.card().classes('w-[1180px] max-w-[97vw] bg-white rounded-[26px] p-0 overflow-hidden'):
+    with ui.dialog().props('persistent seamless').classes('ideas-8d-dialog') as dialog, ui.card().classes('w-[1180px] max-w-[97vw] bg-white rounded-[26px] p-0 overflow-hidden'):
         with ui.column().classes('w-full gap-0'):
             with ui.row().classes('w-full items-center justify-between px-6 pt-5'):
                 ui.label('Analisis y Resolución de Problemas').classes('text-2xl font-bold text-slate-900')
@@ -1578,6 +1579,7 @@ def register_quality_module(ui, deps: dict) -> None:
     generar_pdf_8d = deps.get('generar_pdf_8d')
     obtener_fuentes_empresa = deps['obtener_fuentes_empresa']
     sugerir_causas_ishikawa = deps['sugerir_causas_ishikawa']
+    set_ai_focus_context = deps.get('set_ai_focus_context')
     quality_structure = [
         {
             'key': 'gestion_clientes',
@@ -1648,7 +1650,7 @@ def register_quality_module(ui, deps: dict) -> None:
         if not ensure_platform_access():
             return
 
-        shell_container = shell('Gestion de calidad', back_route='/sistema-gestion')
+        shell_container = shell('Gestion de calidad', back_route='/sistema-gestion', module_key='quality')
         company_map = company_options()
         selected_company_id = app.storage.user.get('management_company_id') or current_selection()[0]
         try:
@@ -1701,10 +1703,58 @@ def register_quality_module(ui, deps: dict) -> None:
 
             panel_tab_map = {}
             with ui.tabs().classes('w-full mt-4 ideas-panel p-2 rounded-[24px]') as panel_tabs:
+                tab_dashboard = ui.tab('Dashboard', icon='insights').props('no-caps')
                 for block in quality_structure:
                     panel_tab_map[block['key']] = ui.tab(block['label'], icon=block['icon']).props('no-caps')
 
-            with ui.tab_panels(panel_tabs, value=panel_tab_map[selected_process_key]).classes('w-full bg-transparent'):
+            with ui.tab_panels(panel_tabs, value=tab_dashboard).classes('w-full bg-transparent'):
+                with ui.tab_panel(tab_dashboard).classes('px-0'):
+                    problemas_dash = obtener_problemas_calidad_empresa(int(selected_company_id))
+                    total_casos = len(problemas_dash or [])
+                    abiertos = sum(1 for item in (problemas_dash or []) if str(item.get('estado') or '').strip().lower() != 'cerrado')
+                    con_evidencia = sum(1 for item in (problemas_dash or []) if str(item.get('archivos_path') or '').strip())
+                    cobertura = int(((total_casos - abiertos) / max(1, total_casos)) * 100) if total_casos else 0
+                    with ui.grid(columns=3).classes('w-full gap-3 mt-4'):
+                        with ui.card().classes('ideas-panel').style('background:rgba(255,255,255,0.58);border:1px solid rgba(148,163,184,.18);box-shadow:none;backdrop-filter:blur(10px);'):
+                            ui.label('Madurez de cierre 8D').classes('text-[0.82rem] font-normal text-slate-500 tracking-[0.08em] uppercase')
+                            ui.echart({'series': [{
+                                'type': 'gauge', 'min': 0, 'max': 100, 'startAngle': 210, 'endAngle': -30, 'radius': '88%',
+                                'progress': {'show': True, 'width': 8, 'roundCap': True},
+                                'axisLine': {'lineStyle': {'width': 8, 'color': [[1, 'rgba(148,163,184,.22)']]}},
+                                'axisTick': {'show': False}, 'splitLine': {'show': False}, 'axisLabel': {'show': False},
+                                'pointer': {'show': False}, 'anchor': {'show': False},
+                                'title': {'show': True, 'offsetCenter': [0, '18%'], 'fontSize': 11, 'fontWeight': 'normal', 'color': 'rgba(71,85,105,.78)'},
+                                'detail': {'formatter': '{value}%', 'offsetCenter': [0, '-8%'], 'fontSize': 20, 'fontWeight': 'normal', 'color': 'rgba(15,23,42,.86)'},
+                                'data': [{'value': cobertura, 'name': 'cierre'}],
+                            }]}).classes('w-full h-56')
+                        with ui.card().classes('ideas-panel'):
+                            ui.label('Estado de casos').classes('ideas-section-title')
+                            ui.echart({
+                                'xAxis': {'type': 'category', 'data': ['Total', 'Abiertos', 'Con evidencia']},
+                                'yAxis': {'type': 'value'},
+                                'series': [{'type': 'bar', 'barWidth': '42%', 'data': [total_casos, abiertos, con_evidencia]}],
+                                'grid': {'left': 28, 'right': 12, 'top': 24, 'bottom': 26},
+                            }).classes('w-full h-64')
+                        with ui.card().classes('ideas-panel'):
+                            ui.label('Arquitectura del modulo').classes('ideas-section-title')
+                            ui.echart({
+                                'tooltip': {'trigger': 'item'},
+                                'series': [{'type': 'pie', 'radius': ['40%', '70%'], 'data': [
+                                    {'name': 'Subprocesos', 'value': len(quality_structure)},
+                                    {'name': 'Casos 8D', 'value': total_casos},
+                                ]}]
+                            }).classes('w-full h-64')
+                    render_dashboard_customizer(
+                        module_key='quality',
+                        company_id=int(selected_company_id),
+                        metric_catalog=[
+                            ('casos_8d_total', 'Casos 8D', total_casos),
+                            ('casos_abiertos', 'Casos abiertos', abiertos),
+                            ('casos_con_evidencia', 'Casos con evidencia', con_evidencia),
+                            ('madurez_cierre', 'Madurez de cierre 8D', cobertura),
+                            ('subprocesos', 'Subprocesos calidad', len(quality_structure)),
+                        ],
+                    )
                 for block in quality_structure:
                     with ui.tab_panel(panel_tab_map[block['key']]).classes('px-0'):
                         with ui.card().classes('ideas-panel w-full mt-4'):
@@ -1728,6 +1778,17 @@ def register_quality_module(ui, deps: dict) -> None:
             ia_activa = valor_afirmativo(empresa.get('agente_ia_activo'))
             company_name = fix_text(empresa.get('razon_social', company_map.get(selected_company_id, '')))
             problemas = obtener_problemas_calidad_empresa(int(selected_company_id))
+            if callable(set_ai_focus_context):
+                set_ai_focus_context(
+                    'calidad',
+                    {
+                        'empresa_id': int(selected_company_id),
+                        'subproceso': selected_process.get('label') if isinstance(selected_process, dict) else '',
+                        'submodulo': selected_target or 'general',
+                        'casos_8d': len(problemas or []),
+                        'caso_reciente': fix_text(str((problemas or [{}])[0].get('titulo') or '')).strip() if problemas else '',
+                    },
+                )
 
             prepared_rows = []
             for item in problemas:
@@ -1761,8 +1822,7 @@ def register_quality_module(ui, deps: dict) -> None:
             open_cases = sum(1 for item in prepared_rows if str(item.get('estado') or '').strip() != 'Cerrado')
             with_evidence = sum(1 for item in prepared_rows if str(item.get('archivos_path') or '').strip())
             next_8d_number = f"8D-{int(selected_company_id):03d}-{(total_cases + 1):04d}"
-            ui.html(_metrics_html(total_cases, open_cases, with_evidence))
-            ui.html(_overview_html(prepared_rows))
+            
 
             with ui.row().classes('w-full items-center justify-between mt-4'):
                 with ui.column().classes('gap-1'):

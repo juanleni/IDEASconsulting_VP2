@@ -151,11 +151,12 @@ def generar_token_seguro() -> str:
     return secrets.token_urlsafe(32)
 
 
-def enviar_correo_acceso(correo_destino, nombre_empresa, token, base_url="https://ideas-consulting-v2.onrender.com"):
+def enviar_correo_acceso(correo_destino, nombre_empresa, token, base_url=None):
     correo = str(correo_destino or "").strip()
     empresa = str(nombre_empresa or "").strip()
     token_val = str(token or "").strip()
-    base = str(base_url or "").rstrip("/")
+    default_local_base = os.getenv("IDEAS_PUBLIC_BASE_URL", "http://127.0.0.1:8502")
+    base = str(base_url or default_local_base).rstrip("/")
     enlace = f"{base}/crear-password/{token_val}"
 
     asunto = "Bienvenido a IDEAS Consulting - Crea tu contrasea"
@@ -218,12 +219,13 @@ def enviar_correo_acceso(correo_destino, nombre_empresa, token, base_url="https:
         return {"ok": False, "to": correo, "subject": asunto, "link": enlace, "html": html_body, "error": str(exc)}
 
 
-def enviar_correo_cotizacion(nombre, contacto, servicio, detalles):
+def enviar_correo_cotizacion(nombre, contacto, servicio, detalles, destinatario: str | None = None):
     nombre_text = str(nombre or "").strip()
     contacto_text = str(contacto or "").strip()
     servicio_text = str(servicio or "Otro").strip() or "Otro"
     detalles_text = str(detalles or "").strip()
     asunto = f"Nuevo Lead: Solicitud de {servicio_text}"
+    to_email = str(destinatario or SMTP_USER).strip() or SMTP_USER
 
     html_body = f"""
     <div style="margin:0;padding:24px;background:#f3f6fb;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
@@ -283,24 +285,24 @@ def enviar_correo_cotizacion(nombre, contacto, servicio, detalles):
         msg = MIMEMultipart("alternative")
         msg["Subject"] = asunto
         msg["From"] = SMTP_USER
-        msg["To"] = SMTP_USER
+        msg["To"] = to_email
         msg.attach(MIMEText(html_body, "html", "utf-8"))
 
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
         server.login(SMTP_USER, SMTP_PASSWORD)
-        server.sendmail(SMTP_USER, [SMTP_USER], msg.as_string())
+        server.sendmail(SMTP_USER, [to_email], msg.as_string())
         server.quit()
-        return {"ok": True, "to": SMTP_USER, "subject": asunto, "html": html_body}
+        return {"ok": True, "to": to_email, "subject": asunto, "html": html_body}
     except Exception as exc:
         print("=== ENVIO DE COTIZACION (SIMULADO / FALLBACK) ===")
         print(f"Error SMTP: {exc}")
-        print(f"Para: {SMTP_USER}")
+        print(f"Para: {to_email}")
         print(f"Asunto: {asunto}")
         print("HTML:")
         print(html_body)
         print("=== FIN COTIZACION (SIMULADO / FALLBACK) ===")
-        return {"ok": False, "to": SMTP_USER, "subject": asunto, "html": html_body, "error": str(exc)}
+        return {"ok": False, "to": to_email, "subject": asunto, "html": html_body, "error": str(exc)}
 
 
 def limpiar_nombre_archivo(nombre: str) -> str:

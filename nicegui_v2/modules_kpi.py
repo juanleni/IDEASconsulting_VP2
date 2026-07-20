@@ -203,6 +203,7 @@ def register_kpi_module(ui, deps: dict) -> None:
     actualizar_grupos_personalizados_kpi = deps.get('actualizar_grupos_personalizados_kpi')
     eliminar_kpi = deps['eliminar_kpi']
     generar_pdf_kpis = deps.get('generar_pdf_kpis')
+    set_ai_focus_context = deps.get('set_ai_focus_context')
     def _open_export_kpis_dialog(company_name: str, company_logo_path: str, kpis_rows: list[dict]) -> None:
         if not generar_pdf_kpis:
             ui.notify('Generación de PDF no disponible.', type='warning')
@@ -756,7 +757,7 @@ def register_kpi_module(ui, deps: dict) -> None:
         if not ensure_platform_access():
             return
 
-        shell_container = shell('Indicadores KPI', back_route='/sistema-gestion')
+        shell_container = shell('Indicadores KPI', back_route='/sistema-gestion', module_key='kpi')
         company_map = company_options()
         selected_company_id = app.storage.user.get('management_company_id') or current_selection()[0]
         try:
@@ -794,6 +795,63 @@ def register_kpi_module(ui, deps: dict) -> None:
             company = obtener_empresa_detalle(selected_company_id)
             company_name = fix_text(company.get('razon_social', company_map.get(selected_company_id, ''))) if company else fix_text(company_map.get(selected_company_id, ''))
             kpis = obtener_kpis_empresa(int(selected_company_id))
+            if callable(set_ai_focus_context):
+                def _last_month_value(row: dict):
+                    month_order = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+                    for key in reversed(month_order):
+                        val = row.get(key)
+                        if val not in (None, '', 'None'):
+                            try:
+                                return float(val), key
+                            except Exception:
+                                continue
+                    return None, ''
+
+                kpi_focus = None
+                kpis_detalle = []
+                for item in (kpis or [])[:10]:
+                    monthly = {
+                        'ene': item.get('ene'),
+                        'feb': item.get('feb'),
+                        'mar': item.get('mar'),
+                        'abr': item.get('abr'),
+                        'may': item.get('may'),
+                        'jun': item.get('jun'),
+                        'jul': item.get('jul'),
+                        'ago': item.get('ago'),
+                        'sep': item.get('sep'),
+                        'oct': item.get('oct'),
+                        'nov': item.get('nov'),
+                        'dic': item.get('dic'),
+                    }
+                    last_val, last_month = _last_month_value(item)
+                    detail = {
+                        'nombre': fix_text(str(item.get('nombre') or '')).strip(),
+                        'objetivo': item.get('objetivo') or item.get('meta') or '',
+                        'valor_actual': item.get('valor_actual') or '',
+                        'tendencia': fix_text(str(item.get('tendencia') or '')).strip(),
+                        'ultimo_valor_mensual': last_val if last_val is not None else '',
+                        'ultimo_mes_con_dato': last_month,
+                        'mensual': monthly,
+                    }
+                    if detail['nombre']:
+                        kpis_detalle.append(detail)
+                if kpis_detalle:
+                    kpi_focus = kpis_detalle[0]
+                set_ai_focus_context(
+                    'kpis',
+                    {
+                        'empresa_id': int(selected_company_id),
+                        'total_kpis': len(kpis or []),
+                        'kpis_visibles': [
+                            fix_text(str(item.get('nombre') or '')).strip()
+                            for item in (kpis or [])[:6]
+                            if fix_text(str(item.get('nombre') or '')).strip()
+                        ],
+                        'kpi_foco': kpi_focus,
+                        'kpis_detalle': kpis_detalle,
+                    },
+                )
 
             with_target = sum(1 for item in kpis if _to_float(item.get('objetivo')) is not None)
             with_ytd = sum(1 for item in kpis if _uses_ytd(item))
@@ -990,7 +1048,7 @@ def register_kpi_module(ui, deps: dict) -> None:
                                 process_norm = unicodedata.normalize('NFKD', process_name).encode('ascii', 'ignore').decode('ascii').lower()
                                 process_icon = PROCESS_ICONS.get(process_norm, 'analytics')
                                 process_tabs_map[process_name] = ui.tab(process_name, icon=process_icon).props('no-caps')
-                        with ui.tab_panels(process_tabs, value=process_tabs_map['__all__']).classes('w-full bg-transparent'):
+                        with ui.tab_panels(process_tabs, value=None).classes('w-full bg-transparent'):
                             for process_name in ['__all__'] + process_names:
                                 with ui.tab_panel(process_tabs_map[process_name]).classes('px-0'):
                                     process_kpis = kpis if process_name == '__all__' else grouped_by_process.get(process_name, [])
@@ -1268,7 +1326,7 @@ def register_kpi_module(ui, deps: dict) -> None:
                             with ui.tabs().classes('w-full mt-4') as reunion_tabs:
                                 for group_name in grupos_model:
                                     reunion_tabs_map[group_name] = ui.tab(group_name, icon='trending_up').props('no-caps')
-                            with ui.tab_panels(reunion_tabs, value=reunion_tabs_map[grupos_model[0]]).classes('w-full bg-transparent'):
+                            with ui.tab_panels(reunion_tabs, value=None).classes('w-full bg-transparent'):
                                 for group_name in grupos_model:
                                     with ui.tab_panel(reunion_tabs_map[group_name]).classes('px-0'):
                                         group_rows = []
@@ -1466,13 +1524,7 @@ def register_kpi_module(ui, deps: dict) -> None:
                 ],
             )
 
-            ui.html(
-                f'''<div class="ideas-grid-3" style="margin-top:18px;">
-                {quick_card('Empresa activa', company_name, 'Contexto actual sobre el que se construye el tablero de indicadores.')}
-                {quick_card('Certificaciones', certifications_summary(company), 'Util para alinear indicadores con exigencias del sistema de gestion.')}
-                {quick_card('Rubro', fix_text(company.get('rubro', 'Sin definir')) if company else 'Sin definir', 'Ayuda a orientar categorias, fuentes y metas del modulo KPI.')}
-                </div>'''
-            )
+            
 
             with ui.card().classes('ideas-panel w-full mt-6'):
                 ui.label('Alta rapida de KPI').classes('ideas-section-title')

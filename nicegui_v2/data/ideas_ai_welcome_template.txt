@@ -1,0 +1,1 @@
+Hola {usuario}, soy {agente}. Estoy para ayudarte en {empresa} con foco practico y concreto.

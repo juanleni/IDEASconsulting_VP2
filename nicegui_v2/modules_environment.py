@@ -4,6 +4,7 @@ import datetime
 from pathlib import Path
 
 from nicegui import app, events, ui
+from dashboard_customizer import render_dashboard_customizer
 
 
 UPLOAD_DIR = Path(__file__).resolve().parents[1] / 'uploads' / 'ambiental'
@@ -308,15 +309,20 @@ def register_environment_module(ui, deps: dict) -> None:
     crear_simulacro_ambiental = deps['crear_simulacro_ambiental']
     actualizar_simulacro_ambiental = deps['actualizar_simulacro_ambiental']
     eliminar_simulacro_ambiental = deps['eliminar_simulacro_ambiental']
+    obtener_ambiental_capacitaciones_empresa = deps['obtener_ambiental_capacitaciones_empresa']
+    crear_ambiental_capacitacion = deps['crear_ambiental_capacitacion']
+    actualizar_ambiental_capacitacion = deps['actualizar_ambiental_capacitacion']
+    eliminar_ambiental_capacitacion = deps['eliminar_ambiental_capacitacion']
     sugerir_matriz_legal_ia = deps['sugerir_matriz_legal_ia']
     generar_reporte_simulacro = deps['generar_reporte_simulacro']
+    set_ai_focus_context = deps.get('set_ai_focus_context')
 
     @ui.page('/sistema-gestion/ambiental')
     def environment_module_page() -> None:
         if not ensure_platform_access():
             return
 
-        shell_container = shell('Gestión ambiental', back_route='/sistema-gestion')
+        shell_container = shell('Gestión ambiental', back_route='/sistema-gestion', module_key='environment')
         company_map = company_options()
         selected_company_id = app.storage.user.get('management_company_id') or current_selection()[0]
         try:
@@ -351,6 +357,17 @@ def register_environment_module(ui, deps: dict) -> None:
             aspects = obtener_aspectos_ambientales_empresa(int(selected_company_id))
             legal_rows = obtener_requisitos_legales_ambientales_empresa(int(selected_company_id))
             drills = obtener_simulacros_ambientales_empresa(int(selected_company_id))
+            if callable(set_ai_focus_context):
+                set_ai_focus_context(
+                    'ambiental',
+                    {
+                        'empresa_id': int(selected_company_id),
+                        'aspectos_total': len(aspects or []),
+                        'legales_total': len(legal_rows or []),
+                        'simulacros_total': len(drills or []),
+                        'proceso_referencia': next(iter(process_options.values()), '') if process_options else '',
+                    },
+                )
 
             today = datetime.date.today()
             significant_aspects = sum(1 for row in aspects if bool(row.get('es_significativo')))
@@ -383,7 +400,8 @@ def register_environment_module(ui, deps: dict) -> None:
                     return base_label
                 return f'{base_label} \u2022'
 
-            ui.html(
+            if False:
+                ui.html(
                 f'''
                 <div class="ideas-grid-3" style="margin-top:14px;">
                     <div class="ideas-quick-card" style="padding:16px 18px; border-radius:18px; box-shadow:none; border-color:rgba(148,163,184,.18);">
@@ -492,6 +510,7 @@ def register_environment_module(ui, deps: dict) -> None:
 
             panel_tab_map = {}
             with ui.tabs().classes('w-full mt-4 ideas-panel p-2 rounded-[24px]') as panel_tabs:
+                tab_dashboard = ui.tab('Dashboard', icon='insights').props('no-caps').classes('text-slate-700')
                 for block in panel_structure:
                     tab_classes = 'text-slate-700'
                     if tab_alerts.get(block['id']):
@@ -502,12 +521,468 @@ def register_environment_module(ui, deps: dict) -> None:
                         .classes(tab_classes)
                     )
 
-            with ui.tab_panels(panel_tabs, value=panel_tab_map[panel_structure[0]['id']]).classes('w-full bg-transparent'):
+            with ui.tab_panels(panel_tabs, value=tab_dashboard).classes('w-full bg-transparent'):
+                with ui.tab_panel(tab_dashboard).classes('px-0'):
+                    aspects_count = len(aspects or [])
+                    legal_count = len(legal_rows or [])
+                    drills_count = len(drills or [])
+                    total_submodulos = sum(len(block.get('items', [])) for block in panel_structure)
+                    total_alertas = sum(1 for v in tab_alerts.values() if v)
+                    score = int((aspects_count / max(1, aspects_count + legal_count + drills_count)) * 100) if (aspects_count or legal_count or drills_count) else 0
+                    with ui.grid(columns=3).classes('w-full gap-3 mt-4'):
+                        with ui.card().classes('ideas-panel').style('background:rgba(255,255,255,0.58);border:1px solid rgba(148,163,184,.18);box-shadow:none;backdrop-filter:blur(10px);'):
+                            ui.label('Cobertura ambiental').classes('text-[0.82rem] font-normal text-slate-500 tracking-[0.08em] uppercase')
+                            ui.echart({'series': [{
+                                'type': 'gauge', 'min': 0, 'max': 100, 'startAngle': 210, 'endAngle': -30, 'radius': '88%',
+                                'progress': {'show': True, 'width': 8, 'roundCap': True},
+                                'axisLine': {'lineStyle': {'width': 8, 'color': [[1, 'rgba(148,163,184,.22)']]}},
+                                'axisTick': {'show': False}, 'splitLine': {'show': False}, 'axisLabel': {'show': False},
+                                'pointer': {'show': False}, 'anchor': {'show': False},
+                                'title': {'show': True, 'offsetCenter': [0, '18%'], 'fontSize': 11, 'fontWeight': 'normal', 'color': 'rgba(71,85,105,.78)'},
+                                'detail': {'formatter': '{value}%', 'offsetCenter': [0, '-8%'], 'fontSize': 20, 'fontWeight': 'normal', 'color': 'rgba(15,23,42,.86)'},
+                                'data': [{'value': score, 'name': 'score'}],
+                            }]}).classes('w-full h-56')
+                        with ui.card().classes('ideas-panel'):
+                            ui.label('Registros clave').classes('ideas-section-title')
+                            ui.echart({
+                                'xAxis': {'type': 'category', 'data': ['Aspectos', 'Legales', 'Simulacros']},
+                                'yAxis': {'type': 'value'},
+                                'series': [{'type': 'bar', 'barWidth': '42%', 'data': [aspects_count, legal_count, drills_count]}],
+                                'grid': {'left': 28, 'right': 12, 'top': 24, 'bottom': 26},
+                            }).classes('w-full h-64')
+                        with ui.card().classes('ideas-panel'):
+                            ui.label('Submodulos y alertas').classes('ideas-section-title')
+                            ui.echart({
+                                'tooltip': {'trigger': 'item'},
+                                'series': [{'type': 'pie', 'radius': ['40%', '70%'], 'data': [
+                                    {'name': 'Submodulos', 'value': total_submodulos},
+                                    {'name': 'Alertas', 'value': total_alertas},
+                                ]}]
+                            }).classes('w-full h-64')
+                    render_dashboard_customizer(
+                        module_key='environment',
+                        company_id=int(selected_company_id),
+                        metric_catalog=[
+                            ('aspectos_total', 'Aspectos ambientales', aspects_count),
+                            ('aspectos_significativos', 'Aspectos significativos', significant_aspects),
+                            ('requisitos_legales', 'Requisitos legales', legal_count),
+                            ('vencimientos_60d', 'Vencimientos legales 60d', legal_due),
+                            ('simulacros_total', 'Simulacros', drills_count),
+                            ('submodulos', 'Submodulos', total_submodulos),
+                            ('alertas_tab', 'Alertas de tabs', total_alertas),
+                            ('cobertura_ambiental', 'Cobertura ambiental', score),
+                        ],
+                    )
                 for block in panel_structure:
                     with ui.tab_panel(panel_tab_map[block['id']]).classes('px-0'):
                         with ui.card().classes('ideas-panel w-full mt-4'):
                             ui.label(block['label']).classes('ideas-section-title')
                             ui.label('Submódulos del subproceso seleccionado.').classes('ideas-section-note')
+                            if str(block.get('id')) == 'cumplimiento_legal':
+                                legal_table_host = ui.column().classes('w-full gap-3 mt-3')
+
+                                def _open_legal_form(row: dict | None = None) -> None:
+                                    _show_legal_dialog(
+                                        ui, row=row, company_id=int(selected_company_id), fix_text_fn=fix_text,
+                                        crear_fn=crear_requisito_legal_ambiental,
+                                        actualizar_fn=actualizar_requisito_legal_ambiental,
+                                    )
+
+                                def _suggest_legal_requirements() -> None:
+                                    rubro = fix_text(empresa.get('rubro') or empresa.get('actividad') or company_name)
+                                    ubicacion = ', '.join(part for part in (
+                                        fix_text(empresa.get('localidad') or ''),
+                                        fix_text(empresa.get('provincia') or ''),
+                                        fix_text(empresa.get('pais') or ''),
+                                    ) if part)
+                                    aspectos_lista = [
+                                        fix_text(row.get('aspecto') or row.get('impacto') or '')
+                                        for row in aspects
+                                        if fix_text(row.get('aspecto') or row.get('impacto') or '')
+                                    ]
+                                    try:
+                                        suggestions = sugerir_matriz_legal_ia(rubro, ubicacion, aspectos_lista) or []
+                                    except Exception:
+                                        ui.notify('No se pudieron generar sugerencias en este momento.', type='negative')
+                                        return
+                                    if not suggestions:
+                                        ui.notify('La IA no devolvió requisitos legales para revisar.', type='warning')
+                                        return
+                                    _show_ia_suggestions_dialog(
+                                        ui, suggestions=suggestions, guardar_fn=crear_requisito_legal_ambiental,
+                                        company_id=int(selected_company_id), fix_text_fn=fix_text,
+                                    )
+
+                                def _refresh_legal_table() -> None:
+                                    rows = obtener_requisitos_legales_ambientales_empresa(int(selected_company_id)) or []
+                                    legal_table_host.clear()
+                                    with legal_table_host:
+                                        with ui.row().classes('w-full justify-between items-center gap-2'):
+                                            ui.label('Matriz legal ambiental').classes('text-sm font-semibold text-slate-800')
+                                            with ui.row().classes('gap-2'):
+                                                ui.button('Sugerir con IA', icon='auto_awesome', on_click=_suggest_legal_requirements).props('outline color=primary')
+                                                ui.button('Nuevo requisito', icon='add', on_click=lambda: _open_legal_form(None)).props('unelevated color=primary')
+
+                                        table_rows = [{
+                                            'id': int(row.get('id') or 0),
+                                            'jurisdiccion': fix_text(row.get('jurisdiccion') or 'Nacional'),
+                                            'norma': fix_text(row.get('norma_legal') or ''),
+                                            'articulo': fix_text(row.get('articulo_aplicable') or ''),
+                                            'estado': fix_text(row.get('estado_cumplimiento') or ''),
+                                            'vencimiento': fix_text(row.get('fecha_vencimiento') or ''),
+                                            'responsable': fix_text(row.get('responsable') or ''),
+                                            'acciones': '',
+                                        } for row in rows]
+                                        columns = [
+                                            {'name': 'jurisdiccion', 'label': 'Jurisdicción', 'field': 'jurisdiccion', 'align': 'left'},
+                                            {'name': 'norma', 'label': 'Norma legal', 'field': 'norma', 'align': 'left'},
+                                            {'name': 'articulo', 'label': 'Artículo aplicable', 'field': 'articulo', 'align': 'left'},
+                                            {'name': 'estado', 'label': 'Estado', 'field': 'estado', 'align': 'left'},
+                                            {'name': 'vencimiento', 'label': 'Vencimiento', 'field': 'vencimiento', 'align': 'left'},
+                                            {'name': 'responsable', 'label': 'Responsable', 'field': 'responsable', 'align': 'left'},
+                                            {'name': 'acciones', 'label': 'Acciones', 'field': 'acciones', 'align': 'center'},
+                                        ]
+                                        table = ui.table(columns=columns, rows=table_rows, row_key='id', pagination=10).classes('w-full ideas-table')
+                                        table.add_slot('body-cell-estado', """
+                                            <q-td :props="props"><q-badge :color="props.value.toLowerCase() === 'cumple' ? 'positive' : (props.value.toLowerCase() === 'no cumple' ? 'negative' : 'warning')">{{ props.value }}</q-badge></q-td>
+                                        """)
+                                        table.add_slot('body-cell-acciones', """
+                                            <q-td :props="props">
+                                                <q-btn flat dense round icon="edit" color="primary" @click="$parent.$emit('edit_row', props.row.id)" />
+                                                <q-btn flat dense round icon="delete" color="negative" @click="$parent.$emit('delete_row', props.row.id)" />
+                                            </q-td>
+                                        """)
+
+                                        def _on_edit_legal(evt) -> None:
+                                            rid = _extract_int(evt.args)
+                                            source = next((row for row in rows if int(row.get('id') or 0) == rid), None)
+                                            if source:
+                                                _open_legal_form(source)
+
+                                        def _on_delete_legal(evt) -> None:
+                                            rid = _extract_int(evt.args)
+                                            if rid is not None:
+                                                eliminar_requisito_legal_ambiental(rid)
+                                                ui.notify('Requisito legal eliminado.', type='positive')
+                                                _refresh_legal_table()
+
+                                        table.on('edit_row', _on_edit_legal)
+                                        table.on('delete_row', _on_delete_legal)
+
+                                _refresh_legal_table()
+
+                            if str(block.get('id')) == 'aspectos_impactos':
+                                table_host = ui.column().classes('w-full gap-3 mt-3')
+                                medio_afectado_opts = {'Suelo': 'Suelo', 'Agua': 'Agua', 'Aire': 'Aire', 'Flora y Fauna': 'Flora y Fauna', 'Medio Humano': 'Medio Humano'}
+                                ocurrencia_opts = {'No ha ocurrido': 'No ha ocurrido', 'Eventual': 'Eventual', 'Frecuente': 'Frecuente', 'Permanente': 'Permanente'}
+                                magnitud_opts = {'Baja': 'Baja', 'Media': 'Media', 'Alta': 'Alta'}
+                                reversibilidad_opts = {'Reversible': 'Reversible', 'Recuperable': 'Recuperable', 'Mitigable': 'Mitigable', 'Irreversible': 'Irreversible'}
+                                cumplimiento_opts = {'OK': 'OK', 'NOK': 'NOK', 'N/A': 'N/A'}
+
+                                def _open_aspect_form(row: dict | None = None) -> None:
+                                    proceso_val = str((row or {}).get('proceso_nombre') or '').strip()
+                                    medio_val = str((row or {}).get('medio_afectado') or '').strip()
+                                    ocurrencia_val = str((row or {}).get('ocurrencia') or '').strip()
+                                    magnitud_val = str((row or {}).get('magnitud') or '').strip()
+                                    reversibilidad_val = str((row or {}).get('reversibilidad') or '').strip()
+                                    cumplimiento_val = str((row or {}).get('cumplimiento') or '').strip()
+                                    if proceso_val not in process_options:
+                                        proceso_val = None
+                                    if medio_val not in medio_afectado_opts:
+                                        medio_val = None
+                                    if ocurrencia_val not in ocurrencia_opts:
+                                        ocurrencia_val = None
+                                    if magnitud_val not in magnitud_opts:
+                                        magnitud_val = None
+                                    if reversibilidad_val not in reversibilidad_opts:
+                                        reversibilidad_val = None
+                                    if cumplimiento_val not in cumplimiento_opts:
+                                        cumplimiento_val = None
+
+                                    with ui.dialog() as dlg, ui.card().classes('w-[1180px] max-w-[98vw] ideas-panel p-5'):
+                                        ui.label('Carga de Matriz de Aspectos e Impactos').classes('text-lg font-semibold text-slate-900')
+                                        ui.label('Completá de izquierda a derecha. Enter avanza al siguiente campo.').classes('text-sm text-slate-500')
+
+                                        with ui.row().classes('w-full items-center gap-2 mt-3'):
+                                            ui.badge('DATOS BASE').props('color=grey-7')
+                                        with ui.grid(columns=3).classes('w-full gap-2'):
+                                            proceso = ui.select(process_options, value=proceso_val, label='Proceso').props('outlined use-input fill-input')
+                                            actividad = ui.input('Actividad', value=str((row or {}).get('actividad') or '')).props('outlined')
+                                            descripcion_actividad = ui.input('Descripción de la actividad', value=str((row or {}).get('descripcion_actividad') or '')).props('outlined')
+
+                                        with ui.row().classes('w-full items-center gap-2 mt-3'):
+                                            ui.badge('ASPECTO AMBIENTAL').props('color=primary')
+                                        with ui.grid(columns=4).classes('w-full gap-2'):
+                                            condicion_normal = ui.input('Condición normal de operación', value=str((row or {}).get('condicion_normal_operacion') or '')).props('outlined')
+                                            condicion_anormal = ui.input('Condición anormal de operación', value=str((row or {}).get('condicion_anormal_operacion') or '')).props('outlined')
+                                            condicion_emergencia = ui.input('Condición de emergencia', value=str((row or {}).get('condicion_emergencia') or '')).props('outlined')
+                                            aspecto = ui.input('Descripción', value=str((row or {}).get('aspecto') or '')).props('outlined')
+
+                                        with ui.row().classes('w-full items-center gap-2 mt-3'):
+                                            ui.badge('IMPACTO AMBIENTAL').props('color=teal')
+                                        with ui.grid(columns=4).classes('w-full gap-2'):
+                                            impacto = ui.input('Descripción', value=str((row or {}).get('impacto') or '')).props('outlined')
+                                            medio_afectado = ui.select(medio_afectado_opts, value=medio_val, label='Medio afectado').props('outlined')
+                                            ocurrencia = ui.select(ocurrencia_opts, value=ocurrencia_val, label='Ocurrencia').props('outlined')
+                                            magnitud = ui.select(magnitud_opts, value=magnitud_val, label='Magnitud').props('outlined')
+                                            reversibilidad = ui.select(reversibilidad_opts, value=reversibilidad_val, label='Reversibilidad').props('outlined')
+
+                                        with ui.row().classes('w-full items-center gap-2 mt-3'):
+                                            ui.badge('EVALUACIÓN').props('color=indigo')
+                                        with ui.grid(columns=4).classes('w-full gap-2'):
+                                            requisito_legal = ui.input('Requisito legal asociado', value=str((row or {}).get('requisito_legal_asociado') or '')).props('outlined')
+                                            significancia = ui.select({0: 'No significativo', 1: 'Significativo'}, value=int((row or {}).get('significancia') or 0), label='Significancia ambiental').props('outlined')
+
+                                        with ui.row().classes('w-full items-center gap-2 mt-3'):
+                                            ui.badge('GESTIÓN').props('color=orange')
+                                        with ui.grid(columns=4).classes('w-full gap-2'):
+                                            mitigacion = ui.input('Medidas de mitigación', value=str((row or {}).get('control_operacional') or '')).props('outlined')
+                                            responsable = ui.input('Responsable', value=str((row or {}).get('responsable') or '')).props('outlined')
+                                            fecha_realizacion = ui.input('Fecha de realización', value=str((row or {}).get('fecha_realizacion') or ''), placeholder='YYYY-MM-DD').props('outlined')
+                                            cumplimiento = ui.select(cumplimiento_opts, value=cumplimiento_val, label='Cumplimiento').props('outlined')
+                                            registro = ui.input('Registro', value=str((row or {}).get('registro') or '')).props('outlined')
+
+                                        focus_order = [
+                                            actividad, descripcion_actividad,
+                                            condicion_normal, condicion_anormal, condicion_emergencia, aspecto,
+                                            impacto, requisito_legal, mitigacion, responsable, fecha_realizacion, registro,
+                                        ]
+                                        for idx, control in enumerate(focus_order[:-1]):
+                                            nxt = focus_order[idx + 1]
+                                            control.on('keydown.enter', lambda _e, n=nxt: n.run_method('focus'))
+
+                                        def _save_aspect() -> None:
+                                            payload = {
+                                                'proceso_nombre': str(proceso.value or '').strip(),
+                                                'actividad': str(actividad.value or '').strip(),
+                                                'aspecto': str(aspecto.value or '').strip(),
+                                                'impacto': str(impacto.value or '').strip(),
+                                                'condicion': str((condicion_normal.value or '') or (condicion_anormal.value or '') or (condicion_emergencia.value or '')).strip(),
+                                                'significancia': int(significancia.value or 0),
+                                                'control_operacional': str(mitigacion.value or '').strip(),
+                                                'descripcion_actividad': str(descripcion_actividad.value or '').strip(),
+                                                'condicion_normal_operacion': str(condicion_normal.value or '').strip(),
+                                                'condicion_anormal_operacion': str(condicion_anormal.value or '').strip(),
+                                                'condicion_emergencia': str(condicion_emergencia.value or '').strip(),
+                                                'medio_afectado': str(medio_afectado.value or '').strip(),
+                                                'ocurrencia': str(ocurrencia.value or '').strip(),
+                                                'magnitud': str(magnitud.value or '').strip(),
+                                                'reversibilidad': str(reversibilidad.value or '').strip(),
+                                                'requisito_legal_asociado': str(requisito_legal.value or '').strip(),
+                                                'responsable': str(responsable.value or '').strip(),
+                                                'fecha_realizacion': str(fecha_realizacion.value or '').strip(),
+                                                'cumplimiento': str(cumplimiento.value or '').strip(),
+                                                'registro': str(registro.value or '').strip(),
+                                            }
+                                            if row and row.get('id'):
+                                                ok, msg = actualizar_aspecto_ambiental(int(row['id']), **payload)
+                                            else:
+                                                ok, msg = crear_aspecto_ambiental(int(selected_company_id), **payload)
+                                            ui.notify(fix_text(msg), type='positive' if ok else 'warning')
+                                            if ok:
+                                                dlg.close()
+                                                _refresh_aspects_table()
+
+                                        with ui.row().classes('w-full justify-end gap-2 mt-2'):
+                                            ui.button('Cancelar', on_click=dlg.close).props('flat')
+                                            ui.button('Guardar', icon='save', on_click=_save_aspect).props('unelevated color=primary')
+                                    dlg.open()
+
+                                def _refresh_aspects_table() -> None:
+                                    rows = obtener_aspectos_ambientales_empresa(int(selected_company_id)) or []
+                                    table_host.clear()
+                                    with table_host:
+                                        with ui.row().classes('w-full justify-between items-center'):
+                                            ui.label('Listado de aspectos e impactos').classes('text-sm font-semibold text-slate-800')
+                                            ui.button('Nuevo registro', icon='add', on_click=lambda: _open_aspect_form(None)).props('unelevated color=primary')
+                                        table_rows = [{
+                                            'id': int(r.get('id') or 0),
+                                            'proceso': str(r.get('proceso_nombre') or ''),
+                                            'actividad': str(r.get('actividad') or ''),
+                                            'descripcion_actividad': str(r.get('descripcion_actividad') or ''),
+                                            'c_normal': str(r.get('condicion_normal_operacion') or ''),
+                                            'c_anormal': str(r.get('condicion_anormal_operacion') or ''),
+                                            'c_emergencia': str(r.get('condicion_emergencia') or ''),
+                                            'impacto_desc': str(r.get('impacto') or ''),
+                                            'medio_afectado': str(r.get('medio_afectado') or ''),
+                                            'ocurrencia': str(r.get('ocurrencia') or ''),
+                                            'magnitud': str(r.get('magnitud') or ''),
+                                            'reversibilidad': str(r.get('reversibilidad') or ''),
+                                            'req_legal': str(r.get('requisito_legal_asociado') or ''),
+                                            'significancia': 'Significativo' if int(r.get('significancia') or 0) else 'No significativo',
+                                            'mitigacion': str(r.get('control_operacional') or ''),
+                                            'responsable': str(r.get('responsable') or ''),
+                                            'fecha_realizacion': str(r.get('fecha_realizacion') or ''),
+                                            'cumplimiento': str(r.get('cumplimiento') or ''),
+                                            'registro': str(r.get('registro') or ''),
+                                            'acciones': '',
+                                        } for r in rows]
+                                        columns = [
+                                            {'name': 'proceso', 'label': 'Proceso', 'field': 'proceso', 'align': 'left'},
+                                            {'name': 'actividad', 'label': 'Actividad', 'field': 'actividad', 'align': 'left'},
+                                            {'name': 'descripcion_actividad', 'label': 'Descripción actividad', 'field': 'descripcion_actividad', 'align': 'left'},
+                                            {'name': 'c_normal', 'label': 'Condición normal', 'field': 'c_normal', 'align': 'left'},
+                                            {'name': 'c_anormal', 'label': 'Condición anormal', 'field': 'c_anormal', 'align': 'left'},
+                                            {'name': 'c_emergencia', 'label': 'Condición emergencia', 'field': 'c_emergencia', 'align': 'left'},
+                                            {'name': 'impacto_desc', 'label': 'Descripción', 'field': 'impacto_desc', 'align': 'left'},
+                                            {'name': 'medio_afectado', 'label': 'Medio afectado', 'field': 'medio_afectado', 'align': 'left'},
+                                            {'name': 'ocurrencia', 'label': 'Ocurrencia', 'field': 'ocurrencia', 'align': 'left'},
+                                            {'name': 'magnitud', 'label': 'Magnitud', 'field': 'magnitud', 'align': 'left'},
+                                            {'name': 'reversibilidad', 'label': 'Reversibilidad', 'field': 'reversibilidad', 'align': 'left'},
+                                            {'name': 'req_legal', 'label': 'Req. legal', 'field': 'req_legal', 'align': 'left'},
+                                            {'name': 'significancia', 'label': 'Significancia', 'field': 'significancia', 'align': 'left'},
+                                            {'name': 'mitigacion', 'label': 'Medidas mitigación', 'field': 'mitigacion', 'align': 'left'},
+                                            {'name': 'responsable', 'label': 'Responsable', 'field': 'responsable', 'align': 'left'},
+                                            {'name': 'fecha_realizacion', 'label': 'Fecha', 'field': 'fecha_realizacion', 'align': 'left'},
+                                            {'name': 'cumplimiento', 'label': 'Cumplimiento', 'field': 'cumplimiento', 'align': 'left'},
+                                            {'name': 'registro', 'label': 'Registro', 'field': 'registro', 'align': 'left'},
+                                            {'name': 'acciones', 'label': 'Acciones', 'field': 'acciones', 'align': 'center'},
+                                        ]
+                                        table = ui.table(columns=columns, rows=table_rows, row_key='id', pagination=8).classes('w-full ideas-table')
+                                        table.add_slot('header', """
+                                            <q-tr class="bg-slate-50">
+                                                <q-th colspan="3"></q-th>
+                                                <q-th colspan="3" class="text-center text-blue-700" style="font-weight:700;border-right:1px solid #cbd5e1;">Aspecto Ambiental</q-th>
+                                                <q-th colspan="5" class="text-center text-teal-700" style="font-weight:700;">Impacto Ambiental</q-th>
+                                                <q-th colspan="9"></q-th>
+                                            </q-tr>
+                                            <q-tr :props="props">
+                                                <q-th
+                                                    v-for="col in props.cols"
+                                                    :key="col.name"
+                                                    :props="props"
+                                                    :style="col.name === 'c_emergencia' ? 'border-right:1px solid #cbd5e1;' : ''"
+                                                >{{ col.label }}</q-th>
+                                            </q-tr>
+                                        """)
+                                        table.add_slot('body-cell-acciones', """
+                                            <q-td :props=\"props\">
+                                                <q-btn flat dense round icon=\"edit\" color=\"primary\" @click=\"$parent.$emit('edit_row', props.row.id)\" />
+                                                <q-btn flat dense round icon=\"delete\" color=\"negative\" @click=\"$parent.$emit('delete_row', props.row.id)\" />
+                                            </q-td>
+                                        """)
+
+                                        def _on_edit_aspect(evt) -> None:
+                                            rid = int(evt.args or 0)
+                                            source = next((x for x in rows if int(x.get('id') or 0) == rid), None)
+                                            if source:
+                                                _open_aspect_form(source)
+
+                                        def _on_delete_aspect(evt) -> None:
+                                            rid = int(evt.args or 0)
+                                            eliminar_aspecto_ambiental(rid)
+                                            ui.notify('Registro eliminado.', type='positive')
+                                            _refresh_aspects_table()
+
+                                        table.on('edit_row', _on_edit_aspect)
+                                        table.on('delete_row', _on_delete_aspect)
+                                _refresh_aspects_table()
+
+                            if str(block.get('id')) == 'capacitaciones':
+                                table_host = ui.column().classes('w-full gap-3 mt-3')
+                                proceso_emisor_opts = {'Seguridad y Salud en el trabajo': 'Seguridad y Salud en el trabajo', 'Medio Ambiente': 'Medio Ambiente', 'Calidad': 'Calidad', 'Otro': 'Otro'}
+                                modalidad_opts = {'Presencial': 'Presencial', 'Hibrida': 'Hibrida', 'Virtual Sincronica': 'Virtual Sincronica', 'Virtual Asincronica': 'Virtual Asincronica'}
+                                responsable_opts = {'Interna': 'Interna', 'Externa': 'Externa'}
+
+                                def _payload(c: dict) -> dict:
+                                    return {
+                                        'tema': str(c['tema'].value or '').strip(),
+                                        'proceso_emisor': str(c['proceso_emisor'].value or '').strip(),
+                                        'proceso_receptor': str(c['proceso_receptor'].value or '').strip(),
+                                        'personal_involucrado': int(c['personal_involucrado'].value or 0),
+                                        'duracion_minutos': int(c['duracion_minutos'].value or 0),
+                                        'fecha_maxima_ejecucion_planificada': str(c['fecha_plan'].value or '').strip(),
+                                        'fecha_realizacion': str(c['fecha_real'].value or '').strip(),
+                                        'estado': str(c['estado'].value or '').strip(),
+                                        'porcentaje_personal_capacitado': float(c['porcentaje'].value or 0),
+                                        'modalidad': str(c['modalidad'].value or '').strip(),
+                                        'responsable_coordinacion': str(c['responsable_coord'].value or '').strip(),
+                                        'entrenador': str(c['entrenador'].value or '').strip(),
+                                        'requerimiento_legal': str(c['req_legal'].value or '').strip(),
+                                        'detalle_requerimiento': str(c['detalle_req'].value or '').strip(),
+                                    }
+
+                                def _open_form(row: dict | None = None) -> None:
+                                    emisor_val = str((row or {}).get('proceso_emisor') or '').strip()
+                                    modalidad_val = str((row or {}).get('modalidad') or '').strip()
+                                    responsable_val = str((row or {}).get('responsable_coordinacion') or '').strip()
+                                    if emisor_val not in proceso_emisor_opts:
+                                        emisor_val = None
+                                    if modalidad_val not in modalidad_opts:
+                                        modalidad_val = None
+                                    if responsable_val not in responsable_opts:
+                                        responsable_val = None
+                                    with ui.dialog() as dlg, ui.card().classes('w-[980px] max-w-[96vw] ideas-panel p-4'):
+                                        ui.label('Carga de capacitación Ambiental').classes('text-lg font-semibold text-slate-900')
+                                        with ui.grid(columns=4).classes('w-full gap-2 mt-2'):
+                                            tema = ui.input('Tema', value=str((row or {}).get('tema') or '')).props('outlined')
+                                            proceso_emisor = ui.select(proceso_emisor_opts, value=emisor_val, label='Proceso emisor').props('outlined')
+                                            proceso_receptor = ui.input('Proceso receptor', value=str((row or {}).get('proceso_receptor') or '')).props('outlined')
+                                            personal_involucrado = ui.number('Personal involucrado', value=int((row or {}).get('personal_involucrado') or 0)).props('outlined')
+                                            duracion_minutos = ui.number('Duración (minutos)', value=int((row or {}).get('duracion_minutos') or 0)).props('outlined')
+                                            fecha_plan = ui.input('Fecha máxima de ejecución planificada', value=str((row or {}).get('fecha_maxima_ejecucion_planificada') or ''), placeholder='YYYY-MM-DD').props('outlined')
+                                            fecha_real = ui.input('Fecha de realización', value=str((row or {}).get('fecha_realizacion') or ''), placeholder='YYYY-MM-DD').props('outlined')
+                                            estado = ui.input('Estado', value=str((row or {}).get('estado') or '')).props('outlined')
+                                            porcentaje = ui.number('% Personal capacitado', value=float((row or {}).get('porcentaje_personal_capacitado') or 0)).props('outlined')
+                                            modalidad = ui.select(modalidad_opts, value=modalidad_val, label='Modalidad').props('outlined')
+                                            responsable_coord = ui.select(responsable_opts, value=responsable_val, label='Responsable coordinación').props('outlined')
+                                            entrenador = ui.input('Entrenador', value=str((row or {}).get('entrenador') or '')).props('outlined')
+                                            req_legal = ui.input('Requerimiento legal', value=str((row or {}).get('requerimiento_legal') or '')).props('outlined')
+                                        detalle_req = ui.textarea('Detalle del requerimiento', value=str((row or {}).get('detalle_requerimiento') or '')).props('outlined autogrow').classes('w-full')
+                                        controls = {'tema': tema, 'proceso_emisor': proceso_emisor, 'proceso_receptor': proceso_receptor, 'personal_involucrado': personal_involucrado, 'duracion_minutos': duracion_minutos, 'fecha_plan': fecha_plan, 'fecha_real': fecha_real, 'estado': estado, 'porcentaje': porcentaje, 'modalidad': modalidad, 'responsable_coord': responsable_coord, 'entrenador': entrenador, 'req_legal': req_legal, 'detalle_req': detalle_req}
+
+                                        def _save() -> None:
+                                            payload = _payload(controls)
+                                            if row and row.get('id'):
+                                                ok, msg = actualizar_ambiental_capacitacion(int(row['id']), payload)
+                                            else:
+                                                ok, msg, _new_id = crear_ambiental_capacitacion(int(selected_company_id), payload)
+                                            ui.notify(msg, type='positive' if ok else 'warning')
+                                            if ok:
+                                                dlg.close()
+                                                _refresh_table()
+
+                                        with ui.row().classes('w-full justify-end gap-2 mt-2'):
+                                            ui.button('Cancelar', on_click=dlg.close).props('flat')
+                                            ui.button('Guardar', icon='save', on_click=_save).props('unelevated color=primary')
+                                    dlg.open()
+
+                                def _refresh_table() -> None:
+                                    rows = obtener_ambiental_capacitaciones_empresa(int(selected_company_id)) or []
+                                    table_host.clear()
+                                    with table_host:
+                                        with ui.row().classes('w-full justify-between items-center'):
+                                            ui.label('Listado de capacitaciones').classes('text-sm font-semibold text-slate-800')
+                                            ui.button('Nueva capacitación', icon='add', on_click=lambda: _open_form(None)).props('unelevated color=primary')
+                                        table_rows = [{
+                                            'id': int(r.get('id') or 0), 'tema': str(r.get('tema') or ''), 'proceso_emisor': str(r.get('proceso_emisor') or ''), 'proceso_receptor': str(r.get('proceso_receptor') or ''), 'personal_involucrado': int(r.get('personal_involucrado') or 0), 'duracion_minutos': int(r.get('duracion_minutos') or 0), 'fecha_plan': str(r.get('fecha_maxima_ejecucion_planificada') or ''), 'fecha_real': str(r.get('fecha_realizacion') or ''), 'estado': str(r.get('estado') or ''), 'porcentaje': float(r.get('porcentaje_personal_capacitado') or 0), 'modalidad': str(r.get('modalidad') or ''), 'responsable_coord': str(r.get('responsable_coordinacion') or ''), 'entrenador': str(r.get('entrenador') or ''), 'req_legal': str(r.get('requerimiento_legal') or ''), 'detalle_req': str(r.get('detalle_requerimiento') or ''), 'acciones': '',
+                                        } for r in rows]
+                                        columns = [{'name': 'tema', 'label': 'Tema', 'field': 'tema', 'align': 'left'}, {'name': 'proceso_emisor', 'label': 'Proceso emisor', 'field': 'proceso_emisor', 'align': 'left'}, {'name': 'proceso_receptor', 'label': 'Proceso receptor', 'field': 'proceso_receptor', 'align': 'left'}, {'name': 'personal_involucrado', 'label': 'Personal', 'field': 'personal_involucrado', 'align': 'left'}, {'name': 'duracion_minutos', 'label': 'Duración', 'field': 'duracion_minutos', 'align': 'left'}, {'name': 'fecha_plan', 'label': 'Fecha planificada', 'field': 'fecha_plan', 'align': 'left'}, {'name': 'fecha_real', 'label': 'Fecha realización', 'field': 'fecha_real', 'align': 'left'}, {'name': 'estado', 'label': 'Estado', 'field': 'estado', 'align': 'left'}, {'name': 'porcentaje', 'label': '% Personal', 'field': 'porcentaje', 'align': 'left'}, {'name': 'modalidad', 'label': 'Modalidad', 'field': 'modalidad', 'align': 'left'}, {'name': 'responsable_coord', 'label': 'Resp. coordinación', 'field': 'responsable_coord', 'align': 'left'}, {'name': 'entrenador', 'label': 'Entrenador', 'field': 'entrenador', 'align': 'left'}, {'name': 'req_legal', 'label': 'Req. legal', 'field': 'req_legal', 'align': 'left'}, {'name': 'detalle_req', 'label': 'Detalle', 'field': 'detalle_req', 'align': 'left'}, {'name': 'acciones', 'label': 'Acciones', 'field': 'acciones', 'align': 'center'}]
+                                        table = ui.table(columns=columns, rows=table_rows, row_key='id', pagination=8).classes('w-full ideas-table')
+                                        table.add_slot('body-cell-acciones', """
+                                            <q-td :props=\"props\">
+                                                <q-btn flat dense round icon=\"edit\" color=\"primary\" @click=\"$parent.$emit('edit_row', props.row.id)\" />
+                                                <q-btn flat dense round icon=\"delete\" color=\"negative\" @click=\"$parent.$emit('delete_row', props.row.id)\" />
+                                            </q-td>
+                                        """)
+
+                                        def _on_edit(evt) -> None:
+                                            rid = int(evt.args or 0)
+                                            source = next((x for x in rows if int(x.get('id') or 0) == rid), None)
+                                            if source:
+                                                _open_form(source)
+
+                                        def _on_delete(evt) -> None:
+                                            rid = int(evt.args or 0)
+                                            ok, msg = eliminar_ambiental_capacitacion(rid)
+                                            ui.notify(msg, type='positive' if ok else 'warning')
+                                            if ok:
+                                                _refresh_table()
+
+                                        table.on('edit_row', _on_edit)
+                                        table.on('delete_row', _on_delete)
+                                _refresh_table()
+
                             with ui.grid(columns=2).classes('w-full gap-3 mt-3'):
                                 for item in block['items']:
                                     with ui.card().classes('ideas-module-card cursor-pointer').on(

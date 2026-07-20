@@ -33,7 +33,23 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
     guardar_token_empresa = deps.get('guardar_token_empresa')
     generar_token_seguro = deps.get('generar_token_seguro')
     enviar_correo_acceso = deps.get('enviar_correo_acceso')
+    get_available_modules_for_company = deps.get('get_available_modules_for_company')
+    assign_modules_to_company = deps.get('assign_modules_to_company')
+    sync_user_modules_after_company_change = deps.get('sync_user_modules_after_company_change')
     generar_pdf_ejecutivo_v2 = deps['generar_pdf_ejecutivo_v2']
+    RUBRO_OPTIONS = [
+        'Autopartista',
+        'Alimenticia',
+        'Servicios',
+        'Energia',
+        'Construccion',
+        'Metalurgica',
+        'Quimica',
+        'Logistica',
+        'Salud',
+        'Tecnologia',
+        'Otro',
+    ]
 
     root_dir = Path(__file__).resolve().parents[1]
     company_logo_dir = root_dir / 'assets' / 'logos_empresas'
@@ -181,7 +197,14 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                 pagination=6,
             ).classes('w-full ideas-table mt-4')
             table.add_slot('body-cell-acciones', '''<q-td :props="props"><div class="row items-center no-wrap q-gutter-sm"><q-btn flat round dense icon="delete" color="negative" @click="$parent.$emit('delete_source', props.row.id)" /></div></q-td>''')
-            table.on('delete_source', lambda event: (eliminar_fuente(int(event.args)), ui.notify('Fuente eliminada.', type='positive'), render_sources_manager(container, empresa_id)))
+            def _handle_delete_source(event) -> None:
+                ok = eliminar_fuente(int(event.args))
+                if ok is False:
+                    ui.notify('No autorizado para eliminar esta fuente.', type='negative')
+                    return
+                ui.notify('Fuente eliminada.', type='positive')
+                render_sources_manager(container, empresa_id)
+            table.on('delete_source', _handle_delete_source)
 
     @ui.page('/empresas')
     def companies_page() -> None:
@@ -206,7 +229,7 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                     with ui.tab_panel(tab_datos_new).classes('w-full px-0'):
                         razon_social = ui.input('Razón social').classes('w-full')
                         with ui.row().classes('w-full gap-4'):
-                            ubicacion = ui.input('Ubicación').classes('col'); rubro = ui.input('Rubro').classes('col'); cantidad_empleados = ui.number('Cantidad de empleados', value=0, min=0, precision=0).classes('col')
+                            ubicacion = ui.input('Ubicación').classes('col'); rubro = ui.select(RUBRO_OPTIONS, value='Servicios', label='Rubro principal').classes('col').props('outlined use-input fill-input'); cantidad_empleados = ui.number('Cantidad de empleados', value=0, min=0, precision=0).classes('col')
                         ui.label('Persona de contacto').classes('text-lg font-semibold text-slate-800 mt-2')
                         with ui.row().classes('w-full gap-4'):
                             contacto_nombre = ui.input('Nombre').classes('col'); contacto_correo = ui.input('Correo').classes('col')
@@ -277,6 +300,124 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                 with ui.row().classes('w-full justify-end gap-2 mt-4'):
                     ui.button('Cancelar', on_click=dialog_empresa.close).props('flat')
                     ui.button('Guardar empresa', icon='save', on_click=save_company).props('unelevated color=primary')
+
+            with ui.dialog() as dialog_empresa_wizard, ui.card().classes('w-[980px] max-w-[96vw] p-6 rounded-[26px] ideas-panel overflow-y-auto').style('max-height: 92vh;'):
+                ui.label('Nueva empresa (Asistente)').classes('text-2xl font-bold text-slate-900')
+                ui.label('Completa los pasos minimos para crear empresa y dejar listo el acceso inicial.').classes('ideas-section-note')
+
+                with ui.stepper().props('flat animated').classes('w-full mt-3') as wizard_new:
+                    with ui.step('Datos minimos', icon='badge'):
+                        wz_razon_social = ui.input('Razon social').classes('w-full')
+                        with ui.row().classes('w-full gap-4'):
+                            wz_contacto_nombre = ui.input('Nombre de contacto').classes('col')
+                            wz_contacto_correo = ui.input('Correo de contacto').classes('col')
+                        with ui.row().classes('w-full gap-4'):
+                            wz_rubro = ui.select(RUBRO_OPTIONS, value='Servicios', label='Rubro principal').classes('col').props('outlined use-input fill-input')
+                            wz_cantidad_empleados = ui.number('Cantidad de empleados', value=0, min=0, precision=0).classes('col')
+
+                        def wizard_step_one_next() -> None:
+                            if not str(wz_razon_social.value or '').strip():
+                                ui.notify('Completa la razon social para avanzar.', type='warning')
+                                return
+                            if not str(wz_contacto_correo.value or '').strip():
+                                ui.notify('Completa el correo de contacto para avanzar.', type='warning')
+                                return
+                            wizard_new.next()
+
+                        with ui.row().classes('w-full justify-end mt-4'):
+                            ui.button('Siguiente', icon='arrow_forward', on_click=wizard_step_one_next).props('unelevated color=primary')
+
+                    with ui.step('Configuracion', icon='tune'):
+                        with ui.row().classes('w-full gap-4'):
+                            wz_ubicacion = ui.input('Ubicacion').classes('col')
+                            wz_contacto_telefono = ui.input('Telefono').classes('col')
+                            wz_contacto_posicion = ui.input('Posicion').classes('col')
+                        ui.label('Certificaciones').classes('text-lg font-semibold text-slate-800 mt-2')
+                        with ui.row().classes('w-full gap-4'):
+                            wz_cert_9001 = ui.switch('ISO 9001', value=False)
+                            wz_cert_14001 = ui.switch('ISO 14001', value=False)
+                            wz_cert_45001 = ui.switch('ISO 45001', value=False)
+                            wz_cert_iatf = ui.switch('IATF', value=False)
+                        wz_logo_temporal = {'path': ''}
+                        wz_logo_preview = ui.column().classes('w-full mt-3')
+                        with wz_logo_preview:
+                            ui.label('Logo de la empresa').classes('text-lg font-semibold text-slate-800')
+                            ui.label('Se guardara localmente en assets/logos_empresas.').classes('ideas-section-note')
+
+                        async def handle_logo_upload_wizard(event) -> None:
+                            try:
+                                wz_logo_temporal['path'] = await save_company_logo(event, prefix=fix_text(wz_razon_social.value or 'empresa'))
+                                wz_logo_preview.clear()
+                                with wz_logo_preview:
+                                    ui.label('Logo de la empresa').classes('text-lg font-semibold text-slate-800')
+                                    ui.image(logo_url_from_path(wz_logo_temporal['path'])).classes('w-32 max-h-24 object-contain')
+                                    ui.label(wz_logo_temporal['path']).classes('text-xs text-slate-500')
+                                ui.notify('Logo cargado correctamente.', type='positive')
+                            except Exception as exc:
+                                ui.notify(f'No se pudo cargar el logo: {exc}', type='negative')
+
+                        ui.upload(label='Cargar logo', auto_upload=True, on_upload=handle_logo_upload_wizard).props('accept=".png,.jpg,.jpeg,.svg,.webp"').classes('w-full mt-2')
+                        with ui.card().classes('w-full mt-4 p-4 border border-violet-200 bg-violet-50 shadow-none rounded-[20px]'):
+                            ui.label('Copiloto IA').classes('text-lg font-semibold text-violet-900')
+                            ui.label('Activa o desactiva el acceso al modulo IA para esta empresa.').classes('text-sm text-violet-700')
+                            wz_agente_ia_activo = ui.switch('Habilitar Copiloto IA para esta empresa', value=False).classes('mt-3')
+                        with ui.row().classes('w-full gap-4 mt-3'):
+                            wz_color_primario = ui.color_input('Color primario', value='#1f7ed6', preview=True).classes('col')
+                            wz_color_secundario = ui.color_input('Color secundario', value='#0f766e', preview=True).classes('col')
+                        with ui.row().classes('w-full justify-between mt-4'):
+                            ui.button('Anterior', icon='arrow_back', on_click=wizard_new.previous).props('flat')
+                            ui.button('Siguiente', icon='arrow_forward', on_click=wizard_new.next).props('unelevated color=primary')
+
+                    with ui.step('Acceso y alta', icon='task_alt'):
+                        ui.label('Usuario inicial').classes('text-lg font-semibold text-slate-800')
+                        ui.label('Se usara el correo de contacto para el enlace de acceso seguro.').classes('ideas-section-note')
+                        wz_enviar_link_automatico = ui.switch('Enviar enlace de acceso automaticamente al guardar', value=True).classes('mt-2')
+
+                        def save_company_wizard() -> None:
+                            payload = {
+                                'razon_social': wz_razon_social.value or '',
+                                'ubicacion': wz_ubicacion.value or '',
+                                'contacto_nombre': wz_contacto_nombre.value or '',
+                                'contacto_correo': wz_contacto_correo.value or '',
+                                'password': '',
+                                'contacto_telefono': wz_contacto_telefono.value or '',
+                                'contacto_posicion': wz_contacto_posicion.value or '',
+                                'rubro': wz_rubro.value or '',
+                                'cantidad_empleados': int(wz_cantidad_empleados.value or 0),
+                                'cert_iso_9001': 'Si' if wz_cert_9001.value else 'No',
+                                'cert_iso_14001': 'Si' if wz_cert_14001.value else 'No',
+                                'cert_iso_45001': 'Si' if wz_cert_45001.value else 'No',
+                                'cert_iatf': 'Si' if wz_cert_iatf.value else 'No',
+                                'logo_path': wz_logo_temporal['path'],
+                                'color_primario': wz_color_primario.value or '',
+                                'color_secundario': wz_color_secundario.value or '',
+                                'agente_ia_activo': 1 if wz_agente_ia_activo.value else 0,
+                            }
+                            ok, message = guardar_empresa(payload)
+                            ui.notify(fix_text(message), type='positive' if ok else 'negative')
+                            if not ok:
+                                return
+
+                            if wz_enviar_link_automatico.value:
+                                correo = str(wz_contacto_correo.value or '').strip()
+                                nombre = str(wz_razon_social.value or '').strip() or 'Empresa'
+                                if correo and (guardar_token_empresa and generar_token_seguro and enviar_correo_acceso):
+                                    token = generar_token_seguro()
+                                    ok_token = guardar_token_empresa(correo, token, expiracion_minutos=1440)
+                                    if ok_token:
+                                        enviar_correo_acceso(correo, nombre, token)
+                                        ui.notify('Empresa creada y enlace de acceso enviado.', type='positive')
+                                    else:
+                                        ui.notify('Empresa creada, pero no se pudo generar el enlace de acceso.', type='warning')
+                                else:
+                                    ui.notify('Empresa creada. Configura el enlace de acceso manualmente.', type='warning')
+
+                            dialog_empresa_wizard.close()
+                            ui.navigate.to('/empresas')
+
+                        with ui.row().classes('w-full justify-between mt-4'):
+                            ui.button('Anterior', icon='arrow_back', on_click=wizard_new.previous).props('flat')
+                            ui.button('Crear empresa', icon='save', on_click=save_company_wizard).props('unelevated color=primary')
             def open_edit_company(company_id: int) -> None:
                 company = next((item for item in companies if int(item['id']) == int(company_id)), None)
                 if not company:
@@ -292,7 +433,7 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                         with ui.tab_panel(tab_datos_edit).classes('w-full px-0'):
                             razon_social_edit = ui.input('Razón social', value=fix_text(company.get('razon_social', ''))).classes('w-full mt-2')
                             with ui.row().classes('w-full gap-4'):
-                                ubicacion_edit = ui.input('Ubicación', value=fix_text(company.get('ubicacion', ''))).classes('col'); rubro_edit = ui.input('Rubro', value=fix_text(company.get('rubro', ''))).classes('col'); cantidad_empleados_edit = ui.number('Cantidad de empleados', value=int(company.get('cantidad_empleados') or 0), min=0, precision=0).classes('col')
+                                ubicacion_edit = ui.input('Ubicación', value=fix_text(company.get('ubicacion', ''))).classes('col'); rubro_edit = ui.select(RUBRO_OPTIONS, value=fix_text(company.get('rubro', '')) or 'Servicios', label='Rubro principal').classes('col').props('outlined use-input fill-input'); cantidad_empleados_edit = ui.number('Cantidad de empleados', value=int(company.get('cantidad_empleados') or 0), min=0, precision=0).classes('col')
                             ui.label('Persona de contacto').classes('text-lg font-semibold text-slate-800 mt-2')
                             with ui.row().classes('w-full gap-4'):
                                 contacto_nombre_edit = ui.input('Nombre', value=fix_text(company.get('contacto_nombre', ''))).classes('col'); contacto_correo_edit = ui.input('Correo', value=fix_text(company.get('contacto_correo', ''))).classes('col')
@@ -371,12 +512,86 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                 with ui.column().classes('gap-1'):
                     ui.label('Empresas registradas').classes('ideas-section-title')
                     ui.label('Gestiona clientes, branding y acceso al workspace desde una vista limpia y centralizada.').classes('ideas-section-note')
-                ui.button('Nueva empresa', icon='add_business', on_click=dialog_empresa.open).props('unelevated color=primary')
+                ui.button('Nueva empresa', icon='add_business', on_click=dialog_empresa_wizard.open).props('unelevated color=primary')
             table_rows = [{'id': item['id'], 'razon_social': item['razon_social'], 'ubicacion': fix_text(item.get('ubicacion', '')), 'rubro': fix_text(item.get('rubro', '')), 'empleados': item.get('cantidad_empleados') or 0, 'contacto': fix_text(item.get('contacto_nombre', '')), 'certificaciones': certifications_summary(item), 'acciones': ''} for item in companies]
             table = ui.table(columns=[{'name': 'razon_social', 'label': 'Razón social', 'field': 'razon_social', 'align': 'left'}, {'name': 'ubicacion', 'label': 'Ubicación', 'field': 'ubicacion', 'align': 'left'}, {'name': 'rubro', 'label': 'Rubro', 'field': 'rubro', 'align': 'left'}, {'name': 'empleados', 'label': 'Empleados', 'field': 'empleados', 'align': 'right'}, {'name': 'contacto', 'label': 'Contacto', 'field': 'contacto', 'align': 'left'}, {'name': 'certificaciones', 'label': 'Certificaciones', 'field': 'certificaciones', 'align': 'left'}, {'name': 'acciones', 'label': 'Acciones', 'field': 'acciones', 'align': 'center'}], rows=table_rows, row_key='id', pagination=8).classes('w-full ideas-panel ideas-table p-3 mt-4')
-            table.add_slot('body-cell-acciones', '''<q-td :props="props"><div class="row items-center no-wrap q-gutter-sm"><q-btn flat round dense icon="edit" color="secondary" @click="$parent.$emit('edit_company', props.row.id)" /><q-btn flat round dense icon="account_tree" color="primary" @click="$parent.$emit('open_workspace', props.row.id)" /><q-btn flat round dense icon="delete" color="negative" @click="$parent.$emit('delete_company', props.row.id)" /></div></q-td>''')
+            table.add_slot('body-cell-acciones', '''<q-td :props="props"><div class="row items-center no-wrap q-gutter-sm"><q-btn flat round dense icon="edit" color="secondary" @click="$parent.$emit('edit_company', props.row.id)" /><q-btn flat round dense icon="toggle_on" color="indigo" @click="$parent.$emit('manage_modules', props.row.id)" /><q-btn flat round dense icon="account_tree" color="primary" @click="$parent.$emit('open_workspace', props.row.id)" /><q-btn flat round dense icon="delete" color="negative" @click="$parent.$emit('delete_company', props.row.id)" /></div></q-td>''')
             table.on('edit_company', lambda event: open_edit_company(int(event.args)))
             table.on('open_workspace', lambda event: go_to_management_workspace(int(event.args), set_selection))
+            def open_manage_modules(company_id: int) -> None:
+                if not (callable(get_available_modules_for_company) and callable(assign_modules_to_company)):
+                    ui.notify('Gestión de módulos no disponible en esta versión.', type='warning')
+                    return
+                company = next((item for item in companies if int(item['id']) == int(company_id)), None)
+                if not company:
+                    ui.notify('Esa empresa ya no existe en la base.', type='warning')
+                    return
+                modules = get_available_modules_for_company(int(company_id)) or []
+                visual_modules = [item for item in modules if str(item.get('category') or '') != 'admin']
+                module_state = {
+                    int(item.get('id')): bool(int(item.get('enabled') or 0))
+                    for item in visual_modules
+                }
+                module_labels = {
+                    int(item.get('id')): fix_text(item.get('name') or item.get('code') or '')
+                    for item in visual_modules
+                }
+                module_meta = {
+                    int(item.get('id')): {
+                        'icon': str(item.get('icon') or 'widgets'),
+                        'category': str(item.get('category') or 'core'),
+                    }
+                    for item in visual_modules
+                }
+                with ui.dialog() as dialog_mods, ui.card().classes('w-[760px] max-w-[96vw] p-6 rounded-[24px] ideas-panel'):
+                    ui.label('Gestión de Módulos').classes('text-2xl font-bold text-slate-900')
+                    ui.label(f"Empresa: {fix_text(company.get('razon_social') or '')}").classes('ideas-section-note')
+                    ui.label('Al deshabilitar un módulo, los usuarios perderán acceso pero toda la información se conservará.').classes('text-sm text-amber-700 mt-1')
+                    pool_container = ui.column().classes('w-full mt-4 gap-2')
+
+                    def render_pool() -> None:
+                        pool_container.clear()
+                        with pool_container:
+                            with ui.grid(columns=2).classes('w-full gap-2'):
+                                for module_id, label in module_labels.items():
+                                    meta = module_meta.get(module_id) or {}
+                                    with ui.card().classes('ideas-panel').style('border:1px solid rgba(148,163,184,.20);box-shadow:none;'):
+                                        with ui.row().classes('w-full items-center justify-between'):
+                                            with ui.row().classes('items-center gap-2'):
+                                                ui.icon(meta.get('icon') or 'widgets').classes('text-slate-600')
+                                                with ui.column().classes('gap-0'):
+                                                    ui.label(label).classes('text-sm text-slate-800')
+                                                    ui.label(str(meta.get('category') or '').upper()).classes('text-[11px] text-slate-400')
+                                            toggle = ui.switch(value=bool(module_state.get(module_id))).props('dense')
+                                            toggle.on_value_change(lambda e, mid=module_id: module_state.__setitem__(mid, bool(e.value)))
+                    render_pool()
+
+                    with ui.row().classes('w-full justify-between mt-3'):
+                        ui.button('Activar todos', icon='select_all', on_click=lambda: (module_state.update({k: True for k in module_state}), render_pool())).props('flat')
+                        ui.button('Quitar todos', icon='deselect', on_click=lambda: (module_state.update({k: False for k in module_state}), render_pool())).props('flat color=warning')
+
+                    def save_modules() -> None:
+                        actor = str(app.storage.user.get('session_user_key') or app.storage.user.get('username') or 'superadmin')
+                        enabled_ids = [int(mid) for mid, enabled in module_state.items() if bool(enabled)]
+                        ok, message = assign_modules_to_company(int(company_id), enabled_ids, actor=actor)
+                        ui.notify(fix_text(message), type='positive' if ok else 'negative')
+                        if ok:
+                            dialog_mods.close()
+                    def resync_users() -> None:
+                        if not callable(sync_user_modules_after_company_change):
+                            ui.notify('Re-sincronización no disponible en esta versión.', type='warning')
+                            return
+                        actor = str(app.storage.user.get('session_user_key') or app.storage.user.get('username') or 'superadmin')
+                        ok, message = sync_user_modules_after_company_change(int(company_id), actor=actor)
+                        ui.notify(fix_text(message), type='positive' if ok else 'negative')
+
+                    with ui.row().classes('w-full justify-between gap-2 mt-5'):
+                        ui.button('Re-sincronizar usuarios', icon='sync', on_click=resync_users).props('outline color=indigo')
+                        with ui.row().classes('gap-2'):
+                            ui.button('Cancelar', on_click=dialog_mods.close).props('flat')
+                            ui.button('Guardar módulos empresa', icon='save', on_click=save_modules).props('unelevated color=primary')
+                dialog_mods.open()
+            table.on('manage_modules', lambda event: open_manage_modules(int(event.args)))
             def confirm_delete_company(company_id: int) -> None:
                 company = next((item for item in companies if int(item['id']) == int(company_id)), None)
                 if not company:
@@ -694,6 +909,15 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                 with ui.dialog() as dialog, ui.card().classes('p-5'):
                     ui.label('Eliminar diagnóstico').classes('text-lg font-semibold'); ui.label(f"Se eliminará {diag['empresa']} · {diag['fecha']} y también sus respuestas.").classes('text-slate-600')
                     with ui.row().classes('w-full justify-end gap-2 mt-3'):
-                        ui.button('Cancelar', on_click=dialog.close).props('flat'); ui.button('Eliminar', color='negative', on_click=lambda: (eliminar_diagnostico(diag_id), dialog.close(), ui.notify('Diagnóstico eliminado correctamente.', type='positive'), ui.navigate.to('/historial')))
+                        ui.button('Cancelar', on_click=dialog.close).props('flat')
+                        def _handle_delete_diag() -> None:
+                            ok = eliminar_diagnostico(diag_id)
+                            if ok is False:
+                                ui.notify('No autorizado para eliminar este diagnóstico.', type='negative')
+                                return
+                            dialog.close()
+                            ui.notify('Diagnóstico eliminado correctamente.', type='positive')
+                            ui.navigate.to('/historial')
+                        ui.button('Eliminar', color='negative', on_click=_handle_delete_diag)
                 dialog.open()
             table.on('delete_diag', lambda event: confirm_delete(int(event.args)))

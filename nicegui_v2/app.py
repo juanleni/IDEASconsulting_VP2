@@ -24,6 +24,7 @@ IDEAS_STANDARD_CHANGELOG_PATH = THIS_DIR / 'data' / 'ideas_ai_versions.jsonl'
 IDEAS_WELCOME_TEMPLATE_PATH = THIS_DIR / 'data' / 'ideas_ai_welcome_template.txt'
 IDEAS_ASSISTANT_SETTINGS_PATH = THIS_DIR / 'data' / 'ideas_ai_settings.json'
 IDEAS_ASSISTANT_CLIENT_RULES_PATH = THIS_DIR / 'data' / 'ideas_ai_client_rules.json'
+IDEAS_ASSISTANT_LIBRARY_PATH = THIS_DIR / 'data' / 'ideas_ai_conversations.json'
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 if str(THIS_DIR) not in sys.path:
@@ -105,6 +106,83 @@ from core_data import (  # noqa: E402
     verificar_token_empresa,
     verificar_usuario,
     eliminar_fuente,
+    obtener_lab_configuracion,
+    guardar_lab_configuracion,
+    obtener_lab_dashboard_empresa,
+    seed_lab_demo_data,
+    calcular_incertidumbre_metodo,
+    validar_competencia_para_metodo,
+    obtener_lab_equipos_empresa,
+    crear_lab_equipo,
+    actualizar_lab_equipo,
+    eliminar_lab_equipo,
+    obtener_lab_calibraciones_empresa,
+    crear_lab_calibracion,
+    actualizar_lab_calibracion,
+    eliminar_lab_calibracion,
+    obtener_lab_metodos_empresa,
+    crear_lab_metodo,
+    actualizar_lab_metodo,
+    eliminar_lab_metodo,
+    obtener_lab_muestras_empresa,
+    crear_lab_muestra,
+    actualizar_lab_muestra,
+    eliminar_lab_muestra,
+    obtener_lab_competencias_empresa,
+    crear_lab_competencia,
+    actualizar_lab_competencia,
+    eliminar_lab_competencia,
+    obtener_lab_incertidumbre_empresa,
+    crear_lab_incertidumbre_componente,
+    eliminar_lab_incertidumbre_componente,
+    obtener_lab_control_calidad_empresa,
+    crear_lab_control_calidad,
+    eliminar_lab_control_calidad,
+    obtener_lab_informes_empresa,
+    crear_lab_informe,
+    actualizar_lab_informe,
+    eliminar_lab_informe,
+    obtener_lab_auditorias_empresa,
+    crear_lab_auditoria,
+    eliminar_lab_auditoria,
+    obtener_lab_riesgos_empresa,
+    crear_lab_riesgo,
+    eliminar_lab_riesgo,
+    obtener_lab_acciones_empresa,
+    crear_lab_accion,
+    eliminar_lab_accion,
+    obtener_lab_mobile_unidades_empresa,
+    crear_lab_mobile_unidad,
+    obtener_lab_mobile_registros_empresa,
+    crear_lab_mobile_registro,
+    obtener_lab_ai_settings,
+    guardar_lab_ai_settings,
+    obtener_lab_alertas_empresa,
+    actualizar_lab_alerta_estado,
+    ejecutar_chequeo_lab_empresa,
+    generar_reporte_pre_acreditacion_lab,
+    obtener_reportes_lab_ai,
+    convertir_alerta_en_accion_lab,
+    obtener_sst_capacitaciones_empresa,
+    crear_sst_capacitacion,
+    actualizar_sst_capacitacion,
+    eliminar_sst_capacitacion,
+    obtener_ambiental_capacitaciones_empresa,
+    crear_ambiental_capacitacion,
+    actualizar_ambiental_capacitacion,
+    eliminar_ambiental_capacitacion,
+    list_modules_catalog,
+    get_available_modules_for_company,
+    get_enabled_modules_for_user,
+    can_company_access_module,
+    can_user_access_module,
+    assign_modules_to_company,
+    assign_modules_to_user,
+    sync_user_modules_after_company_change,
+    disable_company_module,
+    enable_company_module,
+    disable_user_module,
+    enable_user_module,
 )
 try:
     from core_data import provisionar_acceso_empresa  # noqa: E402
@@ -158,6 +236,7 @@ from pages_management import (  # noqa: E402
 from pages_public import register_public_pages  # noqa: E402
 from pages_platform import register_platform_pages  # noqa: E402
 from pages_diagnostic import register_diagnostic_pages  # noqa: E402
+from pages_ai_command_center import register_ai_command_center_page  # noqa: E402
 from modules_documents import (  # noqa: E402
     go_to_company_documents_module,
     go_to_documents_library,
@@ -179,6 +258,7 @@ from modules_environment import (  # noqa: E402
     go_to_environment_module,
     register_environment_module,
 )
+from modules_legal_matrix import go_to_legal_matrix_module, register_legal_matrix_module  # noqa: E402
 from modules_quality import (  # noqa: E402
     go_to_quality_module,
     register_quality_module,
@@ -188,6 +268,29 @@ from modules_sst import (  # noqa: E402
     register_sst_module,
 )
 from modules_users import go_to_users_module, register_users_module  # noqa: E402
+from modules_lab import go_to_lab_module, register_lab_module  # noqa: E402
+from services.lab_ai_scheduler import start_lab_ai_scheduler  # noqa: E402
+try:
+    from services.dashboard.dashboard_service import get_data_sources_for_company  # noqa: E402
+except Exception:  # pragma: no cover
+    def get_data_sources_for_company(*_args, **_kwargs):
+        return {}
+try:
+    from services.ai.ai_action_planner import build_action_plan  # noqa: E402
+    from services.ai.ai_action_executor import execute_ai_action  # noqa: E402
+    from services.ai.ai_audit_trail import list_ai_action_logs, write_ai_action_log  # noqa: E402
+except Exception:  # pragma: no cover
+    def build_action_plan(**_kwargs):
+        return False, 'Planificador IA no disponible.', {}
+
+    def execute_ai_action(**_kwargs):
+        return False, 'Executor IA no disponible.', {}
+
+    def list_ai_action_logs(*_args, **_kwargs):
+        return []
+
+    def write_ai_action_log(**_kwargs):
+        return None
 try:
     from ai_services import consultar_asistente_iso, explicar_requisito_iso, sugerir_causas_ishikawa, sugerir_matriz_legal_ia  # noqa: E402
 except Exception:  # pragma: no cover - compatibilidad con despliegues intermedios
@@ -242,12 +345,12 @@ def inject_global_styles() -> None:
             color: var(--ideas-text);
             font-family: Aptos, "Segoe UI Variable", "Segoe UI", sans-serif;
         }
-        .ideas-shell { width: 100%; max-width: 1520px; margin: 0 auto; padding: 8px 34px 40px 34px; }
+        .ideas-shell { width: 100%; max-width: 1520px; margin: 0 auto; padding: 8px 26px 30px 26px; }
         .ideas-card, .ideas-soft, .ideas-panel, .ideas-hero-card {
-            border-radius: 30px; background: rgba(255,255,255,0.9); border: 1px solid var(--ideas-line);
-            box-shadow: var(--ideas-shadow); backdrop-filter: blur(14px);
+            border-radius: 20px; background: rgba(255,255,255,0.68); border: 1px solid rgba(148,163,184,.16);
+            box-shadow: 0 10px 28px rgba(15,23,42,.05); backdrop-filter: blur(12px);
         }
-        .ideas-panel { padding: 24px; }
+        .ideas-panel { padding: 18px; }
         .ideas-hero-card {
             padding: 34px; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 28px; position: relative; overflow: hidden;
         }
@@ -256,16 +359,16 @@ def inject_global_styles() -> None:
             background: radial-gradient(circle at top left, rgba(15, 143, 97, 0.10), transparent 28%), radial-gradient(circle at bottom right, rgba(31, 126, 214, 0.12), transparent 26%);
             pointer-events: none;
         }
-        .ideas-kicker { color: var(--ideas-green); font-size: 0.82rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-        .ideas-title { font-size: clamp(2.3rem, 4vw, 4rem); font-weight: 800; color: var(--ideas-navy); line-height: 0.98; letter-spacing: -0.05em; margin: 12px 0; }
-        .ideas-subtitle { color: #516174; font-size: 1.02rem; line-height: 1.75; }
-        .ideas-chip { display:inline-flex; align-items:center; padding:.55rem .95rem; border-radius:999px; background:rgba(255,255,255,.96); border:1px solid var(--ideas-line); color:var(--ideas-navy); font-weight:700; margin-right:.55rem; margin-top:.7rem; }
+        .ideas-kicker { color: rgba(15,143,97,.84); font-size: .72rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
+        .ideas-title { font-size: clamp(2rem, 3.2vw, 3.2rem); font-weight: 600; color: var(--ideas-navy); line-height: 1.03; letter-spacing: -0.02em; margin: 10px 0; }
+        .ideas-subtitle { color: #607086; font-size: .95rem; line-height: 1.62; font-weight: 400; }
+        .ideas-chip { display:inline-flex; align-items:center; padding:.45rem .8rem; border-radius:999px; background:rgba(255,255,255,.74); border:1px solid rgba(148,163,184,.22); color:#334155; font-weight:500; margin-right:.45rem; margin-top:.5rem; }
         .ideas-brand-card { padding:18px 16px 20px 16px; border-radius:28px; background:linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,251,253,.88)); border:1px solid var(--ideas-line); box-shadow:var(--ideas-shadow); margin-bottom:14px; }
-        .ideas-nav-btn { width:100%; justify-content:flex-start; border-radius:18px; padding:.45rem .35rem; margin-bottom:.45rem; color:var(--ideas-navy); background:rgba(255,255,255,.8); border:1px solid rgba(255,255,255,.35); transition:all 180ms ease; }
+        .ideas-nav-btn { width:100%; justify-content:flex-start; border-radius:14px; padding:.35rem .3rem; margin-bottom:.35rem; color:var(--ideas-navy); background:rgba(255,255,255,.74); border:1px solid rgba(255,255,255,.35); transition:all 180ms ease; }
         .ideas-nav-btn:hover { background:rgba(255,255,255,.98); transform:translateX(2px); box-shadow:0 10px 24px rgba(15,23,42,.06); }
         .ideas-nav-btn .q-btn__content { justify-content:flex-start; align-items:center; gap:.7rem; width:100%; }
         .ideas-nav-btn .q-icon { width: 20px; min-width: 20px; text-align: center; font-size: 1.1rem; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
-        .ideas-topbar { background:rgba(255,255,255,.72); backdrop-filter:blur(16px); border-bottom:1px solid var(--ideas-line); }
+        .ideas-topbar { background:rgba(255,255,255,.62); backdrop-filter:blur(14px); border-bottom:1px solid rgba(148,163,184,.18); }
         .ideas-topbar-brand { display:flex; align-items:center; gap:.85rem; }
         .ideas-topbar-brand img { width:36px; height:36px; object-fit:contain; }
         .ideas-topbar-brand .brand-title { color:var(--ideas-navy); font-weight:800; line-height:1; }
@@ -274,27 +377,27 @@ def inject_global_styles() -> None:
         .ideas-hero-brand img { width:68px; height:68px; object-fit:contain; filter:drop-shadow(0 12px 22px rgba(15,23,42,.10)); }
         .ideas-hero-brand .brand-name { color:var(--ideas-navy); font-size:1.05rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
         .ideas-hero-brand .brand-tag { color:#64748b; font-size:.9rem; margin-top:.18rem; letter-spacing:.02em; }
-        .ideas-metric { padding:22px 24px; border-radius:26px; background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(250,252,255,.9)); border:1px solid var(--ideas-line); box-shadow:0 18px 32px rgba(15,23,42,.06); }
-        .ideas-metric .label { color:#64748b; font-size:.76rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
-        .ideas-metric .value { margin-top:10px; font-size:2.2rem; font-weight:800; color:var(--ideas-navy); line-height:1; letter-spacing:-.04em; }
+        .ideas-metric { padding:18px 20px; border-radius:18px; background:rgba(255,255,255,.6); border:1px solid rgba(148,163,184,.18); box-shadow:0 8px 20px rgba(15,23,42,.04); }
+        .ideas-metric .label { color:#6b7c91; font-size:.68rem; font-weight:500; letter-spacing:.08em; text-transform:uppercase; }
+        .ideas-metric .value { margin-top:8px; font-size:1.6rem; font-weight:500; color:var(--ideas-navy); line-height:1; letter-spacing:-.01em; }
         .ideas-metric .detail { margin-top:10px; color:#475569; line-height:1.55; }
-        .ideas-grid-2 { display:grid; grid-template-columns:1.1fr .9fr; gap:22px; }
-        .ideas-grid-3 { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px; }
+        .ideas-grid-2 { display:grid; grid-template-columns:1.1fr .9fr; gap:14px; }
+        .ideas-grid-3 { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; }
         .ideas-score-guide { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; }
         .ideas-score-item { padding:18px; border-radius:20px; background:rgba(255,255,255,.94); border:1px solid var(--ideas-line); }
         .ideas-score-item .badge { width:36px; height:36px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; background:rgba(31,126,214,.10); color:#1f7ed6; font-weight:800; }
-        .ideas-section-title { font-size:1.5rem; font-weight:800; color:var(--ideas-navy); letter-spacing:-.03em; }
-        .ideas-section-note { color:#64748b; line-height:1.7; margin-top:4px; }
-        .ideas-workspace-banner { padding:28px 30px; border-radius:30px; background:linear-gradient(135deg, #0f172a 0%, #12314d 52%, #0f8f61 100%); color:#f8fbff; box-shadow:0 24px 50px rgba(15,23,42,.18); }
+        .ideas-section-title { font-size:1.08rem; font-weight:500; color:#1e293b; letter-spacing:0; }
+        .ideas-section-note { color:#6b7c91; line-height:1.55; margin-top:5px; font-size:.9rem; font-weight:400; }
+        .ideas-workspace-banner { padding:20px 22px; border-radius:18px; background:linear-gradient(135deg, #0f172a 0%, #12314d 52%, #0f8f61 100%); color:#f8fbff; box-shadow:0 16px 30px rgba(15,23,42,.14); }
         .ideas-workspace-banner .eyebrow { color:rgba(255,255,255,.72); font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; font-weight:800; }
-        .ideas-workspace-banner .headline { margin-top:10px; font-size:2rem; font-weight:800; line-height:1.02; letter-spacing:-.04em; }
+        .ideas-workspace-banner .headline { margin-top:8px; font-size:1.5rem; font-weight:600; line-height:1.06; letter-spacing:-.01em; }
         .ideas-workspace-banner .support { margin-top:10px; color:rgba(255,255,255,.84); line-height:1.7; max-width:72ch; }
         .ideas-module-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px; }
-        .ideas-module-card { padding:24px; border-radius:28px; background:rgba(255,255,255,.95); border:1px solid var(--ideas-line); box-shadow:var(--ideas-shadow); min-height:100%; display:flex; flex-direction:column; gap:14px; }
+        .ideas-module-card { padding:20px; border-radius:18px; background:rgba(255,255,255,.62); border:1px solid rgba(148,163,184,.18); box-shadow:0 8px 18px rgba(15,23,42,.04); min-height:100%; display:flex; flex-direction:column; gap:12px; }
         .ideas-module-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
         .ideas-module-icon { width:48px; height:48px; border-radius:16px; display:inline-flex; align-items:center; justify-content:center; background:linear-gradient(180deg, rgba(31,126,214,.12), rgba(15,143,97,.10)); color:#1d3f5c; font-size:1.2rem; }
-        .ideas-module-state { display:inline-flex; align-items:center; padding:.35rem .75rem; border-radius:999px; background:rgba(15,143,97,.10); color:#0f8f61; font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
-        .ideas-module-card h3 { margin:0; color:var(--ideas-navy); font-size:1.16rem; font-weight:800; letter-spacing:-.02em; word-break:normal; overflow-wrap:normal; hyphens:none; text-wrap:pretty; }
+        .ideas-module-state { display:inline-flex; align-items:center; padding:.32rem .66rem; border-radius:999px; background:rgba(15,143,97,.08); color:#0f766e; font-size:.66rem; font-weight:500; letter-spacing:.08em; text-transform:uppercase; }
+        .ideas-module-card h3 { margin:0; color:var(--ideas-navy); font-size:1.02rem; font-weight:600; letter-spacing:0; word-break:normal; overflow-wrap:normal; hyphens:none; text-wrap:pretty; }
         .ideas-module-card p { margin:0; color:#526172; line-height:1.72; word-break:normal; overflow-wrap:normal; hyphens:none; }
         .ideas-mini-list { display:flex; flex-direction:column; gap:8px; margin-top:2px; }
         .ideas-mini-list .item { display:flex; align-items:flex-start; gap:10px; color:#475569; line-height:1.55; }
@@ -303,16 +406,16 @@ def inject_global_styles() -> None:
         .ideas-result-banner .eyebrow { color:rgba(255,255,255,.7); font-size:.78rem; text-transform:uppercase; letter-spacing:.12em; font-weight:800; }
         .ideas-result-banner .headline { margin-top:10px; font-size:2rem; font-weight:800; line-height:1; letter-spacing:-.04em; }
         .ideas-result-banner .support { margin-top:10px; color:rgba(255,255,255,.82); line-height:1.65; }
-        .ideas-quick-card { padding:20px 22px; border-radius:24px; background:rgba(255,255,255,.94); border:1px solid var(--ideas-line); box-shadow:var(--ideas-shadow); }
-        .ideas-quick-card .label { color:#64748b; text-transform:uppercase; letter-spacing:.1em; font-size:.75rem; font-weight:800; }
-        .ideas-quick-card .value { color:var(--ideas-navy); font-size:1.2rem; font-weight:800; margin-top:8px; }
-        .ideas-quick-card .detail { color:#516174; line-height:1.65; margin-top:8px; }
-        .ideas-table table { border-radius:24px; overflow:hidden; }
+        .ideas-quick-card { padding:14px 14px; border-radius:14px; background:rgba(255,255,255,.54); border:1px solid rgba(148,163,184,.20); box-shadow:0 6px 16px rgba(15,23,42,.03); }
+        .ideas-quick-card .label { color:#6b7c91; text-transform:uppercase; letter-spacing:.08em; font-size:.66rem; font-weight:500; }
+        .ideas-quick-card .value { color:#1e293b; font-size:1rem; font-weight:500; margin-top:6px; }
+        .ideas-quick-card .detail { color:#6b7c91; line-height:1.5; margin-top:6px; font-size:.84rem; font-weight:400; }
+        .ideas-table table { border-radius:14px; overflow:hidden; font-size:.92rem; }
         .ideas-table thead tr { background:rgba(15,23,42,.03); }
         .ideas-table tbody tr:hover { background:rgba(31,126,214,.04); }
         .ideas-mode-banner { padding:18px 22px; border-radius:24px; background:linear-gradient(135deg, #0f172a 0%, #1f7ed6 100%); color:#eff6ff; margin-bottom:18px; }
         .ideas-mode-banner strong { display:block; font-size:1.1rem; margin-top:.2rem; }
-        .ideas-public-shell { width:100%; max-width:1320px; margin:0 auto; padding:0 28px 48px 28px; }
+        .ideas-public-shell { width:100%; max-width:1320px; margin:0 auto; padding:0 22px 34px 22px; }
         .ideas-public-topbar { position:sticky; top:0; z-index:50; background:rgba(25,25,25,.92); backdrop-filter:blur(18px); border-bottom:1px solid rgba(255,255,255,.08); }
         .ideas-public-nav { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:1rem; width:100vw; max-width:none; margin:0; padding:18px 72px; box-sizing:border-box; position:relative; left:50%; transform:translateX(-50%); }
         .ideas-public-brand { display:flex; align-items:center; gap:1rem; }
@@ -370,16 +473,16 @@ def inject_global_styles() -> None:
         .ideas-feature-item .title { color:var(--ideas-navy); font-weight:700; line-height:1.24; word-break:normal; overflow-wrap:normal; hyphens:none; text-wrap:pretty; }
         .ideas-feature-item .detail { color:#64748b; line-height:1.48; font-size:.89rem; word-break:normal; overflow-wrap:normal; hyphens:none; }
         .ideas-public-section h2, .ideas-public-section p, .ideas-login-title, .ideas-login-note, .ideas-kicker, .ideas-chip, .ideas-quick-card .value, .ideas-quick-card .detail { word-break:normal; overflow-wrap:normal; hyphens:none; }
-        .ideas-login-card { max-width:560px; margin-top:8px; padding:30px 32px; }
+        .ideas-login-card { max-width:560px; margin-top:8px; padding:22px 24px; }
         .ideas-login-title { color:var(--ideas-navy); font-size:1.9rem; font-weight:700; letter-spacing:-.03em; margin:0 0 10px; }
         .ideas-login-note { color:#5b6878; line-height:1.8; margin-bottom:18px; }
         .nicegui-content, .q-page { padding:0 !important; }
         .q-drawer { background:radial-gradient(circle at top left, rgba(15,143,97,.09), transparent 28%), linear-gradient(180deg, rgba(249,252,251,.99) 0%, rgba(239,246,243,.99) 100%); border-right:1px solid var(--ideas-line); }
         .q-field__control, .q-field--outlined .q-field__control { border-radius:18px !important; background:rgba(255,255,255,.92); }
-        .q-btn { text-transform:none; letter-spacing:0; font-weight:700; }
+        .q-btn { text-transform:none; letter-spacing:0; font-weight:500; }
         .q-tab { border-radius:16px; min-height:44px; }
         .q-tab--active { background:rgba(31,126,214,.08); }
-        .ideas-ai-drawer { background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-left: 1px solid rgba(15, 23, 42, 0.1); }
+        .ideas-ai-drawer { background:#f8fafc; border-left: 1px solid rgba(148,163,184,.20); }
         .ideas-ai-drawer.q-drawer {
             z-index: 12000 !important;
         }
@@ -387,19 +490,53 @@ def inject_global_styles() -> None:
             position: relative;
             z-index: 12001;
         }
-        .ideas-ai-chip { display:inline-flex; align-items:center; gap:6px; width:max-content; padding:4px 10px; border-radius:999px; border:1px solid rgba(15, 23, 42, 0.12); background:#d6df00; color:#171717; font-size:.72rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
-        .ideas-ai-chat-panel { border:1px solid rgba(15, 23, 42, 0.1); background:#ffffff; border-radius:20px; }
-        .ideas-ai-drawer .q-message-text { border-radius:14px; padding:10px 12px; line-height:1.5; }
-        .ideas-ai-drawer .q-message-text--sent { background:#d6df00; color:#171717; }
-        .ideas-ai-drawer .q-message-text--received { background:#1e3a5f; color:#f8fafc; }
+        .ideas-ai-chip { display:inline-flex; align-items:center; gap:6px; width:max-content; padding:3px 9px; border-radius:999px; border:1px solid rgba(15, 23, 42, 0.12); background:rgba(255,255,255,.8); color:#334155; font-size:.68rem; font-weight:500; letter-spacing:.04em; text-transform:uppercase; }
+        .ideas-ai-chat-panel { border:1px solid rgba(148,163,184,.18); background:#ffffff; border-radius:12px; transition:all .2s ease; }
+        .ideas-ai-chat-panel:hover { border-color:rgba(148,163,184,.30); box-shadow:none; }
+        .ideas-ai-drawer .q-message-text { border-radius:12px; padding:8px 10px; line-height:1.48; font-size:.9rem; }
+        .ideas-ai-drawer .q-message-text--sent { background:#e2e8f0; color:#0f172a; }
+        .ideas-ai-drawer .q-message-text--received { background:#f1f5f9; color:#0f172a; }
         .ideas-ai-drawer .q-message-text--received,
-        .ideas-ai-drawer .q-message-text--received * { color:#f8fafc !important; }
+        .ideas-ai-drawer .q-message-text--received * { color:#0f172a !important; }
         .ideas-ai-drawer .q-message-text--sent,
-        .ideas-ai-drawer .q-message-text--sent * { color:#171717 !important; }
-        .ideas-ai-drawer .q-message-name { color:#475569; font-weight:700; }
-        .ideas-ai-input .q-field__control { border-radius:12px; background:#ffffff; border:1px solid rgba(15, 23, 42, 0.14); }
+        .ideas-ai-drawer .q-message-text--sent * { color:#0f172a !important; }
+        .ideas-ai-drawer .q-message-name { color:#64748b; font-weight:500; font-size:.78rem; }
+        .ideas-ai-input .q-field__control { border-radius:14px; background:rgba(255,255,255,.94); border:1px solid rgba(148,163,184,.22); min-height:48px; transition:all .2s ease; }
+        .ideas-ai-input .q-field__control:hover { border-color:rgba(31,126,214,.34); }
+        .ideas-ai-input.q-field--focused .q-field__control { border-color:rgba(31,126,214,.58); box-shadow:0 0 0 4px rgba(31,126,214,.10), 0 8px 20px rgba(15,23,42,.08); }
         .ideas-ai-send { background:#0f172a; color:#f8fafc; }
         .ideas-ai-send:hover { background:#1e293b; }
+        .ideas-ai-canvas { border:1px solid rgba(148,163,184,.16); background:#ffffff; border-radius:12px; box-shadow:none; backdrop-filter:none; transition:all .24s ease; }
+        .ideas-ai-canvas:hover { border-color:rgba(148,163,184,.24); transform:none; }
+        .ideas-ai-chip-modern { border:1px solid rgba(148,163,184,.24); background:#ffffff; color:#334155; border-radius:999px; font-size:.72rem; font-weight:600; padding:3px 9px; transition:all .2s ease; }
+        .ideas-ai-chip-modern:hover { background:#f8fafc; border-color:rgba(148,163,184,.42); box-shadow:none; transform:none; }
+        .ideas-ai-state-pill { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:4px 10px; font-size:.7rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; border:1px solid rgba(148,163,184,.25); background:rgba(255,255,255,.88); color:#334155; }
+        .ideas-ai-state-pill.thinking { border-color:rgba(31,126,214,.35); color:#1e3a8a; }
+        .ideas-ai-state-pill.generating { border-color:rgba(15,143,97,.35); color:#0f766e; }
+        .ideas-ai-state-pill.reviewing { border-color:rgba(217,119,6,.38); color:#9a3412; }
+        .ideas-ai-state-pill.error { border-color:rgba(220,38,38,.38); color:#991b1b; }
+        .ideas-ai-state-pill.success { border-color:rgba(22,163,74,.40); color:#166534; }
+        .ideas-shimmer { position:relative; overflow:hidden; background:rgba(241,245,249,.78); border-radius:12px; min-height:68px; border:1px solid rgba(148,163,184,.18); }
+        .ideas-shimmer::after { content:''; position:absolute; inset:0; transform:translateX(-120%); background:linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent); animation:ideas-shimmer 1.5s infinite; }
+        @keyframes ideas-shimmer { 100% { transform:translateX(120%);} }
+        .ideas-ai-input-shell { border:1px solid rgba(148,163,184,.24); border-radius:16px; background:rgba(255,255,255,.88); padding:6px; box-shadow:0 8px 20px rgba(15,23,42,.06); }
+        .ideas-panel .q-table th { font-size:.72rem; font-weight:500; color:#64748b; letter-spacing:.06em; text-transform:uppercase; }
+        .ideas-panel .q-table td { font-size:.9rem; color:#334155; }
+        .ideas-panel .q-tab { min-height:38px; font-size:.86rem; font-weight:500; }
+        .ideas-panel .q-badge { font-weight:500; letter-spacing:.03em; }
+        .ideas-panel .q-field__label { font-weight:400; color:#64748b; }
+        .ideas-panel .q-field__native, .ideas-panel .q-field__input { font-size:.92rem; }
+        @media (max-width: 1100px) {
+            .ideas-shell { padding: 8px 14px 24px 14px; }
+            .ideas-grid-3 { grid-template-columns:repeat(2, minmax(0,1fr)); }
+            .ideas-module-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 760px) {
+            .ideas-grid-2, .ideas-grid-3, .ideas-module-grid, .ideas-score-guide { grid-template-columns:1fr; }
+            .ideas-panel { padding:14px; border-radius:14px; }
+            .ideas-title { font-size:1.6rem; }
+            .ideas-workspace-banner .headline { font-size:1.18rem; }
+        }
         .ideas-8d-dialog .q-dialog__inner {
             padding-right: 420px;
             align-items: center;
@@ -556,15 +693,6 @@ def _can_access_page_by_role_and_scope(page_title: str) -> bool:
     empresa_id = current_company_id_for_ai()
     if not empresa_id:
         return False
-    try:
-        detalle = obtener_empresa_detalle(int(empresa_id)) or {}
-    except Exception:
-        return False
-    required = _required_systems_for_page(page_title)
-    if required:
-        has_cert = any(valor_afirmativo(detalle.get(key)) for key in required)
-        if not has_cert:
-            return False
     permisos = str(app.storage.user.get('permisos') or 'ALL').strip()
     if permisos == 'ALL':
         return True
@@ -580,6 +708,71 @@ def _can_access_page_by_role_and_scope(page_title: str) -> bool:
     else:
         needed_token = 'cert_iso_9001'
     return needed_token in tokens or ('cert_iatf' in tokens and needed_token == 'cert_iso_9001')
+
+
+def _module_code_from_key(module_key: str | None) -> str:
+    key = str(module_key or "").strip().lower()
+    mapping = {
+        "documents": "documents",
+        "process_maps": "process_maps",
+        "kpi": "kpi",
+        "risks": "risks",
+        "environment": "environment",
+        "legal_matrix": "legal_matrix",
+        "sst": "sst",
+        "quality": "quality",
+        "lab_17025": "lab_17025",
+        "users": "users",
+        "smart_ideas_admin": "smart_ideas_admin",
+    }
+    return mapping.get(key, "")
+
+
+def _can_access_module_by_assignment(module_key: str | None) -> bool:
+    module_code = _module_code_from_key(module_key)
+    if not module_code:
+        return True
+    if _is_admin_session():
+        return True
+    role = str(app.storage.user.get("role") or "").strip().lower()
+    if role != "empresa":
+        return False
+    company_id = current_company_id_for_ai()
+    if not company_id:
+        return False
+    try:
+        local_user_id = app.storage.user.get("local_user_id")
+        local_user_id = int(local_user_id) if local_user_id else None
+    except Exception:
+        local_user_id = None
+    try:
+        if local_user_id:
+            return can_user_access_module(int(local_user_id), int(company_id), module_code)
+        return can_company_access_module(int(company_id), module_code)
+    except Exception:
+        return False
+
+
+def can_access_module_code_for_current_user(module_code: str) -> bool:
+    if _is_admin_session():
+        return True
+    role = str(app.storage.user.get("role") or "").strip().lower()
+    if role != "empresa":
+        return False
+    company_id = current_company_id_for_ai()
+    if not company_id:
+        return False
+    try:
+        local_user_id = app.storage.user.get("local_user_id")
+        local_user_id = int(local_user_id) if local_user_id else None
+    except Exception:
+        local_user_id = None
+    try:
+        if local_user_id:
+            return can_user_access_module(int(local_user_id), int(company_id), str(module_code or ""))
+        return can_company_access_module(int(company_id), str(module_code or ""))
+    except Exception:
+        return False
 
 
 def current_company_id_for_ai() -> int | None:
@@ -625,40 +818,12 @@ def set_ai_focus_context(module: str, payload: dict | None) -> None:
 
 
 def assistant_display_name_for_page(page_title: str) -> str:
-    title = str(page_title or '').strip().lower()
-    if 'ambient' in title:
-        return 'Smart IdeAs Sustentable'
-    if 'salud' in title or 'sst' in title:
-        return 'Smart IdeAs Seguro'
-    if 'calidad' in title or '8d' in title:
-        return 'Smart IdeAs Analitico'
-    if 'document' in title:
-        return 'Smart IdeAs Documental'
-    if 'kpi' in title:
-        return 'Smart IdeAs Performance'
-    if 'riesgo' in title:
-        return 'Smart IdeAs Riesgos'
-    if 'mapa' in title or 'proceso' in title:
-        return 'Smart IdeAs Procesos'
-    return 'Smart IdeAs'
+    _ = page_title
+    return 'Smart IDEAS'
 
 
 def assistant_icon_for_page(page_title: str) -> tuple[str, str]:
-    title = str(page_title or '').strip().lower()
-    if 'ambient' in title:
-        return 'eco', 'text-emerald-600'
-    if 'salud' in title or 'sst' in title:
-        return 'health_and_safety', 'text-rose-600'
-    if 'calidad' in title or '8d' in title:
-        return 'precision_manufacturing', 'text-indigo-600'
-    if 'document' in title:
-        return 'description', 'text-sky-600'
-    if 'kpi' in title:
-        return 'query_stats', 'text-violet-600'
-    if 'riesgo' in title:
-        return 'shield', 'text-amber-600'
-    if 'mapa' in title or 'proceso' in title:
-        return 'alt_route', 'text-cyan-600'
+    _ = page_title
     return 'auto_awesome', 'text-blue-700'
 
 
@@ -847,7 +1012,7 @@ def ensure_platform_access() -> bool:
             for key in [
                 'platform_auth', 'jwt_token', 'auth_source', 'role', 'api_role',
                 'logged_empresa_id', 'logged_empresa_nombre', 'management_company_id',
-                'current_empresa_id', 'session_user_key', 'permisos', 'last_activity_at',
+                'current_empresa_id', 'session_user_key', 'permisos', 'last_activity_at', 'local_user_id', 'local_user_role',
             ]:
                 app.storage.user.pop(key, None)
             app.storage.user['platform_auth'] = False
@@ -916,20 +1081,58 @@ def guarded_eliminar_empresa(empresa_id: int):
 
 
 def guarded_crear_usuario(username, password, rol, empresa_id=None, permisos='ALL'):
+    role = str(app.storage.user.get('role') or '').strip().lower()
+    local_role = str(app.storage.user.get('local_user_role') or '').strip().upper()
+    if _is_admin_session():
+        return crear_usuario(username, password, rol, empresa_id, permisos)
+    if role == 'empresa' and local_role == 'EMPRESA_ADMIN':
+        session_company = _session_company_id()
+        target_company = int(empresa_id) if empresa_id else session_company
+        if not session_company or int(target_company or 0) != int(session_company):
+            return False, 'No autorizado: solo puedes crear usuarios de tu empresa.'
+        rol_clean = str(rol or '').strip().upper()
+        if rol_clean == 'IDEAS_ADMIN':
+            return False, 'No autorizado para crear usuarios IDEAS_ADMIN.'
+        return crear_usuario(username, password, rol_clean, int(session_company), permisos)
     if not _is_admin_session():
-        return False, 'No autorizado: solo IDEAS admin puede crear usuarios.'
+        return False, 'No autorizado: solo IDEAS admin o Admin de empresa pueden crear usuarios.'
     return crear_usuario(username, password, rol, empresa_id, permisos)
 
 
 def guarded_actualizar_usuario(usuario_id, rol, empresa_id=None, permisos='ALL', username=None, password=None):
+    role = str(app.storage.user.get('role') or '').strip().lower()
+    local_role = str(app.storage.user.get('local_user_role') or '').strip().upper()
+    if _is_admin_session():
+        return actualizar_usuario(usuario_id, rol, empresa_id, permisos, username=username, password=password)
+    if role == 'empresa' and local_role == 'EMPRESA_ADMIN':
+        session_company = _session_company_id()
+        target_user = next((u for u in obtener_usuarios(session_company) if int(u.get('id') or 0) == int(usuario_id)), None)
+        if not target_user:
+            return False, 'No autorizado: usuario fuera de tu empresa.'
+        rol_clean = str(rol or '').strip().upper()
+        if rol_clean == 'IDEAS_ADMIN':
+            return False, 'No autorizado para asignar rol IDEAS_ADMIN.'
+        return actualizar_usuario(usuario_id, rol_clean, int(session_company), permisos, username=username, password=password)
     if not _is_admin_session():
-        return False, 'No autorizado: solo IDEAS admin puede actualizar usuarios.'
+        return False, 'No autorizado: solo IDEAS admin o Admin de empresa pueden actualizar usuarios.'
     return actualizar_usuario(usuario_id, rol, empresa_id, permisos, username=username, password=password)
 
 
 def guarded_eliminar_usuario(usuario_id: int):
+    role = str(app.storage.user.get('role') or '').strip().lower()
+    local_role = str(app.storage.user.get('local_user_role') or '').strip().upper()
+    if _is_admin_session():
+        return eliminar_usuario(usuario_id)
+    if role == 'empresa' and local_role == 'EMPRESA_ADMIN':
+        session_company = _session_company_id()
+        target_user = next((u for u in obtener_usuarios(session_company) if int(u.get('id') or 0) == int(usuario_id)), None)
+        if not target_user:
+            return False, 'No autorizado: usuario fuera de tu empresa.'
+        if str(target_user.get('rol') or '').strip().upper() == 'IDEAS_ADMIN':
+            return False, 'No autorizado para eliminar IDEAS_ADMIN.'
+        return eliminar_usuario(usuario_id)
     if not _is_admin_session():
-        return False, 'No autorizado: solo IDEAS admin puede eliminar usuarios.'
+        return False, 'No autorizado: solo IDEAS admin o Admin de empresa pueden eliminar usuarios.'
     return eliminar_usuario(usuario_id)
 
 
@@ -993,6 +1196,10 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
         ui.notify('No tienes permisos para acceder a este modulo.', type='negative')
         ui.navigate.to('/sistema-gestion')
         return ui.column().classes('ideas-shell')
+    if not _can_access_module_by_assignment(module_key):
+        ui.notify('Este módulo no está habilitado para tu usuario o empresa.', type='negative')
+        ui.navigate.to('/sistema-gestion')
+        return ui.column().classes('ideas-shell')
     logo = get_logo_url()
     user_role = str(app.storage.user.get('role') or '')
     user_empresa_id = app.storage.user.get('logged_empresa_id')
@@ -1009,6 +1216,7 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
     if user_role == 'admin':
         nav_items = [
             ('Dashboard', '/dashboard', 'home'),
+            ('AI Command Center', '/sistema-gestion/smart-ideas', 'auto_awesome'),
             ('Empresas', '/empresas', 'business'),
             ('Workspace Ejecutivo', '/sistema-gestion', 'account_tree'),
             ('Diagnóstico', '/diagnostico', 'assignment'),
@@ -1023,6 +1231,7 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
     else:
         nav_items = [
             ('Mi Workspace', '/sistema-gestion', 'dashboard_customize'),
+            ('Smart IDEAS', '/sistema-gestion/smart-ideas', 'auto_awesome'),
         ]
         drawer_title = empresa_sesion or 'Workspace cliente'
         drawer_note = 'Sistema de gestión'
@@ -1084,10 +1293,16 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
         )
 
     ai_drawer_open = False
-    with ui.right_drawer(value=ai_drawer_open).props('persistent').classes('ideas-ai-drawer p-4 w-[460px] max-w-[92vw]') as ai_drawer:
+    ai_workspace_expanded = {'value': bool(app.storage.user.get('ai_workspace_expanded', False))}
+    with ui.right_drawer(value=ai_drawer_open).props('persistent').classes('ideas-ai-drawer p-3 w-[440px] max-w-[96vw]') as ai_drawer:
         def _force_open_drawer() -> None:
             ai_drawer.value = True
             app.storage.user['ai_drawer_open'] = True
+            ai_drawer.update()
+
+        def _toggle_drawer() -> None:
+            ai_drawer.value = not bool(ai_drawer.value)
+            app.storage.user['ai_drawer_open'] = bool(ai_drawer.value)
             ai_drawer.update()
         
         def _remember_drawer_state(event) -> None:
@@ -1097,10 +1312,9 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
         company_ai_id = current_company_id_for_ai()
         user_ai_key = current_user_key_for_ai()
         module_ai_key = str(module_key or '').strip() or assistant_module_key_for_page(page_title)
-        chat_storage_key = f'ai_chat_messages::{company_ai_id or "none"}::{user_ai_key}::{module_ai_key}'
-        persisted_messages = app.storage.user.get(chat_storage_key)
-        if not isinstance(persisted_messages, list):
-            persisted_messages = []
+        workspace_query_state = {'value': ''}
+        workspace_data_state = {'data': {}}
+        persisted_messages: list[dict] = []
         chat_history: list[dict[str, str]] = [
             {'role': str(item.get('role') or ''), 'content': str(item.get('text') or '')}
             for item in persisted_messages
@@ -1146,36 +1360,59 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                 'Adapta tono y nivel de detalle sin repetir esta nota.'
             )
 
+        def _workspace_title_from_query(text: str) -> str:
+            q = str(text or '').lower()
+            if 'riesgo' in q:
+                return 'Riesgos críticos'
+            if 'accion' in q:
+                return 'Acciones abiertas'
+            if 'auditor' in q:
+                return 'Auditorías y checklist'
+            if 'kpi' in q or 'indicador' in q:
+                return 'KPIs y tendencias'
+            if '17025' in q or 'calibr' in q or 'lab' in q:
+                return 'Estado ISO 17025'
+            return 'Resumen ejecutivo IA'
+
         with ui.column().classes('w-full h-full gap-2'):
-            with ui.row().classes('items-center gap-2'):
-                with ui.row().classes('ideas-ai-avatar'):
-                    ui.icon('sentiment_satisfied').classes('text-[0.95rem]')
-                ui.icon(assistant_icon).classes(f'text-[1.35rem] {assistant_icon_color}')
-                ui.label(assistant_name).classes('text-lg font-bold text-slate-900')
+            action_ui_host = ui.column().classes('hidden')
+            ai_workspace_state = {'value': 'idle'}
+            with ui.dialog().props('maximized') as ai_workspace_dialog:
+                with ui.card().classes('w-full h-full p-4'):
+                    with ui.row().classes('w-full items-center justify-between'):
+                        ui.label('Smart IDEAS Workspace').classes('text-xl font-bold text-slate-900')
+                        ui.button(icon='close', on_click=ai_workspace_dialog.close).props('flat round')
+                    workspace_full_container = ui.column().classes('w-full h-full gap-3 mt-3 overflow-auto')
+            with ui.row().classes('items-center justify-between gap-2'):
+                with ui.row().classes('items-center gap-2'):
+                    ui.icon(assistant_icon).classes(f'text-[1.05rem] {assistant_icon_color}')
+                    ui.label(assistant_name).classes('text-[0.95rem] font-semibold text-slate-800')
+                    ai_state_badge = ui.label('IDLE').classes('ideas-ai-state-pill')
+                with ui.row().classes('items-center gap-1'):
+                    ui.button(icon='open_in_full', on_click=ai_workspace_dialog.open).props('flat round dense').classes('text-slate-500')
             focus_payload = ((app.storage.user.get('ai_focus_context') or {}).get('payload') or {})
             normas_consideradas = focus_payload.get('normas_visibles') or focus_payload.get('certificaciones_activas') or []
             normas_text = ', '.join(str(n) for n in normas_consideradas[:6]) if normas_consideradas else 'Normas segun certificaciones activas'
-            ui.label(f'Empresa activa: {company_name_for_welcome}').classes('text-xs text-slate-600')
-            ui.label(f'Normas consideradas: {normas_text}').classes('text-xs text-slate-500')
-            ui.label('Las respuestas de IA deben ser revisadas por un profesional antes de su implementacion.').classes('text-[11px] text-amber-700')
+            ui.label(f'{company_name_for_welcome}').classes('text-[11px] text-slate-600')
+            ui.label(f'Contexto: {normas_text}').classes('text-[11px] text-slate-500')
+            workspace_canvas = ui.column().classes('ideas-ai-canvas w-full gap-2 p-3')
+            with workspace_canvas:
+                ui.label('AI Workspace').classes('text-sm font-semibold text-slate-800')
+                ui.label('Consultá y te muestro solo lo relevante.').classes('text-xs text-slate-500')
             quick_mode = {'value': 'general'}
             quick_prompt_map = [
-                ('Explicar requisito', 'explicar_requisito', 'Explica este requisito y como implementarlo en la empresa activa.'),
-                ('Evidencias esperadas', 'evidencias_esperadas', 'Indica evidencias objetivas esperadas para este requisito.'),
-                ('Checklist de auditoria', 'checklist_auditoria', 'Genera checklist de auditoria para este requisito.'),
-                ('Plan de accion', 'plan_accion', 'Convertir en plan de accion aplicable a esta empresa.'),
-                ('Riesgos asociados', 'riesgos_asociados', 'Identifica riesgos de incumplimiento y controles recomendados.'),
-                ('Redactar procedimiento', 'redactar_procedimiento', 'Redacta un procedimiento base listo para adaptar.'),
-                ('Preguntas de auditoria', 'preguntas_auditoria', 'Genera preguntas de auditoria interna y externa.'),
-                ('Brecha tipica en PyMEs', 'brecha_pyme', 'Indica brechas tipicas de PyMEs para este requisito.'),
+                ('Dashboard ejecutivo', 'reporte_ejecutivo', 'Generar reporte ejecutivo con hallazgos y proximos pasos.'),
+                ('Riesgos críticos', 'analizar_riesgos', 'Analizar riesgos criticos del contexto actual y proponer prioridades.'),
+                ('Acciones abiertas', 'resumen_acciones', 'Resumir acciones abiertas y su criticidad por modulo.'),
+                ('Vencimientos', 'vencimientos', 'Detectar vencimientos relevantes y sugerir plan de anticipacion.'),
             ]
-            with ui.row().classes('w-full gap-1'):
+            with ui.row().classes('w-full gap-1 mb-1'):
                 for label, mode, text in quick_prompt_map:
                     ui.button(
                         label,
                         on_click=lambda _=None, m=mode, t=text: (quick_mode.__setitem__('value', m), _set_quick_prompt(t)),
-                    ).props('flat dense').classes('text-[11px] border border-slate-300 rounded px-2 py-1')
-            chat_panel = ui.scroll_area().classes('ideas-ai-chat-panel w-full flex-1 min-h-[56vh] p-2')
+                    ).props('flat dense').classes('ideas-ai-chip-modern')
+            chat_panel = ui.scroll_area().classes('ideas-ai-chat-panel w-full flex-1 min-h-[58vh] p-2')
             with chat_panel:
                 chat_messages = ui.column().classes('w-full gap-2')
                 with chat_messages:
@@ -1200,15 +1437,27 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
             loading_row.visible = False
             with loading_row:
                 ui.spinner(size='sm')
-                loading_label = ui.label('Smart IdeAs esta analizando tu consulta...')
-            with ui.row().classes('w-full items-end gap-2'):
-                ai_input = ui.input('Escribe tu consulta').props('outlined dense').classes('ideas-ai-input w-full')
+                loading_label = ui.label('Smart IDEAS esta analizando tu consulta...')
+            with ui.row().classes('ideas-ai-input-shell w-full items-end gap-2'):
+                ai_input = ui.input('Preguntale algo a Smart IDEAS...').props('outlined dense').classes('ideas-ai-input w-full')
                 ai_send = ui.button(icon='send').props('flat round dense').classes('ideas-ai-send')
             sending_lock = {'active': False}
+
+            def _set_workspace_state(state: str) -> None:
+                normalized = str(state or 'idle').strip().lower()
+                ai_workspace_state['value'] = normalized
+                ai_state_badge.text = normalized.upper()
+                ai_state_badge.classes(remove='thinking generating reviewing error success')
+                if normalized in {'thinking', 'generating', 'reviewing', 'error', 'success'}:
+                    ai_state_badge.classes(add=normalized)
+                ai_state_badge.update()
 
             def _set_quick_prompt(text: str) -> None:
                 ai_input.value = text
                 ai_input.update()
+                _set_workspace_state('thinking')
+                render_ai_workspace_view(text)
+                trigger_send()
 
             def append_message(text: str, name: str, sent: bool) -> None:
                 with chat_messages:
@@ -1224,7 +1473,119 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                 )
                 if len(persisted_messages) > 80:
                     del persisted_messages[:-80]
-                app.storage.user[chat_storage_key] = persisted_messages
+
+            def archive_current_conversation() -> None:
+                if not company_ai_id or len(persisted_messages) < 2:
+                    return
+                first_user = next((str(x.get('text') or '').strip() for x in persisted_messages if str(x.get('role') or '') == 'user'), '')
+                title = (first_user[:72] + '...') if len(first_user) > 72 else (first_user or 'Conversacion Smart IDEAS')
+                library = _read_ai_conversation_library()
+                items = library.get('items') or []
+                items.append(
+                    {
+                        'id': f"{int(datetime.now().timestamp())}-{int(company_ai_id)}",
+                        'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'company_id': int(company_ai_id),
+                        'user_key': str(user_ai_key or ''),
+                        'module_key': str(module_ai_key or 'general'),
+                        'title': title,
+                        'messages': persisted_messages[-80:],
+                    }
+                )
+                library['items'] = items[-200:]
+                _write_ai_conversation_library(library)
+
+            def open_conversation_library() -> None:
+                if not company_ai_id:
+                    ui.notify('No hay empresa activa.', type='warning')
+                    return
+
+                def _restore_conversation(messages: list[dict]) -> None:
+                    persisted_messages.clear()
+                    chat_history.clear()
+                    chat_messages.clear()
+                    safe_messages = [m for m in (messages or []) if isinstance(m, dict)]
+                    persisted_messages.extend(safe_messages[-80:])
+                    with chat_messages:
+                        if not persisted_messages:
+                            ui.chat_message(
+                                text=_format_chat_text_for_display(welcome_text),
+                                name=assistant_name,
+                                sent=False,
+                                text_html=True,
+                            )
+                        else:
+                            for item in persisted_messages:
+                                ui.chat_message(
+                                    text=_format_chat_text_for_display(str(item.get('text') or '')),
+                                    name=str(item.get('name') or assistant_name),
+                                    sent=bool(item.get('sent', False)),
+                                    text_html=True,
+                                )
+                    for item in persisted_messages:
+                        role = str(item.get('role') or '').strip()
+                        text = str(item.get('text') or '').strip()
+                        if role in {'user', 'assistant'} and text:
+                            chat_history.append({'role': role, 'content': text})
+                    last_user = next((str(x.get('text') or '') for x in reversed(persisted_messages) if str(x.get('role') or '') == 'user'), '')
+                    _set_workspace_state('idle')
+                    render_ai_workspace_view(last_user)
+
+                library = _read_ai_conversation_library()
+                rows = [
+                    item for item in (library.get('items') or [])
+                    if int(item.get('company_id') or 0) == int(company_ai_id)
+                    and str(item.get('user_key') or '') == str(user_ai_key or '')
+                ][-40:]
+                with ui.dialog() as dlg, ui.card().classes('w-[840px] max-w-[96vw] p-4 ideas-panel'):
+                    ui.label('Biblioteca de conversaciones').classes('text-lg font-semibold text-slate-900')
+                    if not rows:
+                        ui.label('No hay conversaciones guardadas todavía.').classes('text-sm text-slate-500')
+                    else:
+                        table_rows = [
+                            {
+                                'conv_id': str(r.get('id') or ''),
+                                'created_at': str(r.get('created_at') or ''),
+                                'module': str(r.get('module_key') or 'general'),
+                                'title': str(r.get('title') or 'Conversacion'),
+                                'messages': len(r.get('messages') or []),
+                            }
+                            for r in reversed(rows)
+                        ]
+                        table = ui.table(
+                            columns=[
+                                {'name': 'conv_id', 'label': 'ID', 'field': 'conv_id', 'align': 'left'},
+                                {'name': 'created_at', 'label': 'Fecha', 'field': 'created_at', 'align': 'left'},
+                                {'name': 'module', 'label': 'Módulo', 'field': 'module', 'align': 'left'},
+                                {'name': 'title', 'label': 'Título', 'field': 'title', 'align': 'left'},
+                                {'name': 'messages', 'label': 'Mensajes', 'field': 'messages', 'align': 'left'},
+                            ],
+                            rows=table_rows,
+                            pagination=10,
+                            row_key='conv_id',
+                            selection='single',
+                        ).classes('w-full ideas-table')
+                        table.columns = [c for c in table.columns if c.get('name') != 'conv_id']
+
+                        def _open_selected() -> None:
+                            selected = list(getattr(table, 'selected', []) or [])
+                            if not selected:
+                                ui.notify('Seleccioná una conversación.', type='warning')
+                                return
+                            selected_id = str((selected[0] or {}).get('conv_id') or '')
+                            original = next((x for x in rows if str(x.get('id') or '') == selected_id), None)
+                            if not original:
+                                ui.notify('No se pudo abrir la conversación seleccionada.', type='warning')
+                                return
+                            _restore_conversation(original.get('messages') or [])
+                            dlg.close()
+                            ui.notify('Conversación restaurada.', type='positive')
+
+                    with ui.row().classes('w-full justify-end gap-2'):
+                        if rows:
+                            ui.button('Abrir seleccionada', icon='folder_open', on_click=_open_selected).props('unelevated color=primary')
+                        ui.button('Cerrar', on_click=dlg.close).props('flat')
+                dlg.open()
 
             def append_route_buttons(hints: list[tuple[str, str]]) -> None:
                 if not hints:
@@ -1237,6 +1598,65 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                                 icon='open_in_new',
                                 on_click=lambda r=route: ui.navigate.to(r),
                             ).props('flat dense').classes('text-[12px] font-semibold text-blue-700 border border-slate-300 rounded-full px-2')
+
+            def render_ai_workspace_view(user_text: str = '') -> None:
+                workspace_query_state['value'] = str(user_text or '').strip()
+                workspace_data_state['data'] = get_data_sources_for_company(
+                    int(company_ai_id) if company_ai_id else 0,
+                    module_ai_key,
+                    str(app.storage.user.get('permisos') or 'ALL'),
+                ) if company_ai_id else {}
+                data = workspace_data_state['data'] or {}
+
+                def _draw(target, expanded: bool = False) -> None:
+                    target.clear()
+                    title = _workspace_title_from_query(workspace_query_state['value'])
+                    with target:
+                        ui.label(title).classes('text-sm font-semibold text-slate-900')
+                        if not workspace_query_state['value'].strip():
+                            ui.label('Todavía no hay análisis generado. Escribí una consulta para empezar.').classes('text-xs text-slate-500')
+                            return
+                        state = str(ai_workspace_state.get('value') or 'idle')
+                        if state in {'thinking', 'generating', 'rendering'}:
+                            with ui.grid(columns=3).classes('w-full gap-2'):
+                                ui.html('<div class="ideas-shimmer"></div>')
+                                ui.html('<div class="ideas-shimmer"></div>')
+                                ui.html('<div class="ideas-shimmer"></div>')
+                            return
+                        with ui.grid(columns=4 if expanded else 3).classes('w-full gap-2'):
+                            acciones = (data.get('quality.corrective_actions') or {})
+                            riesgos = (data.get('risks.matrix') or {})
+                            lab = (data.get('lab.iso17025') or {})
+                            ui.html(quick_card('ACCIONES ABIERTAS', str(acciones.get('open_count', 0)), 'Módulo Calidad'))
+                            ui.html(quick_card('RIESGOS CRÍTICOS', str(len(riesgos.get('critical_items') or [])), 'Matriz de riesgos'))
+                            ui.html(quick_card('SCORE LAB 17025', str(lab.get('score_general', 'n/d')), f"Semáforo: {lab.get('semaforo', 'n/d')}"))
+                        by_process = (riesgos.get('by_process') or [])[:8]
+                        if by_process:
+                            labels = [str(x.get('process') or 'N/D') for x in by_process]
+                            values = [int(x.get('count') or 0) for x in by_process]
+                            ui.echart({
+                                'tooltip': {'trigger': 'axis'},
+                                'xAxis': {'type': 'category', 'data': labels},
+                                'yAxis': {'type': 'value'},
+                                'series': [{'type': 'bar', 'data': values}],
+                            }).classes('w-full h-72' if expanded else 'w-full h-48')
+                        overdue = (acciones.get('overdue') or [])[:16] if expanded else (acciones.get('overdue') or [])[:6]
+                        if overdue:
+                            cols = [
+                                {'name': 'accion', 'label': 'Acción', 'field': 'accion', 'align': 'left'},
+                                {'name': 'responsable', 'label': 'Responsable', 'field': 'responsable', 'align': 'left'},
+                                {'name': 'fecha_limite', 'label': 'Vence', 'field': 'fecha_limite', 'align': 'left'},
+                            ]
+                            ui.table(columns=cols, rows=overdue, pagination=6).classes('w-full ideas-table')
+                        if state == 'reviewing':
+                            ui.label('Smart IDEAS está revisando propuesta de acción.').classes('text-xs text-amber-700')
+                        elif state == 'success':
+                            ui.label('Última operación IA completada.').classes('text-xs text-green-700')
+                        elif state == 'error':
+                            ui.label('Última operación IA tuvo un error controlado.').classes('text-xs text-red-700')
+
+                _draw(workspace_canvas, False)
+                _draw(workspace_full_container, True)
 
             def generate_report_from_chat() -> None:
                 if not persisted_messages:
@@ -1291,6 +1711,69 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                 ai_input.value = f'{prompt}\n\nTexto base:\n{last}'
                 ai_input.update()
 
+            def _open_action_review(plan: dict, user_text: str) -> None:
+                if not company_ai_id:
+                    ui.notify('No hay empresa activa para ejecutar acciones IA.', type='warning')
+                    return
+                _set_workspace_state('reviewing')
+                proposed = dict(plan.get('proposed_data') or {})
+                with action_ui_host:
+                    with ui.dialog() as action_dialog, ui.card().classes('w-[860px] max-w-[96vw] p-5 rounded-[22px] ideas-panel'):
+                        ui.label('Smart IDEAS preparó esta acción').classes('text-xl font-bold text-slate-900')
+                        ui.label(str(plan.get('summary') or '')).classes('ideas-section-note')
+                        with ui.grid(columns=2).classes('w-full gap-3 mt-3'):
+                            title_in = ui.input('Título', value=str(plan.get('title') or '')).props('outlined')
+                            intent_in = ui.input('Intent', value=str(plan.get('intent') or '')).props('outlined readonly')
+                            risk_in = ui.select({'low': 'Bajo', 'medium': 'Medio', 'high': 'Alto'}, value=str(plan.get('risk_level') or 'medium'), label='Riesgo').props('outlined')
+                            module_in = ui.input('Módulo destino', value=str(plan.get('target_module') or '')).props('outlined readonly')
+                            responsible_in = ui.input('Responsable', value=str(proposed.get('responsible') or '')).props('outlined')
+                            due_in = ui.input('Fecha objetivo (YYYY-MM-DD)', value=str(proposed.get('due_date') or '')).props('outlined')
+                            priority_in = ui.select({'low': 'Baja', 'medium': 'Media', 'high': 'Alta'}, value=str(proposed.get('priority') or 'medium'), label='Prioridad').props('outlined')
+                            status_in = ui.select({'draft': 'Borrador', 'abierta': 'Abierta', 'en tratamiento': 'En tratamiento'}, value=str(proposed.get('status') or 'draft'), label='Estado').props('outlined')
+                        desc_in = ui.textarea('Descripción').props('outlined autogrow').classes('w-full mt-2')
+                        desc_in.value = str(proposed.get('description') or '')
+                        missing = [str(x) for x in (plan.get('missing_fields') or []) if str(x).strip()]
+                        if missing:
+                            ui.label(f'Campos faltantes detectados: {", ".join(missing)}').classes('text-sm text-amber-700 mt-2')
+                        ui.label(str(plan.get('user_message') or '')).classes('text-sm text-slate-600 mt-1')
+
+                        def _execute_confirmed() -> None:
+                            edited_plan = dict(plan)
+                            edited_plan['title'] = str(title_in.value or '').strip()
+                            edited_plan['risk_level'] = str(risk_in.value or 'medium').strip().lower()
+                            edited_plan['target_module'] = str(module_in.value or '').strip()
+                            edited_plan['proposed_data'] = {
+                                'description': str(desc_in.value or '').strip(),
+                                'responsible': str(responsible_in.value or '').strip(),
+                                'due_date': str(due_in.value or '').strip(),
+                                'priority': str(priority_in.value or 'medium').strip(),
+                                'status': str(status_in.value or 'draft').strip(),
+                            }
+                            ok_exec, msg_exec, execution = execute_ai_action(
+                                plan=edited_plan,
+                                company_id=int(company_ai_id),
+                                user_id=int(app.storage.user.get('local_user_id') or 0) or None,
+                                user_key=str(user_ai_key or ''),
+                                role=str(app.storage.user.get('role') or ''),
+                                prompt_original=user_text,
+                                confirmed=True,
+                            )
+                            if ok_exec:
+                                append_message(f'Acción ejecutada: {msg_exec}', assistant_name, False)
+                                append_message(f'Registro afectado: {execution}', assistant_name, False)
+                                ui.notify('Acción ejecutada correctamente.', type='positive')
+                                _set_workspace_state('success')
+                            else:
+                                append_message(f'No se pudo ejecutar la acción: {msg_exec}', assistant_name, False)
+                                ui.notify(msg_exec, type='warning')
+                                _set_workspace_state('error')
+                            action_dialog.close()
+
+                        with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                            ui.button('Cancelar', on_click=action_dialog.close).props('flat')
+                            ui.button('Confirmar ejecución', icon='task_alt', on_click=_execute_confirmed).props('unelevated color=primary')
+                action_dialog.open()
+
             async def process_assistant_message() -> None:
                 if sending_lock['active']:
                     return
@@ -1316,9 +1799,11 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                     ai_input.value = ''
                     ai_input.update()
                     append_message(user_text, 'Tu', True)
+                    _set_workspace_state('thinking')
+                    render_ai_workspace_view(user_text)
                     chat_history.append({'role': 'user', 'content': user_text})
                     loading_row.visible = True
-                    loading_label.text = 'Smart IdeAs esta analizando tu consulta...'
+                    loading_label.text = 'Smart IDEAS esta analizando tu consulta...'
                     loading_row.update()
 
                     working_context = build_ai_working_context(page_title)
@@ -1370,6 +1855,31 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                             company_industry = ''
 
                     framed_user_text = f"[modo_respuesta:{quick_mode['value']}] {user_text}"
+                    _set_workspace_state('generating')
+                    render_ai_workspace_view(user_text)
+                    ok_plan, _msg_plan, action_plan = build_action_plan(
+                        user_text=user_text,
+                        module_key=module_ai_key,
+                        company_id=int(company_ai_id) if company_ai_id else 0,
+                        related_context={'records': []},
+                    )
+                    if ok_plan and action_plan:
+                        write_ai_action_log(
+                            company_id=int(company_ai_id),
+                            user_id=int(app.storage.user.get('local_user_id') or 0) or None,
+                            user_key=str(user_ai_key or ''),
+                            intent=str(action_plan.get('intent') or ''),
+                            action_name='proposal',
+                            prompt_original=user_text,
+                            proposal=action_plan,
+                            execution={},
+                            status='proposed',
+                            error_text='',
+                            confirmed_by_user=False,
+                        )
+                        _open_action_review(action_plan, user_text)
+                        respuesta = 'Preparé una propuesta de acción con revisión previa. Completa campos faltantes y confirma si querés ejecutarla.'
+                        return
                     respuesta = await consultar_asistente_iso(
                         framed_user_text,
                         chat_history,
@@ -1383,6 +1893,7 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                         task_type=detect_ai_task_type(user_text, page_title),
                     )
                 except Exception as exc:
+                    _set_workspace_state('error')
                     respuesta = (
                         'Explicacion simple: Ocurrio un error al consultar Smart Assist.\n'
                         'Requisito relacionado: No disponible por el momento.\n'
@@ -1403,6 +1914,10 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                 if hints and is_navigation_style_query(user_text):
                     respuesta = 'Claro, puedo ayudarte con eso. Te dejo el acceso directo:'
                 append_message(respuesta, assistant_name, False)
+                _set_workspace_state('success')
+                render_ai_workspace_view(user_text)
+                if any(token in str(user_text).lower() for token in ('dashboard', 'riesgo', 'kpi', 'auditor', 'calibr', '17025', 'acciones abiertas')):
+                    ai_workspace_dialog.open()
                 if hints:
                     append_route_buttons(hints)
                 chat_history.append({'role': 'assistant', 'content': respuesta})
@@ -1437,12 +1952,24 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
 
             ai_input.on('keydown.enter', trigger_send)
             ai_send.on_click(trigger_send)
-            with ui.row().classes('w-full items-center justify-between gap-2'):
-                ui.button('Copiar respuesta', icon='content_copy', on_click=copy_last_answer).props('flat dense').classes('text-slate-600')
-                ui.button('Convertir en plan de accion', icon='table_chart', on_click=lambda: transform_last_answer('plan_accion', 'Convertir en plan de accion')).props('flat dense').classes('text-slate-600')
-                ui.button('Generar checklist', icon='fact_check', on_click=lambda: transform_last_answer('checklist_auditoria', 'Generar checklist de auditoria')).props('flat dense').classes('text-slate-600')
-                ui.button('Reporte', icon='description', on_click=generate_report_from_chat).props('flat dense').classes('text-slate-600')
-                ui.button('Cerrar', icon='close', on_click=close_drawer).props('flat dense').classes('text-slate-500')
+            with ui.row().classes('w-full items-center justify-start gap-1'):
+                ui.button(icon='library_books', on_click=open_conversation_library).props('flat round dense').classes('text-slate-600')
+                ui.button(icon='content_copy', on_click=copy_last_answer).props('flat round dense').classes('text-slate-600')
+                def reset_conversation() -> None:
+                    archive_current_conversation()
+                    persisted_messages.clear()
+                    chat_messages.clear()
+                    _set_workspace_state('idle')
+                    with chat_messages:
+                        ui.chat_message(
+                            text=_format_chat_text_for_display(welcome_text),
+                            name=assistant_name,
+                            sent=False,
+                            text_html=True,
+                        )
+                    render_ai_workspace_view('')
+                ui.button(icon='refresh', on_click=reset_conversation).props('flat round dense').classes('text-slate-600')
+            render_ai_workspace_view('')
     with ui.header().classes('ideas-topbar'):
         with ui.row().classes('w-full items-center justify-between px-4'):
             with ui.row().classes('items-center gap-3'):
@@ -1468,10 +1995,11 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                         ui.label('IDEAS Consulting V2').classes('text-slate-900 font-bold')
                         ui.label(page_title).classes('text-sm text-slate-500')
             with ui.row().classes('items-center gap-2'):
-                smart_button = ui.button(assistant_name, icon='auto_awesome', on_click=_force_open_drawer).props('flat dense').classes('text-blue-700 font-bold')
+                smart_button = ui.button(assistant_name, icon='auto_awesome', on_click=_toggle_drawer).props('flat dense').classes('text-blue-700 font-bold')
                 if not ai_enabled_session:
                     smart_button.disable()
                     smart_button.tooltip('IA deshabilitada para la empresa seleccionada')
+                ui.button('AI Command Center', icon='auto_awesome', on_click=lambda: ui.navigate.to('/sistema-gestion/smart-ideas')).props('flat dense').classes('text-slate-700')
                 ui.button('Web institucional', icon='public', on_click=lambda: ui.navigate.to('/')).props('flat dense')
                 if is_platform_authenticated():
                     ui.button('Salir', icon='logout', on_click=logout_platform).props('flat dense color=negative')
@@ -1568,7 +2096,7 @@ def certifications_summary(company: dict | None) -> str:
     if not company:
         return 'Sin datos'
     labels = []
-    for key, label in [('cert_iso_9001', 'ISO 9001'), ('cert_iso_14001', 'ISO 14001'), ('cert_iso_45001', 'ISO 45001'), ('cert_iatf', 'IATF')]:
+    for key, label in [('cert_iso_9001', 'ISO 9001'), ('cert_iso_14001', 'ISO 14001'), ('cert_iso_45001', 'ISO 45001'), ('cert_iatf', 'IATF'), ('cert_iso_17025', 'ISO/IEC 17025')]:
         if valor_afirmativo(company.get(key)):
             labels.append(label)
     return ', '.join(labels) if labels else 'Sin certificaciones registradas'
@@ -1856,6 +2384,25 @@ def _rules_for_company(company_id: int | None) -> dict:
     rules = _read_ideas_client_rules().get('by_company') or {}
     item = rules.get(str(int(company_id)))
     return item if isinstance(item, dict) else {}
+
+
+def _read_ai_conversation_library() -> dict:
+    default = {'items': []}
+    if not IDEAS_ASSISTANT_LIBRARY_PATH.exists():
+        return default
+    try:
+        data = json.loads(IDEAS_ASSISTANT_LIBRARY_PATH.read_text(encoding='utf-8'))
+        if isinstance(data, dict) and isinstance(data.get('items'), list):
+            return {'items': data.get('items') or []}
+    except Exception:
+        return default
+    return default
+
+
+def _write_ai_conversation_library(data: dict) -> None:
+    payload = {'items': (data or {}).get('items') or []}
+    IDEAS_ASSISTANT_LIBRARY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    IDEAS_ASSISTANT_LIBRARY_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
 def _read_ideas_standard() -> str:
@@ -2153,6 +2700,56 @@ def smart_ideas_admin_page():
                 refresh_memory_table()
 
                 ui.separator().classes('my-2')
+                ui.label('Trazabilidad de acciones IA').classes('text-sm font-semibold text-slate-700')
+                ui.label(
+                    'Registro auditable de propuestas y ejecuciones confirmadas por usuario.'
+                ).classes('text-xs text-slate-500')
+                actionlog_company_select = ui.select(
+                    company_rule_options,
+                    value=next(iter(company_rule_options.keys()), None),
+                    label='Empresa acciones IA',
+                ).props('outlined dense').classes('w-full')
+                actionlog_table = ui.table(
+                    columns=[
+                        {'name': 'created_at', 'label': 'Fecha', 'field': 'created_at', 'align': 'left'},
+                        {'name': 'user_key', 'label': 'Usuario', 'field': 'user_key', 'align': 'left'},
+                        {'name': 'intent', 'label': 'Intent', 'field': 'intent', 'align': 'left'},
+                        {'name': 'status', 'label': 'Estado', 'field': 'status', 'align': 'left'},
+                        {'name': 'confirmed_by_user', 'label': 'Confirmada', 'field': 'confirmed_by_user', 'align': 'center'},
+                        {'name': 'prompt_original', 'label': 'Prompt', 'field': 'prompt_original', 'align': 'left'},
+                    ],
+                    rows=[],
+                    row_key='created_at',
+                    pagination={'rowsPerPage': 8},
+                ).classes('w-full ideas-table')
+                actionlog_table.props('dense flat bordered')
+
+                def refresh_actionlog_table() -> None:
+                    cid = str(actionlog_company_select.value or '').strip()
+                    if not cid:
+                        actionlog_table.rows = []
+                        actionlog_table.update()
+                        return
+                    rows = list_ai_action_logs(int(cid), limit=80)
+                    actionlog_table.rows = [
+                        {
+                            'created_at': str(item.get('created_at') or ''),
+                            'user_key': fix_text(str(item.get('user_key') or '')),
+                            'intent': fix_text(str(item.get('intent') or '')),
+                            'status': fix_text(str(item.get('status') or '')),
+                            'confirmed_by_user': 'Si' if int(item.get('confirmed_by_user') or 0) else 'No',
+                            'prompt_original': (fix_text(str(item.get('prompt_original') or ''))[:160] + '...') if len(str(item.get('prompt_original') or '')) > 160 else fix_text(str(item.get('prompt_original') or '')),
+                        }
+                        for item in rows
+                    ]
+                    actionlog_table.update()
+
+                actionlog_company_select.on('update:model-value', lambda _e: refresh_actionlog_table())
+                with ui.row().classes('w-full items-center gap-2'):
+                    ui.button('Refrescar trazabilidad IA', icon='history', on_click=refresh_actionlog_table).props('flat')
+                refresh_actionlog_table()
+
+                ui.separator().classes('my-2')
                 ui.label('Backups de base de datos').classes('text-sm font-semibold text-slate-700')
                 ui.label(
                     'Crea respaldos operativos y restaura versiones de la base en caso de contingencia.'
@@ -2280,20 +2877,107 @@ def smart_ideas_admin_page():
 register_public_pages(ui, {'public_shell': public_shell, 'get_banner_url': get_banner_url})
 
 if not INSTITUTIONAL_ONLY:
-    register_management_page(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'fix_text': fix_text, 'quick_card': quick_card, 'render_metrics': render_metrics, 'certifications_summary': certifications_summary, 'set_selection': set_selection, 'obtener_color_contraste': obtener_color_contraste, 'go_to_documents_library': go_to_documents_library, 'go_to_company_documents_module': go_to_company_documents_module, 'go_to_process_maps_module': go_to_process_maps_module, 'go_to_kpi_module': go_to_kpi_module, 'go_to_risks_module': go_to_risks_module, 'go_to_environment_module': go_to_environment_module, 'go_to_quality_module': go_to_quality_module, 'go_to_sst_module': go_to_sst_module, 'go_to_users_module': go_to_users_module})
+    register_management_page(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'fix_text': fix_text, 'quick_card': quick_card, 'render_metrics': render_metrics, 'certifications_summary': certifications_summary, 'set_selection': set_selection, 'obtener_color_contraste': obtener_color_contraste, 'go_to_documents_library': go_to_documents_library, 'go_to_company_documents_module': go_to_company_documents_module, 'go_to_process_maps_module': go_to_process_maps_module, 'go_to_kpi_module': go_to_kpi_module, 'go_to_risks_module': go_to_risks_module, 'go_to_environment_module': go_to_environment_module, 'go_to_legal_matrix_module': go_to_legal_matrix_module, 'go_to_quality_module': go_to_quality_module, 'go_to_sst_module': go_to_sst_module, 'go_to_users_module': go_to_users_module, 'go_to_lab_module': go_to_lab_module, 'can_access_module': can_access_module_code_for_current_user})
     register_documents_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'valor_afirmativo': valor_afirmativo, 'set_selection': set_selection, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'explicar_requisito_iso': explicar_requisito_iso_guarded, 'set_ai_focus_context': set_ai_focus_context})
     register_process_maps_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'set_selection': set_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'agregar_proceso_mapa_empresa': agregar_proceso_mapa_empresa, 'actualizar_proceso_mapa': actualizar_proceso_mapa, 'eliminar_proceso_mapa': eliminar_proceso_mapa, 'generar_pdf_mapa_procesos': generar_pdf_mapa_procesos, 'set_ai_focus_context': set_ai_focus_context})
     register_kpi_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'set_selection': set_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_kpis_empresa': obtener_kpis_empresa, 'obtener_kpi_detalle': obtener_kpi_detalle, 'obtener_grupos_kpi_empresa': obtener_grupos_kpi_empresa, 'crear_grupo_kpi_empresa': crear_grupo_kpi_empresa, 'guardar_kpi': guardar_kpi, 'actualizar_kpi_meses': actualizar_kpi_meses, 'actualizar_kpi_diario_y_periodos': actualizar_kpi_diario_y_periodos, 'agregar_kpi_empresa': agregar_kpi_empresa, 'actualizar_kpi': actualizar_kpi, 'actualizar_dashboard_principal_kpi': actualizar_dashboard_principal_kpi, 'actualizar_grupos_personalizados_kpi': actualizar_grupos_personalizados_kpi, 'eliminar_kpi': eliminar_kpi, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'generar_pdf_kpis': generar_pdf_kpis, 'go': go, 'set_ai_focus_context': set_ai_focus_context})
     register_risks_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_matrices_riesgos_empresa': obtener_matrices_riesgos_empresa, 'obtener_matriz_riesgos_detalle': obtener_matriz_riesgos_detalle, 'obtener_items_riesgos_matriz': obtener_items_riesgos_matriz, 'crear_matriz_riesgos': crear_matriz_riesgos, 'actualizar_matriz_riesgos': actualizar_matriz_riesgos, 'eliminar_matriz_riesgos': eliminar_matriz_riesgos, 'crear_item_riesgo': crear_item_riesgo, 'actualizar_item_riesgo': actualizar_item_riesgo, 'eliminar_item_riesgo': eliminar_item_riesgo, 'set_ai_focus_context': set_ai_focus_context})
-    register_environment_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_aspectos_ambientales_empresa': obtener_aspectos_ambientales_empresa, 'crear_aspecto_ambiental': crear_aspecto_ambiental, 'actualizar_aspecto_ambiental': actualizar_aspecto_ambiental, 'eliminar_aspecto_ambiental': eliminar_aspecto_ambiental, 'obtener_requisitos_legales_ambientales_empresa': obtener_requisitos_legales_ambientales_empresa, 'crear_requisito_legal_ambiental': crear_requisito_legal_ambiental, 'actualizar_requisito_legal_ambiental': actualizar_requisito_legal_ambiental, 'eliminar_requisito_legal_ambiental': eliminar_requisito_legal_ambiental, 'obtener_simulacros_ambientales_empresa': obtener_simulacros_ambientales_empresa, 'crear_simulacro_ambiental': crear_simulacro_ambiental, 'actualizar_simulacro_ambiental': actualizar_simulacro_ambiental, 'eliminar_simulacro_ambiental': eliminar_simulacro_ambiental, 'sugerir_matriz_legal_ia': sugerir_matriz_legal_ia_guarded, 'generar_reporte_simulacro': generar_reporte_simulacro, 'set_ai_focus_context': set_ai_focus_context})
-    register_sst_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa})
+    register_environment_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_aspectos_ambientales_empresa': obtener_aspectos_ambientales_empresa, 'crear_aspecto_ambiental': crear_aspecto_ambiental, 'actualizar_aspecto_ambiental': actualizar_aspecto_ambiental, 'eliminar_aspecto_ambiental': eliminar_aspecto_ambiental, 'obtener_requisitos_legales_ambientales_empresa': obtener_requisitos_legales_ambientales_empresa, 'crear_requisito_legal_ambiental': crear_requisito_legal_ambiental, 'actualizar_requisito_legal_ambiental': actualizar_requisito_legal_ambiental, 'eliminar_requisito_legal_ambiental': eliminar_requisito_legal_ambiental, 'obtener_simulacros_ambientales_empresa': obtener_simulacros_ambientales_empresa, 'crear_simulacro_ambiental': crear_simulacro_ambiental, 'actualizar_simulacro_ambiental': actualizar_simulacro_ambiental, 'eliminar_simulacro_ambiental': eliminar_simulacro_ambiental, 'obtener_ambiental_capacitaciones_empresa': obtener_ambiental_capacitaciones_empresa, 'crear_ambiental_capacitacion': crear_ambiental_capacitacion, 'actualizar_ambiental_capacitacion': actualizar_ambiental_capacitacion, 'eliminar_ambiental_capacitacion': eliminar_ambiental_capacitacion, 'sugerir_matriz_legal_ia': sugerir_matriz_legal_ia_guarded, 'generar_reporte_simulacro': generar_reporte_simulacro, 'set_ai_focus_context': set_ai_focus_context})
+    register_legal_matrix_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle})
+    register_sst_module(ui, {
+        'ensure_platform_access': ensure_platform_access,
+        'shell': shell,
+        'current_selection': current_selection,
+        'set_selection': set_selection,
+        'company_options': company_options,
+        'obtener_empresa_detalle': obtener_empresa_detalle,
+        'fix_text': fix_text,
+        'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa,
+        'obtener_sst_capacitaciones_empresa': obtener_sst_capacitaciones_empresa,
+        'crear_sst_capacitacion': crear_sst_capacitacion,
+        'actualizar_sst_capacitacion': actualizar_sst_capacitacion,
+        'eliminar_sst_capacitacion': eliminar_sst_capacitacion,
+    })
     register_quality_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'valor_afirmativo': valor_afirmativo, 'fix_text': fix_text, 'obtener_problemas_calidad_empresa': obtener_problemas_calidad_empresa, 'obtener_problema_calidad_detalle': obtener_problema_calidad_detalle, 'crear_problema_calidad_8d': crear_problema_calidad_8d, 'actualizar_problema_calidad_8d': actualizar_problema_calidad_8d, 'eliminar_problema_calidad_8d': eliminar_problema_calidad_8d, 'obtener_5_porque_problema_calidad': obtener_5_porque_problema_calidad, 'guardar_5_porque_problema_calidad': guardar_5_porque_problema_calidad, 'obtener_ishikawa_problema_calidad': obtener_ishikawa_problema_calidad, 'guardar_ishikawa_problema_calidad': guardar_ishikawa_problema_calidad, 'obtener_acciones_8d': obtener_acciones_8d, 'guardar_accion_8d': guardar_accion_8d, 'eliminar_accion_8d': eliminar_accion_8d, 'generar_reporte_8d': generar_reporte_8d, 'generar_pdf_8d': generar_pdf_8d, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'sugerir_causas_ishikawa': sugerir_causas_ishikawa_guarded, 'set_ai_focus_context': set_ai_focus_context})
-    register_users_module(ui, {'app': app, 'ensure_platform_access': ensure_platform_access, 'shell': shell, 'fix_text': fix_text, 'obtener_usuarios': obtener_usuarios, 'crear_usuario': guarded_crear_usuario, 'actualizar_usuario': guarded_actualizar_usuario, 'eliminar_usuario': guarded_eliminar_usuario, 'obtener_empresas': obtener_empresas})
+    register_users_module(ui, {'app': app, 'ensure_platform_access': ensure_platform_access, 'shell': shell, 'fix_text': fix_text, 'obtener_usuarios': obtener_usuarios, 'crear_usuario': guarded_crear_usuario, 'actualizar_usuario': guarded_actualizar_usuario, 'eliminar_usuario': guarded_eliminar_usuario, 'obtener_empresas': obtener_empresas, 'list_modules_catalog': list_modules_catalog, 'get_available_modules_for_company': get_available_modules_for_company, 'get_enabled_modules_for_user': get_enabled_modules_for_user, 'assign_modules_to_user': assign_modules_to_user})
+    register_lab_module(ui, {
+        'ensure_platform_access': ensure_platform_access,
+        'shell': shell,
+        'current_selection': current_selection,
+        'set_selection': set_selection,
+        'company_options': company_options,
+        'obtener_empresa_detalle': obtener_empresa_detalle,
+        'fix_text': fix_text,
+        'obtener_lab_configuracion': obtener_lab_configuracion,
+        'guardar_lab_configuracion': guardar_lab_configuracion,
+        'obtener_lab_dashboard_empresa': obtener_lab_dashboard_empresa,
+        'seed_lab_demo_data': seed_lab_demo_data,
+        'calcular_incertidumbre_metodo': calcular_incertidumbre_metodo,
+        'validar_competencia_para_metodo': validar_competencia_para_metodo,
+        'obtener_lab_equipos_empresa': obtener_lab_equipos_empresa,
+        'crear_lab_equipo': crear_lab_equipo,
+        'actualizar_lab_equipo': actualizar_lab_equipo,
+        'eliminar_lab_equipo': eliminar_lab_equipo,
+        'obtener_lab_calibraciones_empresa': obtener_lab_calibraciones_empresa,
+        'crear_lab_calibracion': crear_lab_calibracion,
+        'actualizar_lab_calibracion': actualizar_lab_calibracion,
+        'eliminar_lab_calibracion': eliminar_lab_calibracion,
+        'obtener_lab_metodos_empresa': obtener_lab_metodos_empresa,
+        'crear_lab_metodo': crear_lab_metodo,
+        'actualizar_lab_metodo': actualizar_lab_metodo,
+        'eliminar_lab_metodo': eliminar_lab_metodo,
+        'obtener_lab_muestras_empresa': obtener_lab_muestras_empresa,
+        'crear_lab_muestra': crear_lab_muestra,
+        'actualizar_lab_muestra': actualizar_lab_muestra,
+        'eliminar_lab_muestra': eliminar_lab_muestra,
+        'obtener_lab_competencias_empresa': obtener_lab_competencias_empresa,
+        'crear_lab_competencia': crear_lab_competencia,
+        'actualizar_lab_competencia': actualizar_lab_competencia,
+        'eliminar_lab_competencia': eliminar_lab_competencia,
+        'obtener_lab_incertidumbre_empresa': obtener_lab_incertidumbre_empresa,
+        'crear_lab_incertidumbre_componente': crear_lab_incertidumbre_componente,
+        'eliminar_lab_incertidumbre_componente': eliminar_lab_incertidumbre_componente,
+        'obtener_lab_control_calidad_empresa': obtener_lab_control_calidad_empresa,
+        'crear_lab_control_calidad': crear_lab_control_calidad,
+        'eliminar_lab_control_calidad': eliminar_lab_control_calidad,
+        'obtener_lab_informes_empresa': obtener_lab_informes_empresa,
+        'crear_lab_informe': crear_lab_informe,
+        'actualizar_lab_informe': actualizar_lab_informe,
+        'eliminar_lab_informe': eliminar_lab_informe,
+        'obtener_lab_auditorias_empresa': obtener_lab_auditorias_empresa,
+        'crear_lab_auditoria': crear_lab_auditoria,
+        'eliminar_lab_auditoria': eliminar_lab_auditoria,
+        'obtener_lab_riesgos_empresa': obtener_lab_riesgos_empresa,
+        'crear_lab_riesgo': crear_lab_riesgo,
+        'eliminar_lab_riesgo': eliminar_lab_riesgo,
+        'obtener_lab_acciones_empresa': obtener_lab_acciones_empresa,
+        'crear_lab_accion': crear_lab_accion,
+        'eliminar_lab_accion': eliminar_lab_accion,
+        'obtener_lab_mobile_unidades_empresa': obtener_lab_mobile_unidades_empresa,
+        'crear_lab_mobile_unidad': crear_lab_mobile_unidad,
+        'obtener_lab_mobile_registros_empresa': obtener_lab_mobile_registros_empresa,
+        'crear_lab_mobile_registro': crear_lab_mobile_registro,
+        'obtener_lab_ai_settings': obtener_lab_ai_settings,
+        'guardar_lab_ai_settings': guardar_lab_ai_settings,
+        'obtener_lab_alertas_empresa': obtener_lab_alertas_empresa,
+        'actualizar_lab_alerta_estado': actualizar_lab_alerta_estado,
+        'ejecutar_chequeo_lab_empresa': ejecutar_chequeo_lab_empresa,
+        'generar_reporte_pre_acreditacion_lab': generar_reporte_pre_acreditacion_lab,
+        'obtener_reportes_lab_ai': obtener_reportes_lab_ai,
+        'convertir_alerta_en_accion_lab': convertir_alerta_en_accion_lab,
+    })
+    register_ai_command_center_page(ui, app, {
+        'shell': shell,
+        'ensure_platform_access': ensure_platform_access,
+        'get_enabled_modules_for_user': get_enabled_modules_for_user,
+        'get_data_sources_for_company': get_data_sources_for_company,
+    })
     register_platform_pages(ui, app, {'public_shell': public_shell, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'get_banner_url': get_banner_url, 'get_logo_url': get_logo_url, 'quick_card': quick_card, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'obtener_alertas_globales': obtener_alertas_globales, 'verificar_usuario': verificar_usuario, 'verificar_login_empresa': verificar_login_empresa, 'guardar_token_empresa': guardar_token_empresa, 'verificar_token_empresa': verificar_token_empresa, 'actualizar_password_empresa': actualizar_password_empresa, 'provisionar_acceso_empresa': provisionar_acceso_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'set_selection': set_selection, 'PLATFORM_USER': PLATFORM_USER, 'PLATFORM_PASSWORD': PLATFORM_PASSWORD})
-    register_diagnostic_pages(ui, app, {'pd': pd, 'go': go, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'guardar_empresa': guarded_guardar_empresa, 'actualizar_empresa': guarded_actualizar_empresa, 'eliminar_empresa': guarded_eliminar_empresa, 'guardar_fuente_empresa': guarded_guardar_fuente_empresa, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'eliminar_fuente': guarded_eliminar_fuente, 'guardar_token_empresa': guardar_token_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'go_to_management_workspace': go_to_management_workspace, 'set_selection': set_selection, 'leer_diagnostico_excel': leer_diagnostico_excel, 'grouped_questions': grouped_questions, 'load_criteria': load_criteria, 'company_options': company_options, 'current_selection': current_selection, 'diagnosis_record': diagnosis_record, 'diagnosis_response_dicts': diagnosis_response_dicts, 'split_evidence_values': split_evidence_values, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'actualizar_diagnostico': guarded_actualizar_diagnostico, 'guardar_diagnostico': guarded_guardar_diagnostico, 'obtener_nivel': obtener_nivel, 'obtener_conclusion': obtener_conclusion, 'diagnosis_rows': diagnosis_rows, 'diagnosis_badge_style': diagnosis_badge_style, 'diagnosis_options': diagnosis_options, 'build_eje_scores': build_eje_scores, 'build_plan': build_plan, 'short_axis_label': short_axis_label, 'obtener_mensaje_direccion': obtener_mensaje_direccion, 'quick_card': quick_card, 'obtener_prioridad_recomendada': obtener_prioridad_recomendada, 'start_edit': start_edit, 'render_metrics': render_metrics, 'eliminar_diagnostico': guarded_eliminar_diagnostico, 'generar_pdf_ejecutivo_v2': generar_pdf_ejecutivo_v2})
+    register_diagnostic_pages(ui, app, {'pd': pd, 'go': go, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'guardar_empresa': guarded_guardar_empresa, 'actualizar_empresa': guarded_actualizar_empresa, 'eliminar_empresa': guarded_eliminar_empresa, 'guardar_fuente_empresa': guarded_guardar_fuente_empresa, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'eliminar_fuente': guarded_eliminar_fuente, 'guardar_token_empresa': guardar_token_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'go_to_management_workspace': go_to_management_workspace, 'set_selection': set_selection, 'leer_diagnostico_excel': leer_diagnostico_excel, 'grouped_questions': grouped_questions, 'load_criteria': load_criteria, 'company_options': company_options, 'current_selection': current_selection, 'diagnosis_record': diagnosis_record, 'diagnosis_response_dicts': diagnosis_response_dicts, 'split_evidence_values': split_evidence_values, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'actualizar_diagnostico': guarded_actualizar_diagnostico, 'guardar_diagnostico': guarded_guardar_diagnostico, 'obtener_nivel': obtener_nivel, 'obtener_conclusion': obtener_conclusion, 'diagnosis_rows': diagnosis_rows, 'diagnosis_badge_style': diagnosis_badge_style, 'diagnosis_options': diagnosis_options, 'build_eje_scores': build_eje_scores, 'build_plan': build_plan, 'short_axis_label': short_axis_label, 'obtener_mensaje_direccion': obtener_mensaje_direccion, 'quick_card': quick_card, 'obtener_prioridad_recomendada': obtener_prioridad_recomendada, 'start_edit': start_edit, 'render_metrics': render_metrics, 'eliminar_diagnostico': guarded_eliminar_diagnostico, 'generar_pdf_ejecutivo_v2': generar_pdf_ejecutivo_v2, 'get_available_modules_for_company': get_available_modules_for_company, 'assign_modules_to_company': assign_modules_to_company, 'sync_user_modules_after_company_change': sync_user_modules_after_company_change})
 render_port = os.getenv('PORT')
 run_port = int(render_port) if render_port else 8502
 run_host = '0.0.0.0'
+start_lab_ai_scheduler()
 
 ui.run(
     title='IDEAS Consulting V2',

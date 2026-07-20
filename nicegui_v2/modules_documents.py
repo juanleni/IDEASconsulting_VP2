@@ -423,7 +423,7 @@ def _render_standard_tabs(*, fix_text_fn, standard_names: list[str], explain_req
         return
     with ui.tabs().classes('w-full mt-6') as tabs:
         tab_map = {name: ui.tab(name, icon='fact_check') for name in standard_names}
-    with ui.tab_panels(tabs, value=next(iter(tab_map.values()))).classes('w-full bg-transparent'):
+    with ui.tab_panels(tabs, value=None).classes('w-full bg-transparent'):
         for standard in standard_names:
             meta = DOCUMENT_STANDARDS[standard]
             requirement_rows = requirements_for_standard(standard)
@@ -463,7 +463,7 @@ def _render_standard_tabs(*, fix_text_fn, standard_names: list[str], explain_req
                                 chapter: ui.tab(f'Cap. {fix_text_fn(chapter)}', icon='folder_open')
                                 for chapter, _rows in chapter_groups
                             }
-                        with ui.tab_panels(chapter_tabs, value=intro_tab).classes('w-full bg-transparent px-0'):
+                        with ui.tab_panels(chapter_tabs, value=None).classes('w-full bg-transparent px-0'):
                             with ui.tab_panel(intro_tab).classes('px-0'):
                                 _render_search_explorer(requirement_rows=requirement_rows, fix_text_fn=fix_text_fn, explain_requisito_fn=explain_requisito_fn)
                             for chapter, rows in chapter_groups:
@@ -508,12 +508,13 @@ def register_documents_module(ui, deps: dict) -> None:
     set_selection = deps['set_selection']
     obtener_fuentes_empresa = deps['obtener_fuentes_empresa']
     explicar_requisito_iso = deps['explicar_requisito_iso']
+    set_ai_focus_context = deps.get('set_ai_focus_context')
 
     @ui.page('/sistema-gestion/documentos')
     def documents_library_page() -> None:
         if not ensure_platform_access():
             return
-        with shell('Gestion de documentos', back_route='/sistema-gestion') as shell_container:
+        with shell('Gestion de documentos', back_route='/sistema-gestion', module_key='documents') as shell_container:
             with shell_container:
                 ui.label('Gestion de documentos').classes('ideas-kicker')
                 ui.label('Biblioteca general de la consultora').classes('text-3xl font-bold text-slate-900')
@@ -556,8 +557,17 @@ def register_documents_module(ui, deps: dict) -> None:
         selected_company = obtener_empresa_detalle(selected_company_id) if selected_company_id else None
         enabled = enabled_standards_for_company(selected_company, valor_afirmativo)
         visible_standards = enabled or list(DOCUMENT_STANDARDS.keys())
+        if callable(set_ai_focus_context):
+            set_ai_focus_context(
+                'documentos',
+                {
+                    'empresa_id': int(selected_company_id) if selected_company_id else None,
+                    'normas_visibles': visible_standards[:6],
+                    'certificaciones_activas': enabled[:6],
+                },
+            )
 
-        with shell('Gestion documental por empresa', back_route='/sistema-gestion') as shell_container:
+        with shell('Gestion documental por empresa', back_route='/sistema-gestion', module_key='documents') as shell_container:
             with shell_container:
                 ui.label('Gestion de documentos').classes('ideas-kicker')
                 ui.label('Biblioteca particular por empresa').classes('text-3xl font-bold text-slate-900')

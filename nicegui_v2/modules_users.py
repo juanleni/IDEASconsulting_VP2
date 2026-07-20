@@ -16,11 +16,16 @@ def register_users_module(ui, deps: dict) -> None:
     eliminar_usuario = deps['eliminar_usuario']
     obtener_empresas = deps['obtener_empresas']
     fix_text = deps.get('fix_text', lambda value: '' if value is None else str(value))
+    list_modules_catalog = deps.get('list_modules_catalog')
+    get_available_modules_for_company = deps.get('get_available_modules_for_company')
+    get_enabled_modules_for_user = deps.get('get_enabled_modules_for_user')
+    assign_modules_to_user = deps.get('assign_modules_to_user')
 
     modulos_opciones = {
         'cert_iso_9001': 'Sistema de Gestion de Calidad',
         'cert_iso_14001': 'Sistema de Gestion Ambiental',
         'cert_iso_45001': 'Sistema de Salud Ocupacional',
+        'cert_iso_17025': 'LAB ISO/IEC 17025',
     }
 
     def _empresa_id_sesion() -> int | None:
@@ -55,17 +60,18 @@ def register_users_module(ui, deps: dict) -> None:
             return
 
         user_rol = str(app.storage.user.get('role') or '')
-        shell_container = shell('Gestion de Usuarios y Accesos', back_route='/sistema-gestion')
+        shell_container = shell('Gestion de Usuarios y Accesos', back_route='/sistema-gestion', module_key='users')
 
         with shell_container:
-            if user_rol == 'empresa':
+            local_user_role = str(app.storage.user.get('local_user_role') or '').strip().upper()
+            if user_rol == 'empresa' and local_user_role not in {'EMPRESA_ADMIN'}:
                 with ui.card().classes('ideas-panel w-full'):
                     ui.label('Acceso denegado').classes('ideas-section-title')
                     ui.label('Tu usuario no tiene permisos para administrar accesos de la organizacion.').classes('ideas-section-note')
                     ui.button('Volver al workspace', icon='arrow_back', on_click=lambda: ui.navigate.to('/sistema-gestion')).props('flat color=primary')
                 return
 
-            if user_rol != 'admin':
+            if user_rol not in {'admin', 'empresa'}:
                 with ui.card().classes('ideas-panel w-full'):
                     ui.label('Sesion no autorizada').classes('ideas-section-title')
                     ui.label('Inicia sesion nuevamente con una cuenta administradora.').classes('ideas-section-note')
@@ -125,6 +131,46 @@ def register_users_module(ui, deps: dict) -> None:
                             label='Sistemas',
                         ).classes('w-full').props('outlined use-chips')
 
+                    user_modules_box = ui.column().classes('w-full mt-4 p-4 border rounded-xl bg-slate-50')
+                    user_modules_box.bind_visibility_from(select_rol, 'value', lambda value: value in {'EMPRESA_ADMIN', 'EMPRESA_USER'})
+                    modules_options = {}
+                    modules_initial_ids = []
+                    if callable(list_modules_catalog) and callable(get_available_modules_for_company):
+                        target_company_id = int(empresa_inicial) if empresa_inicial else None
+                        if target_company_id:
+                            company_modules = get_available_modules_for_company(int(target_company_id)) or []
+                            modules_options = {
+                                int(item.get('id')): fix_text(item.get('name') or item.get('code') or '')
+                                for item in company_modules
+                                if int(item.get('enabled') or 0) == 1 and str(item.get('category') or '') != 'admin'
+                            }
+                    if editando and callable(get_enabled_modules_for_user) and empresa_inicial:
+                        try:
+                            current_user_modules = get_enabled_modules_for_user(int(usuario_actual.get('id')), int(empresa_inicial)) or []
+                            modules_initial_ids = [int(item.get('id')) for item in current_user_modules if int(item.get('user_enabled') or 0) == 1]
+                        except Exception:
+                            modules_initial_ids = []
+                    with user_modules_box:
+                        ui.label('Módulos del Usuario').classes('font-semibold text-slate-700')
+                        ui.label('Solo puedes asignar módulos habilitados para esta empresa.').classes('text-xs text-slate-500')
+                        user_module_state = {int(mid): (int(mid) in {int(x) for x in modules_initial_ids}) for mid in modules_options.keys()}
+                        module_pool = ui.column().classes('w-full mt-2 gap-2')
+
+                        def _render_user_module_pool() -> None:
+                            module_pool.clear()
+                            with module_pool:
+                                with ui.grid(columns=2).classes('w-full gap-2'):
+                                    for module_id, module_label in modules_options.items():
+                                        with ui.card().classes('ideas-panel').style('border:1px solid rgba(148,163,184,.20);box-shadow:none;'):
+                                            with ui.row().classes('w-full items-center justify-between'):
+                                                ui.label(module_label).classes('text-sm text-slate-800')
+                                                sw = ui.switch(value=bool(user_module_state.get(int(module_id)))).props('dense')
+                                                sw.on_value_change(lambda e, mid=int(module_id): user_module_state.__setitem__(mid, bool(e.value)))
+                        _render_user_module_pool()
+                        with ui.row().classes('w-full justify-between mt-2'):
+                            ui.button('Asignar todos', icon='select_all', on_click=lambda: (user_module_state.update({int(k): True for k in user_module_state}), _render_user_module_pool())).props('flat')
+                            ui.button('Quitar todos', icon='deselect', on_click=lambda: (user_module_state.update({int(k): False for k in user_module_state}), _render_user_module_pool())).props('flat color=warning')
+
                     def guardar() -> None:
                         rol = str(select_rol.value or '').strip()
                         empresa_id = None
@@ -149,6 +195,23 @@ def register_users_module(ui, deps: dict) -> None:
                         if not ok:
                             ui.notify(fix_text(mensaje), type='negative')
                             return
+                        if (
+                            callable(assign_modules_to_user)
+                            and rol in {'EMPRESA_ADMIN', 'EMPRESA_USER'}
+                            and empresa_id
+                        ):
+                            target_user_id = int(usuario_actual['id']) if editando else None
+                            if not target_user_id:
+                                # recuperar por username luego de crear
+                                target = next((u for u in _usuarios_visibles() if str(u.get('username') or '').strip().lower() == str(username_input.value or '').strip().lower()), None)
+                                target_user_id = int(target.get('id')) if target else None
+                            if target_user_id:
+                                assign_modules_to_user(
+                                    int(target_user_id),
+                                    int(empresa_id),
+                                    [int(mid) for mid, enabled in user_module_state.items() if bool(enabled)],
+                                    actor=str(app.storage.user.get('session_user_key') or app.storage.user.get('username') or ''),
+                                )
                         ui.notify(fix_text(mensaje), type='positive')
                         dialog.close()
                         cargar_tabla_usuarios.refresh()

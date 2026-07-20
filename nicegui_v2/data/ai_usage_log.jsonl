@@ -1,0 +1,17 @@
+{"ts": "2026-05-26T19:53:32Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 154, "output_tokens": 93, "total_tokens": 247}
+{"ts": "2026-05-26T20:08:19Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": 8, "user_id": 8, "input_tokens": 1833, "output_tokens": 404, "total_tokens": 2237}
+{"ts": "2026-05-26T20:08:37Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": 8, "user_id": 8, "input_tokens": 1833, "output_tokens": 331, "total_tokens": 2164}
+{"ts": "2026-05-26T20:09:26Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": 8, "user_id": 8, "input_tokens": 2704, "output_tokens": 249, "total_tokens": 2953}
+{"ts": "2026-05-26T20:09:43Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": 8, "user_id": 8, "input_tokens": 2919, "output_tokens": 38, "total_tokens": 2957}
+{"ts": "2026-05-26T20:29:48Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 246, "output_tokens": 485, "total_tokens": 731}
+{"ts": "2026-05-26T20:30:19Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 246, "output_tokens": 544, "total_tokens": 790}
+{"ts": "2026-05-27T12:07:35Z", "model": "gpt-4o-mini", "prompt_kind": "analysis_dashboard", "company_id": 8, "user_id": 8, "input_tokens": 1393, "output_tokens": 401, "total_tokens": 1794}
+{"ts": "2026-05-27T12:08:34Z", "model": "gpt-4o-mini", "prompt_kind": "analysis_dashboard", "company_id": 8, "user_id": 8, "input_tokens": 1321, "output_tokens": 267, "total_tokens": 1588}
+{"ts": "2026-05-27T12:09:04Z", "model": "gpt-4o-mini", "prompt_kind": "analysis_dashboard", "company_id": 8, "user_id": 8, "input_tokens": 1301, "output_tokens": 331, "total_tokens": 1632}
+{"ts": "2026-05-27T13:13:52Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 249, "output_tokens": 489, "total_tokens": 738}
+{"ts": "2026-05-27T13:42:12Z", "model": "gpt-4o-mini", "prompt_kind": "analysis_dashboard", "company_id": 8, "user_id": 8, "input_tokens": 1317, "output_tokens": 281, "total_tokens": 1598}
+{"ts": "2026-05-27T17:06:31Z", "model": "gpt-4o-mini", "prompt_kind": "analysis_dashboard", "company_id": 8, "user_id": 8, "input_tokens": 1398, "output_tokens": 265, "total_tokens": 1663}
+{"ts": "2026-05-29T15:24:08Z", "model": "gpt-4o-mini", "prompt_kind": "analysis_dashboard", "company_id": 8, "user_id": 8, "input_tokens": 1483, "output_tokens": 346, "total_tokens": 1829}
+{"ts": "2026-06-01T22:27:48Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 259, "output_tokens": 618, "total_tokens": 877}
+{"ts": "2026-07-17T14:59:00Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 917, "output_tokens": 508, "total_tokens": 1425}
+{"ts": "2026-07-17T14:59:08Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 917, "output_tokens": 573, "total_tokens": 1490}

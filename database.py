@@ -34,6 +34,7 @@ def crear_base():
         "cert_iso_14001": "TEXT",
         "cert_iso_45001": "TEXT",
         "cert_iatf": "TEXT",
+        "cert_iso_17025": "TEXT",
         "logo_path": "TEXT",
         "color_primario": "TEXT",
         "color_secundario": "TEXT",
@@ -210,14 +211,46 @@ def crear_base():
         empresa_id INTEGER NOT NULL,
         proceso_nombre TEXT,
         actividad TEXT,
+        descripcion_actividad TEXT,
+        condicion_normal_operacion TEXT,
+        condicion_anormal_operacion TEXT,
+        condicion_emergencia TEXT,
         aspecto TEXT,
+        medio_afectado TEXT,
+        ocurrencia TEXT,
+        magnitud TEXT,
+        reversibilidad TEXT,
         impacto TEXT,
+        requisito_legal_asociado TEXT,
         condicion TEXT,
         significancia INTEGER,
         es_significativo BOOLEAN,
-        control_operacional TEXT
+        control_operacional TEXT,
+        responsable TEXT,
+        fecha_realizacion TEXT,
+        cumplimiento TEXT,
+        registro TEXT
     )
     """)
+
+    nuevas_columnas_aspectos = {
+        "descripcion_actividad": "TEXT",
+        "condicion_normal_operacion": "TEXT",
+        "condicion_anormal_operacion": "TEXT",
+        "condicion_emergencia": "TEXT",
+        "medio_afectado": "TEXT",
+        "ocurrencia": "TEXT",
+        "magnitud": "TEXT",
+        "reversibilidad": "TEXT",
+        "requisito_legal_asociado": "TEXT",
+        "responsable": "TEXT",
+        "fecha_realizacion": "TEXT",
+        "cumplimiento": "TEXT",
+        "registro": "TEXT",
+    }
+    for columna, tipo in nuevas_columnas_aspectos.items():
+        if not _columna_existe(c, "aspectos_ambientales", columna):
+            c.execute(f"ALTER TABLE aspectos_ambientales ADD COLUMN {columna} {tipo}")
 
     c.execute("""
     CREATE TABLE IF NOT EXISTS matriz_legal_ambiental (
@@ -244,6 +277,56 @@ def crear_base():
         archivos_path TEXT
     )
     """)
+
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sst_capacitaciones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            tema TEXT,
+            proceso_emisor TEXT,
+            proceso_receptor TEXT,
+            personal_involucrado INTEGER,
+            duracion_minutos INTEGER,
+            fecha_maxima_ejecucion_planificada TEXT,
+            fecha_realizacion TEXT,
+            estado TEXT,
+            porcentaje_personal_capacitado REAL,
+            modalidad TEXT,
+            responsable_coordinacion TEXT,
+            entrenador TEXT,
+            requerimiento_legal TEXT,
+            detalle_requerimiento TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ambiental_capacitaciones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            tema TEXT,
+            proceso_emisor TEXT,
+            proceso_receptor TEXT,
+            personal_involucrado INTEGER,
+            duracion_minutos INTEGER,
+            fecha_maxima_ejecucion_planificada TEXT,
+            fecha_realizacion TEXT,
+            estado TEXT,
+            porcentaje_personal_capacitado REAL,
+            modalidad TEXT,
+            responsable_coordinacion TEXT,
+            entrenador TEXT,
+            requerimiento_legal TEXT,
+            detalle_requerimiento TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
 
     c.execute("""
     CREATE TABLE IF NOT EXISTS calidad_problemas_8d (
@@ -370,6 +453,412 @@ def crear_base():
         contenido TEXT,
         fecha_carga TEXT
     )
+    """)
+
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS ai_memoria_empresa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        user_key TEXT,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        module_context TEXT,
+        context_snapshot TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_configuracion (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL UNIQUE,
+        lab_nombre TEXT,
+        mobile_lab_activo INTEGER DEFAULT 0,
+        tipos_ensayo TEXT,
+        estados_personalizados TEXT,
+        criticidades TEXT,
+        frecuencias TEXT,
+        plantillas TEXT,
+        formatos_informe TEXT,
+        criterios_aceptacion TEXT,
+        actualizado_por TEXT,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_equipos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        codigo_interno TEXT,
+        nombre TEXT NOT NULL,
+        tipo TEXT,
+        marca TEXT,
+        modelo TEXT,
+        serie TEXT,
+        ubicacion TEXT,
+        laboratorio TEXT,
+        responsable TEXT,
+        estado TEXT,
+        criticidad TEXT,
+        rango_medicion TEXT,
+        resolucion TEXT,
+        incertidumbre TEXT,
+        fecha_ultima_calibracion TEXT,
+        fecha_proxima_calibracion TEXT,
+        frecuencia TEXT,
+        proveedor TEXT,
+        certificado TEXT,
+        observaciones TEXT,
+        historial_json TEXT,
+        adjuntos_json TEXT,
+        qr_codigo TEXT,
+        metodos_relacionados TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_calibraciones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        equipo_id INTEGER,
+        tipo TEXT,
+        fecha TEXT,
+        proveedor TEXT,
+        resultado TEXT,
+        conformidad TEXT,
+        certificado TEXT,
+        evidencia TEXT,
+        impacto_potencial TEXT,
+        responsable TEXT,
+        proxima_fecha TEXT,
+        estado TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_metodos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        codigo TEXT,
+        nombre TEXT NOT NULL,
+        version TEXT,
+        norma TEXT,
+        alcance TEXT,
+        responsable_tecnico TEXT,
+        equipos_requeridos TEXT,
+        competencias_requeridas TEXT,
+        incertidumbre TEXT,
+        criterios_aceptacion TEXT,
+        documentos TEXT,
+        estado TEXT,
+        validacion TEXT,
+        verificacion TEXT,
+        checklist TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_muestras (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        codigo_unico TEXT,
+        cliente TEXT,
+        ubicacion TEXT,
+        fecha_recepcion TEXT,
+        responsable TEXT,
+        estado TEXT,
+        tipo TEXT,
+        ensayos TEXT,
+        metodo TEXT,
+        condicion_recepcion TEXT,
+        cadena_custodia TEXT,
+        prioridad TEXT,
+        fecha_compromiso TEXT,
+        resultado TEXT,
+        observaciones TEXT,
+        evidencias TEXT,
+        fotos TEXT,
+        laboratorio TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_competencias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        persona TEXT,
+        rol TEXT,
+        metodo_autorizado TEXT,
+        fecha_autorizacion TEXT,
+        vencimiento TEXT,
+        evaluador TEXT,
+        evidencia TEXT,
+        estado TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_incertidumbre_componentes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        metodo TEXT,
+        componente TEXT,
+        tipo_ab TEXT,
+        distribucion TEXT,
+        coef_sensibilidad REAL,
+        valor REAL,
+        incertidumbre_estandar REAL,
+        k REAL,
+        estado TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_control_calidad (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        metodo TEXT,
+        equipo TEXT,
+        fecha TEXT,
+        control TEXT,
+        resultado REAL,
+        limite_inferior REAL,
+        limite_superior REAL,
+        conformidad TEXT,
+        responsable TEXT,
+        estado TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_informes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        numero_informe TEXT,
+        cliente TEXT,
+        muestra TEXT,
+        metodo TEXT,
+        resultado TEXT,
+        incertidumbre TEXT,
+        responsable_tecnico TEXT,
+        revisor TEXT,
+        estado TEXT,
+        emision TEXT,
+        pdf_path TEXT,
+        observaciones TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_auditorias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        clausula TEXT,
+        pregunta TEXT,
+        evidencia TEXT,
+        resultado TEXT,
+        hallazgo TEXT,
+        accion TEXT,
+        responsable TEXT,
+        fecha TEXT,
+        estado TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_riesgos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        proceso TEXT,
+        riesgo TEXT,
+        causa TEXT,
+        consecuencia TEXT,
+        probabilidad INTEGER,
+        severidad INTEGER,
+        nivel INTEGER,
+        accion TEXT,
+        responsable TEXT,
+        estado TEXT,
+        relaciones TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_acciones_correctivas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        origen TEXT,
+        descripcion TEXT,
+        analisis_causa TEXT,
+        accion_inmediata TEXT,
+        accion_correctiva TEXT,
+        responsable TEXT,
+        vencimiento TEXT,
+        evidencia TEXT,
+        eficacia TEXT,
+        estado TEXT,
+        relaciones TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_mobile_unidades (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        unidad_movil TEXT,
+        patente TEXT,
+        modelo TEXT,
+        estado TEXT,
+        responsable TEXT,
+        habilitaciones TEXT,
+        mantenimiento TEXT,
+        calibracion_entorno TEXT,
+        limpieza TEXT,
+        energia TEXT,
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_mobile_registros (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        unidad_movil TEXT,
+        gps TEXT,
+        fecha TEXT,
+        hora TEXT,
+        cliente TEXT,
+        tecnico TEXT,
+        ensayo TEXT,
+        temperatura REAL,
+        humedad REAL,
+        presion REAL,
+        vibracion REAL,
+        energia TEXT,
+        cadena_custodia_json TEXT,
+        checklist_operativo_json TEXT,
+        firma_digital TEXT,
+        fotos TEXT,
+        adjuntos TEXT,
+        estado TEXT,
+        sync_estado TEXT DEFAULT 'synced',
+        creado_por TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_sync_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        entidad TEXT,
+        entidad_id INTEGER,
+        payload TEXT,
+        estado TEXT DEFAULT 'pendiente',
+        reintentos INTEGER DEFAULT 0,
+        ultimo_error TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_ai_alertas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        titulo TEXT NOT NULL,
+        descripcion TEXT,
+        modulo_origen TEXT,
+        registro_tipo TEXT,
+        registro_id INTEGER,
+        responsable TEXT,
+        criticidad TEXT,
+        tipo TEXT,
+        estado TEXT DEFAULT 'abierta',
+        fecha_deteccion TEXT DEFAULT CURRENT_TIMESTAMP,
+        fecha_objetivo TEXT,
+        accion_sugerida TEXT,
+        requiere_ia INTEGER DEFAULT 0,
+        resultado_ia_json TEXT,
+        evidencia_esperada TEXT,
+        reglas_activadas_json TEXT,
+        creado_por TEXT,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_ai_analisis_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        alerta_id INTEGER,
+        disparador TEXT,
+        contexto_json TEXT,
+        respuesta_json TEXT,
+        modelo TEXT,
+        tokens_estimados INTEGER DEFAULT 0,
+        costo_estimado_usd REAL DEFAULT 0,
+        creado_por TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_ai_reportes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        tipo TEXT,
+        score_general REAL,
+        resumen_ejecutivo TEXT,
+        payload_json TEXT,
+        generado_por TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lab_ai_settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL UNIQUE,
+        ia_automatica_activa INTEGER DEFAULT 1,
+        scheduler_activo INTEGER DEFAULT 0,
+        frecuencia_diaria TEXT DEFAULT '08:30',
+        frecuencia_semanal_dia TEXT DEFAULT 'monday',
+        frecuencia_semanal_hora TEXT DEFAULT '09:00',
+        notificar_responsables TEXT,
+        auto_summary_activo INTEGER DEFAULT 1,
+        max_analisis_por_ciclo INTEGER DEFAULT 20,
+        actualizado_por TEXT,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    if not _columna_existe(c, "ai_memoria_empresa", "user_key"):
+        c.execute("ALTER TABLE ai_memoria_empresa ADD COLUMN user_key TEXT")
+    c.execute("""
+    CREATE INDEX IF NOT EXISTS idx_ai_memoria_empresa_fecha
+    ON ai_memoria_empresa (empresa_id, id DESC)
+    """)
+    c.execute("""
+    CREATE INDEX IF NOT EXISTS idx_ai_memoria_empresa_user
+    ON ai_memoria_empresa (empresa_id, user_key, id DESC)
     """)
 
     nuevas_columnas_simulacros = {
