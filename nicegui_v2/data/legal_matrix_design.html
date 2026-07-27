@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Matriz Legal Digital</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" />
+<style>
+/* ==========================================================================
+   1. VARIABLES Y SISTEMA VISUAL
+   ========================================================================== */
+:root{
+  --bg:#F2F5F9; --card:#FFFFFF; --border:#E3E8EF; --text:#1B2433; --muted:#6B7480;
+  --primary:#0E3A53; --primary-light:#EAF1F5;
+  --ok:#15803D; --ok-bg:#DCFCE7;
+  --warn:#B45309; --warn-bg:#FEF3C7;
+  --danger:#B91C1C; --danger-bg:#FEE2E2;
+  --slate:#6B7480; --slate-bg:#EEF1F5;
+  --radius-lg:20px; --radius-md:14px; --radius-sm:10px;
+  --shadow-card:0 2px 10px rgba(16,24,40,.05);
+  --shadow-dialog:0 24px 48px rgba(16,24,40,.28);
+  --font: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:var(--font);color:var(--text);background:var(--bg);}
+a{color:var(--primary);text-decoration:none;}
+a:hover{color:#14577E;text-decoration:underline;}
+.msym{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;font-size:20px;line-height:1;vertical-align:middle;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:#C7D0DB;border-radius:8px;}
+
+/* ==========================================================================
+   2. LAYOUT GENERAL
+   ========================================================================== */
+.lm-app{min-height:100vh;}
+.lm-main{padding:24px;}
+.lm-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-card);}
+.lm-grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;}
+.lm-col{display:flex;flex-direction:column;gap:16px;}
+.lm-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.lm-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:12px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:13px;font-weight:600;}
+.lm-btn-primary{background:var(--primary);color:#fff;border:none;}
+.lm-btn-danger{background:var(--danger);color:#fff;border:none;}
+.lm-btn-ghost{padding:9px 14px;font-weight:400;font-size:12.5px;}
+.lm-btn-ghost-sm{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:#fff;font-size:12px;}
+.lm-btn:disabled{opacity:.4;cursor:not-allowed;}
+.lm-icon-btn{position:relative;width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:#fff;display:inline-flex;align-items:center;justify-content:center;}
+.lm-icon-action{width:28px;height:28px;border:none;background:none;color:var(--muted);}
+.lm-icon-action:disabled{opacity:.3;}
+.lm-input,.lm-select{padding:9px 12px;border-radius:12px;border:1px solid #D8DEE7;font-size:12.5px;background:#fff;}
+.lm-badge{padding:4px 10px;border-radius:999px;font-weight:600;font-size:11.5px;white-space:nowrap;}
+
+/* ==========================================================================
+   3. ENCABEZADO
+   ========================================================================== */
+.lm-header{background:#fff;border-bottom:1px solid var(--border);padding:20px 24px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;justify-content:space-between;}
+.lm-kicker{font-size:12px;font-weight:700;letter-spacing:.08em;color:#5A7B8C;}
+.lm-title{font-size:26px;font-weight:700;color:var(--primary);margin-top:2px;}
+.lm-role-bar{background:var(--primary);color:#EAF1F5;padding:8px 24px;display:flex;align-items:center;gap:12px;font-size:13px;}
+.lm-role-btn{padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#EAF1F5;font-size:12.5px;font-weight:600;}
+.lm-role-btn.active{background:#fff;color:var(--primary);border-color:#fff;}
+.lm-notif-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;border-radius:10px;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;padding:0 3px;}
+.lm-notif-dropdown{position:fixed;top:74px;right:24px;width:340px;max-height:70vh;overflow:auto;background:#fff;border:1px solid var(--border);border-radius:18px;box-shadow:0 12px 32px rgba(16,24,40,.16);z-index:60;padding:12px;transform-origin:top right;animation:lm-notif-pop .16s ease-out;}
+@keyframes lm-notif-pop{from{opacity:0;transform:scale(.94) translateY(-4px);}to{opacity:1;transform:scale(1) translateY(0);}}
+
+/* ==========================================================================
+   4. INDICADORES (KPI)
+   ========================================================================== */
+.lm-kpi-grid{padding:20px 24px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
+.lm-kpi-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow-card);}
+.lm-kpi-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;}
+.lm-kpi-label{font-size:12px;color:#8A93A0;margin-top:12px;}
+.lm-kpi-value{font-size:27px;font-weight:700;margin-top:2px;}
+.lm-kpi-delta{font-size:11.5px;font-weight:600;margin-top:6px;}
+
+/* ==========================================================================
+   5. NAVEGACIÓN POR TABS
+   ========================================================================== */
+.lm-tabs{padding:20px 24px 0;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:0 24px;}
+.lm-tab{padding:10px 16px;border:none;background:none;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:6px;border-bottom:2px solid transparent;color:var(--muted);}
+.lm-tab.active{border-bottom-color:var(--primary);color:var(--primary);}
+
+/* ==========================================================================
+   6. RESUMEN
+   ========================================================================== */
+.lm-donut{width:160px;height:160px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:inset 0 0 0 1px #F0F2F5;}
+.lm-donut-center{width:106px;height:106px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(16,24,40,.08);}
+.lm-bar-track{background:#EEF1F5;border-radius:8px;height:9px;overflow:hidden;}
+.lm-bar-fill{height:100%;border-radius:8px;}
+.lm-stack-track{display:flex;border-radius:8px;height:10px;overflow:hidden;background:#EEF1F5;}
+.lm-activity-row{display:flex;gap:8px;padding:8px 0;border-top:1px solid #F0F2F5;font-size:12.5px;}
+.lm-alert-row{display:flex;gap:10px;padding:10px 0;border-top:1px solid #F0F2F5;}
+.lm-alert-icon{width:30px;height:30px;border-radius:9px;background:var(--danger-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+/* ==========================================================================
+   7. MATRIZ LEGAL
+   ========================================================================== */
+.lm-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:1100px;}
+.lm-table th{text-align:left;color:#8A93A0;border-bottom:1px solid #EEF1F5;padding:8px;font-weight:600;}
+.lm-table td{padding:9px 8px;border-bottom:1px solid #F5F6F8;}
+.lm-table-scroll{overflow-x:auto;}
+.lm-empty-state{text-align:center;padding:60px 20px;color:#8A93A0;}
+.lm-empty-state .msym{font-size:44px;color:#C7D0DB;}
+.lm-pager-btn{width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:#fff;}
+.lm-pager-btn:disabled{opacity:.4;}
+
+/* ==========================================================================
+   8. SEDES
+   ========================================================================== */
+.lm-site-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
+.lm-site-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;}
+
+/* ==========================================================================
+   9. AUDITORÍAS
+   ========================================================================== */
+.lm-audit-row{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;display:grid;grid-template-columns:100px 1fr auto;gap:16px;align-items:center;}
+.lm-audit-date{text-align:center;background:#F1F4F8;border-radius:14px;padding:10px 6px;}
+
+/* ==========================================================================
+   10. EVIDENCIAS
+   ========================================================================== */
+.lm-dropzone{border:2px dashed var(--border);border-radius:20px;padding:32px;text-align:center;background:#fff;}
+.lm-dropzone.dragover{border-color:var(--primary);background:var(--primary-light);}
+.lm-evidence-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+.lm-evidence-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:16px;}
+
+/* ==========================================================================
+   11. ALERTAS
+   ========================================================================== */
+.lm-alert-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:16px 18px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-left-width:4px;border-left-style:solid;}
+
+/* ==========================================================================
+   12. BITÁCORA
+   ========================================================================== */
+/* usa .lm-table / .lm-table-scroll definidos arriba */
+
+/* ==========================================================================
+   13. DIÁLOGOS
+   ========================================================================== */
+.lm-overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px;}
+.lm-dialog{background:#fff;border-radius:20px;padding:24px;width:100%;max-height:88vh;overflow:auto;}
+.lm-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.lm-form-input{padding:10px 12px;border-radius:10px;border:1px solid var(--border);font-size:13px;font-family:inherit;width:100%;}
+.lm-section-label{grid-column:1/-1;font-size:11px;font-weight:700;color:#8A93A0;text-transform:uppercase;margin-top:6px;}
+.lm-timeline-item{display:flex;gap:10px;padding-bottom:14px;}
+.lm-timeline-dot{display:flex;flex-direction:column;align-items:center;}
+.lm-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1B2433;color:#fff;padding:12px 20px;border-radius:14px;font-size:13px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.25);}
+
+@media (max-width:900px){
+  .lm-grid-2{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div id="role-bar"></div>
+<div id="app" class="lm-app"></div>
+<div id="dialog-root"></div>
+<div id="toast-root"></div>
+
+<script>
+/* ==========================================================================
+   14. DATOS DE DEMOSTRACIÓN (demoData) — build_legal_matrix_demo_context()
+   ========================================================================== */
+const EMPRESA_ID = __EMPRESA_ID__;
+
+function persist(path, method, payload){
+  return fetch("/api/legal-matrix/" + EMPRESA_ID + "/" + path, {
+    method: method || "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {})
+  }).then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); });
+}
+
+function requestDeleteBulk(ids){
+  return fetch("/api/legal-matrix/" + EMPRESA_ID + "/requirements/delete-bulk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: ids })
+  }).then(function(r){ return r.json().then(function(data){ return { ok: r.ok, data: data }; }); });
+}
+
+function requestDeleteAll(password){
+  return fetch("/api/legal-matrix/" + EMPRESA_ID + "/requirements/delete-all", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: password })
+  }).then(function(r){ return r.json().then(function(data){ return { ok: r.ok, data: data }; }); });
+}
+
+function handleImportFile(file){
+  if (!file) return;
+  const formData = new FormData();
+  formData.append("file", file);
+  showToast("Importando matriz legal...");
+  fetch("/api/legal-matrix/" + EMPRESA_ID + "/requirements/import", { method: "POST", body: formData })
+    .then(function(r){ return r.json().then(function(data){ return { ok: r.ok, data: data }; }); })
+    .then(function(res){
+      if (!res.ok) { showToast(res.data.detail || "No se pudo importar el archivo."); return; }
+      showToast(res.data.imported + " norma(s) importada(s). Actualizando...");
+      setTimeout(function(){ location.reload(); }, 1400);
+    })
+    .catch(function(){ showToast("No se pudo importar el archivo."); });
+}
+
+const demoData = __DEMO_DATA_JSON__;
+
+/* ==========================================================================
+   15. ESTADO DE LA APLICACIÓN (appState)
+   ========================================================================== */
+const appState = {
+  activeTab: "dashboard", // dashboard | matrix | sites | audits | evidence | alerts | auditlog
+  selectedCompany: demoData.company.name,
+  selectedSite: "all",
+  currentRole: "admin", // admin | editor | approver | reader
+  notifOpen: false,
+  toast: null,
+  deleteMode: false,
+  selectedIds: [],
+
+  filters: {
+    matrix: { search: "", scope: "all", jurisdiction: "all", site: "all", agency: "all", status: "all", criticality: "all", page: 1, pageSize: 8, sortKey: "nextReview", sortDir: "asc" },
+    evidence: { search: "", site: "all", status: "all", view: "cards", dragover: false },
+    alerts: { priority: "all" },
+    auditlog: { search: "" }
+  },
+
+  // estado de diálogos
+  dialogs: {
+    requirement: { open: false, mode: "create", data: {} },
+    requirementDetail: { open: false, id: null },
+    requirementDelete: { open: false, id: null },
+    deleteSelected: { open: false },
+    deleteAll: { open: false, password: "", error: "" },
+    site: { open: false, mode: "create", data: {} },
+    audit: { open: false, data: {} },
+    alertAssign: { open: false, id: null, value: "" },
+    publishUpdate: { open: false, summary: "", sending: false }
+  }
+};
+
+const ROLE_LABELS = { admin: "Administrador", editor: "Editor", approver: "Aprobador", reader: "Lector" };
+const ROLE_PERMISSIONS = {
+  reader:   { canCreate: false, canEdit: false, canDelete: false, canApprove: false, canExport: true },
+  editor:   { canCreate: true,  canEdit: true,  canDelete: false, canApprove: false, canExport: true },
+  approver: { canCreate: false, canEdit: false, canDelete: false, canApprove: true,  canExport: true },
+  admin:    { canCreate: true,  canEdit: true,  canDelete: true,  canApprove: true,  canExport: true }
+};
+
+// Catálogos de referencia: siempre disponibles en los desplegables, aunque
+// todavía no haya requisitos cargados para una empresa nueva.
+const SCOPE_CATALOG = ["Seguridad e Higiene", "Salud Ocupacional", "Ambiental", "Recursos Hídricos", "Discapacidad"];
+const JURISDICTION_CATALOG = ["Nacional", "Provincial", "Municipal"];
+const AGENCY_CATALOG = ["SRT", "ACUMAR", "OPDS", "Ministerio de Ambiente", "INA", "ANDIS"];
+function withCatalog(catalog, values){
+  return [...new Set([...catalog, ...values])].filter(Boolean);
+}
+
+/* ==========================================================================
+   16. FUNCIONES DE RENDERIZADO
+   ========================================================================== */
+function perms(){ return ROLE_PERMISSIONS[appState.currentRole]; }
+function siteById(id){ return demoData.sites.find(s => s.id === id); }
+function fmtDate(iso){
+  if (!iso || iso === "-") return "-";
+  const [y,m,d] = iso.split("-");
+  return d + "/" + m + "/" + y;
+}
+function statusMeta(s){
+  if (s === "cumple") return { label: "Cumple", color: "var(--ok)", bg: "var(--ok-bg)" };
+  if (s === "no_cumple") return { label: "No cumple", color: "var(--danger)", bg: "var(--danger-bg)" };
+  if (s === "pendiente") return { label: "Pendiente", color: "var(--warn)", bg: "var(--warn-bg)" };
+  return { label: "No aplica", color: "var(--slate)", bg: "var(--slate-bg)" };
+}
+function critMeta(c){
+  if (c === "critica") return { label: "Crítica", color: "var(--danger)", bg: "var(--danger-bg)" };
+  if (c === "alta") return { label: "Alta", color: "var(--warn)", bg: "var(--warn-bg)" };
+  if (c === "media") return { label: "Media", color: "var(--primary)", bg: "var(--primary-light)" };
+  return { label: "Baja", color: "var(--slate)", bg: "var(--slate-bg)" };
+}
+function approvalMeta(s){
+  if (s === "aprobado") return { label: "Aprobado", color: "var(--ok)", bg: "var(--ok-bg)" };
+  if (s === "rechazado") return { label: "Rechazado", color: "var(--danger)", bg: "var(--danger-bg)" };
+  return { label: "Pendiente", color: "var(--warn)", bg: "var(--warn-bg)" };
+}
+function auditStatusMeta(s){
+  if (s === "cerrada") return { label: "Cerrada", color: "var(--ok)", bg: "var(--ok-bg)" };
+  if (s === "en_curso") return { label: "En curso", color: "var(--primary)", bg: "var(--primary-light)" };
+  if (s === "con_hallazgos") return { label: "Con hallazgos", color: "var(--warn)", bg: "var(--warn-bg)" };
+  return { label: "Programada", color: "var(--slate)", bg: "var(--slate-bg)" };
+}
+function priorityMeta(p){
+  if (p === "critica") return { color: "var(--danger)", bg: "var(--danger-bg)", label: "Crítica", icon: "report" };
+  if (p === "alta") return { color: "var(--warn)", bg: "var(--warn-bg)", label: "Alta", icon: "warning" };
+  if (p === "media") return { color: "var(--primary)", bg: "var(--primary-light)", label: "Media", icon: "info" };
+  return { color: "var(--slate)", bg: "var(--slate-bg)", label: "Baja", icon: "notifications" };
+}
+const MONTHS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+
+function badge(meta){
+  return `<span class="lm-badge" style="background:${meta.bg};color:${meta.color};">${meta.label}</span>`;
+}
+
+// -------- Encabezado / rol / kpis / tabs --------
+function renderRoleBar(){
+  const roles = Object.keys(ROLE_LABELS);
+  document.getElementById("role-bar").innerHTML = `
+    <div class="lm-role-bar">
+      <span class="msym" style="font-size:16px;">visibility</span>
+      <span>Rol de demostración (controla qué acciones se ocultan/deshabilitan):</span>
+      ${roles.map(r => `<button class="lm-role-btn ${appState.currentRole === r ? "active" : ""}" data-action="change-role" data-role="${r}">${ROLE_LABELS[r]}</button>`).join("")}
+    </div>`;
+}
+
+function renderHeader(){
+  const openAlerts = demoData.alerts.filter(a => !a.resolved);
+  return `
+    <header class="lm-header">
+      <div style="min-width:260px;">
+        <div class="lm-kicker">CUMPLIMIENTO Y TRAZABILIDAD</div>
+        <div class="lm-title">Matriz Legal Digital</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:6px;">
+          <span class="msym" style="font-size:16px;">apartment</span>${demoData.company.name} · CUIT ${demoData.company.cuit}
+        </div>
+      </div>
+      <div class="lm-row">
+        <div>
+          <label style="display:block;font-size:11px;color:#8A93A0;margin-bottom:4px;">Sede</label>
+          <select class="lm-select" data-action="change-site" style="min-width:190px;">
+            <option value="all" ${appState.selectedSite === "all" ? "selected" : ""}>Todas las sedes</option>
+            ${demoData.sites.map(s => `<option value="${s.id}" ${appState.selectedSite === s.id ? "selected" : ""}>${s.name}</option>`).join("")}
+          </select>
+        </div>
+        <div style="font-size:12px;color:var(--muted);background:#F1F4F8;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:6px;">
+          <span class="msym" style="font-size:16px;color:var(--primary);">update</span>Última actualización normativa: ${demoData.lastNormUpdate}
+        </div>
+        <button class="lm-btn lm-btn-primary" data-action="open-requirement-create" ${!perms().canCreate ? "disabled" : ""}>
+          <span class="msym" style="font-size:18px;">add</span>Nueva norma
+        </button>
+        <button class="lm-btn" data-action="import-requirements" ${!perms().canCreate ? "disabled" : ""}>
+          <span class="msym" style="font-size:18px;">upload_file</span>Importar Excel
+        </button>
+        <input type="file" id="import-excel-input" accept=".xlsx,.xls" style="display:none;">
+        <button class="lm-btn" data-action="export-matrix" ${!perms().canExport ? "disabled" : ""}>
+          <span class="msym" style="font-size:18px;">download</span>Exportar reporte
+        </button>
+        ${demoData.isIdeasStaff ? `
+        <button class="lm-btn lm-btn-primary" data-action="open-publish-update">
+          <span class="msym" style="font-size:18px;">campaign</span>Publicar actualización
+        </button>` : ""}
+        <button class="lm-icon-btn" data-action="toggle-notifications">
+          <span class="msym" style="font-size:20px;">notifications</span>
+          ${openAlerts.length ? `<span class="lm-notif-badge">${openAlerts.length}</span>` : ""}
+        </button>
+      </div>
+    </header>
+    ${appState.notifOpen ? renderNotifDropdown() : ""}`;
+}
+
+function renderNotifDropdown(){
+  const items = demoData.alerts.filter(a => !a.resolved).slice(0, 4).map(a => {
+    const pm = priorityMeta(a.priority);
+    return `<div style="padding:10px 8px;border-radius:12px;display:flex;gap:8px;align-items:flex-start;">
+      <span class="msym" style="font-size:18px;color:${pm.color};">${pm.icon}</span>
+      <div style="font-size:12.5px;"><div style="font-weight:600;">${a.title}</div><div style="color:#8A93A0;">${fmtDate(a.date)}</div></div>
+    </div>`;
+  }).join("");
+  return `<div class="lm-notif-dropdown"><div style="font-weight:700;font-size:14px;padding:6px 8px 10px;">Alertas recientes</div>${items}</div>`;
+}
+
+function renderKPIs(){
+  const reqs = demoData.requirements;
+  const total = reqs.length || 1;
+  const compliant = reqs.filter(r => r.status === "cumple").length;
+  const nonCompliant = reqs.filter(r => r.status === "no_cumple").length;
+  const notApplicable = reqs.filter(r => r.status === "no_aplica").length;
+  const compliancePct = Math.round((compliant / total) * 100);
+  const openAlerts = demoData.alerts.filter(a => !a.resolved);
+  const pendingEvidences = demoData.evidences.filter(e => e.status === "pendiente").length;
+  const nextAudit = demoData.audits.filter(a => a.status !== "cerrada").sort((a,b) => a.date.localeCompare(b.date))[0];
+  const today = new Date("2026-07-17T00:00:00");
+  const daysUntil = nextAudit ? Math.ceil((new Date(nextAudit.date + "T00:00:00") - today) / 86400000) : null;
+  const criticalOpen = openAlerts.filter(a => a.priority === "critica").length;
+
+  const cards = [
+    { icon: "verified", label: "Cumplimiento", value: compliancePct + "%", color: "var(--ok)", bg: "var(--ok-bg)", delta: "+4% vs. mes anterior", deltaColor: "var(--ok)" },
+    { icon: "rule", label: "Requisitos vigentes", value: String(total - notApplicable), color: "var(--primary)", bg: "var(--primary-light)", delta: "+2 nuevas este mes", deltaColor: "var(--primary)" },
+    { icon: "error", label: "No cumplidos", value: String(nonCompliant), color: "var(--danger)", bg: "var(--danger-bg)", delta: nonCompliant > 0 ? "Requieren acción" : "Todo en regla", deltaColor: "var(--danger)" },
+    { icon: "notifications_active", label: "Alertas abiertas", value: String(openAlerts.length), color: "var(--warn)", bg: "var(--warn-bg)", delta: criticalOpen + " críticas", deltaColor: "var(--danger)" },
+    { icon: "pending_actions", label: "Evidencias pendientes", value: String(pendingEvidences), color: "var(--warn)", bg: "var(--warn-bg)", delta: "Por aprobar", deltaColor: "var(--warn)" },
+    { icon: "event", label: "Próxima auditoría", value: nextAudit ? fmtDate(nextAudit.date) : "-", color: "var(--primary)", bg: "var(--primary-light)", delta: daysUntil !== null ? "en " + daysUntil + " días" : "-", deltaColor: "var(--primary)" }
+  ];
+
+  return `<div class="lm-kpi-grid">${cards.map(k => `
+    <div class="lm-kpi-card">
+      <div class="lm-kpi-icon" style="background:${k.bg};"><span class="msym" style="font-size:19px;color:${k.color};">${k.icon}</span></div>
+      <div class="lm-kpi-label">${k.label}</div>
+      <div class="lm-kpi-value" style="color:var(--text);">${k.value}</div>
+      <div class="lm-kpi-delta" style="color:${k.deltaColor};">${k.delta}</div>
+    </div>`).join("")}</div>`;
+}
+
+function renderTabsNav(){
+  const tabs = [
+    { id: "dashboard", label: "Resumen", icon: "dashboard" },
+    { id: "matrix", label: "Matriz legal", icon: "gavel" },
+    { id: "sites", label: "Sedes", icon: "location_on" },
+    { id: "audits", label: "Auditorías", icon: "fact_check" },
+    { id: "evidence", label: "Evidencias", icon: "folder_copy" },
+    { id: "alerts", label: "Alertas", icon: "notifications_active" },
+    { id: "auditlog", label: "Bitácora", icon: "history" }
+  ];
+  return `<nav class="lm-tabs">${tabs.map(t => `
+    <button class="lm-tab ${appState.activeTab === t.id ? "active" : ""}" data-action="change-tab" data-tab="${t.id}">
+      <span class="msym" style="font-size:18px;">${t.icon}</span>${t.label}
+    </button>`).join("")}</nav>`;
+}
+
+// -------- 6. RESUMEN (renderDashboard) --------
+function renderDashboard(){
+  const reqs = demoData.requirements;
+  const total = reqs.length || 1;
+  const compliant = reqs.filter(r => r.status === "cumple").length;
+  const nonCompliant = reqs.filter(r => r.status === "no_cumple").length;
+  const pending = reqs.filter(r => r.status === "pendiente").length;
+  const notApplicable = reqs.filter(r => r.status === "no_aplica").length;
+  const compliancePct = Math.round((compliant / total) * 100);
+
+  const donutSegments = [
+    { key: "cumple", count: compliant, color: "#15803D", label: "Cumple" },
+    { key: "no_cumple", count: nonCompliant, color: "#B91C1C", label: "No cumple" },
+    { key: "pendiente", count: pending, color: "#B45309", label: "Pendiente" },
+    { key: "no_aplica", count: notApplicable, color: "#6B7480", label: "No aplica" }
+  ];
+  let acc = 0;
+  const stops = donutSegments.map(seg => {
+    const from = (acc / total) * 360; acc += seg.count; const to = (acc / total) * 360;
+    return `${seg.color} ${from.toFixed(1)}deg ${to.toFixed(1)}deg`;
+  });
+  const donutGradient = `conic-gradient(${stops.join(",")})`;
+
+  const scopeOptions = [...new Set(reqs.map(r => r.scope))];
+  const scopeBars = scopeOptions.map(sc => {
+    const list = reqs.filter(r => r.scope === sc);
+    const segments = ["cumple","no_cumple","pendiente","no_aplica"].map(st => {
+      const c = list.length ? list.filter(r => r.status === st).length : 0;
+      return { color: statusMeta(st).color, widthPct: list.length ? (c / list.length) * 100 : 0 };
+    });
+    return { label: sc, count: list.length, segments };
+  });
+
+  const siteCoverage = demoData.sites.map(site => {
+    const list = reqs.filter(r => r.siteId === site.id);
+    const c = list.filter(r => r.status === "cumple").length;
+    const pct = list.length ? Math.round((c / list.length) * 100) : 0;
+    return { name: site.name, pct, color: pct >= 80 ? "var(--ok)" : pct >= 50 ? "var(--warn)" : "var(--danger)" };
+  }).sort((a,b) => b.pct - a.pct).map((c,i) => ({ ...c, rank: i + 1 }));
+
+  const criticalAlerts = demoData.alerts.filter(a => a.priority === "critica" && !a.resolved);
+  const upcoming = [...reqs].filter(r => r.status !== "no_aplica").sort((a,b) => a.nextReview.localeCompare(b.nextReview)).slice(0,5);
+  const recentActivity = demoData.auditLog.slice(0,6);
+
+  return `
+  <div class="lm-grid-2">
+    <div class="lm-col">
+      <div class="lm-card">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px;">
+          <div style="font-weight:700;">Estados de cumplimiento</div>
+          <div style="font-size:12px;color:#8A93A0;">${total} requisitos totales</div>
+        </div>
+        <div style="display:flex;gap:28px;align-items:center;flex-wrap:wrap;">
+          <div class="lm-donut" style="background:${donutGradient};">
+            <div class="lm-donut-center">
+              <div style="font-size:26px;font-weight:700;color:var(--primary);">${compliancePct}%</div>
+              <div style="font-size:10.5px;color:#8A93A0;">cumplimiento</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:180px;">
+            ${donutSegments.map(d => `
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                <span style="width:10px;height:10px;border-radius:3px;background:${d.color};flex-shrink:0;"></span>
+                <span style="flex:1;">${d.label}</span>
+                <span style="color:#8A93A0;">${d.count}</span>
+                <span style="font-weight:700;min-width:34px;text-align:right;">${Math.round((d.count/total)*100)}%</span>
+              </div>`).join("")}
+          </div>
+        </div>
+      </div>
+
+      <div class="lm-card">
+        <div style="font-weight:700;margin-bottom:16px;">Requisitos por ámbito</div>
+        ${scopeBars.map(b => `
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="font-weight:600;">${b.label}</span><span style="color:#8A93A0;">${b.count} requisitos</span></div>
+            <div class="lm-stack-track">
+              ${b.segments.map(seg => `<div style="height:100%;background:${seg.color};width:${seg.widthPct}%;"></div>`).join("")}
+            </div>
+          </div>`).join("")}
+      </div>
+
+      <div class="lm-card">
+        <div style="font-weight:700;margin-bottom:16px;">Cobertura normativa por sede</div>
+        ${siteCoverage.map(c => `
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <div style="width:22px;height:22px;border-radius:7px;background:#F1F4F8;color:#6B7480;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${c.rank}</div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;"><span>${c.name}</span><span style="color:${c.color};font-weight:700;">${c.pct}%</span></div>
+              <div class="lm-bar-track"><div class="lm-bar-fill" style="background:${c.color};width:${c.pct}%;"></div></div>
+            </div>
+          </div>`).join("")}
+      </div>
+    </div>
+
+    <div class="lm-col">
+      <div class="lm-card">
+        <div style="font-weight:700;margin-bottom:12px;">Alertas críticas recientes</div>
+        ${criticalAlerts.length === 0 ? `<div style="color:#8A93A0;font-size:13px;padding:8px 0;">Sin alertas críticas abiertas.</div>` :
+          criticalAlerts.map(a => { const pm = priorityMeta(a.priority); const site = siteById(a.siteId);
+            return `<div class="lm-alert-row"><div class="lm-alert-icon"><span class="msym" style="font-size:17px;color:${pm.color};">${pm.icon}</span></div>
+              <div style="font-size:12.5px;"><div style="font-weight:600;">${a.title}</div><div style="color:#8A93A0;">${site ? site.name : ""} · ${fmtDate(a.date)}</div></div></div>`; }).join("")}
+      </div>
+
+      <div class="lm-card">
+        <div style="font-weight:700;margin-bottom:12px;">Próximos vencimientos</div>
+        ${upcoming.map(u => `<div style="display:flex;justify-content:space-between;padding:9px 0;border-top:1px solid #F0F2F5;font-size:12.5px;"><span>${u.title}</span><span style="color:var(--warn);font-weight:600;">${fmtDate(u.nextReview)}</span></div>`).join("")}
+      </div>
+
+      <div class="lm-card">
+        <div style="font-weight:700;margin-bottom:12px;">Actividad reciente</div>
+        ${recentActivity.map(l => `<div class="lm-activity-row"><span style="color:#8A93A0;white-space:nowrap;">${l.timestamp.split(" ")[1]}</span><span>${l.user} — ${l.action} (${l.record})</span></div>`).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+
+// -------- 7. MATRIZ LEGAL (renderLegalMatrix) --------
+function getFilteredRequirements(){
+  const f = appState.filters.matrix;
+  let list = demoData.requirements.filter(r => {
+    if (appState.selectedSite !== "all" && r.siteId !== appState.selectedSite) return false;
+    if (f.scope !== "all" && r.scope !== f.scope) return false;
+    if (f.jurisdiction !== "all" && r.jurisdiction !== f.jurisdiction) return false;
+    if (f.site !== "all" && r.siteId !== f.site) return false;
+    if (f.agency !== "all" && r.agency !== f.agency) return false;
+    if (f.status !== "all" && r.status !== f.status) return false;
+    if (f.criticality !== "all" && r.criticality !== f.criticality) return false;
+    if (f.search && !((r.title + " " + r.normNumber + " " + r.obligation).toLowerCase().includes(f.search.toLowerCase()))) return false;
+    return true;
+  });
+  list.sort((a,b) => { const dir = f.sortDir === "asc" ? 1 : -1; return a[f.sortKey] > b[f.sortKey] ? dir : a[f.sortKey] < b[f.sortKey] ? -dir : 0; });
+  return list;
+}
+
+function renderLegalMatrix(){
+  const f = appState.filters.matrix;
+  const scopeOptions = withCatalog(SCOPE_CATALOG, demoData.requirements.map(r => r.scope));
+  const jurisdictionOptions = withCatalog(JURISDICTION_CATALOG, demoData.requirements.map(r => r.jurisdiction));
+  const agencyOptions = withCatalog(AGENCY_CATALOG, demoData.requirements.map(r => r.agency));
+
+  const filtered = getFilteredRequirements();
+  const totalPages = Math.max(1, Math.ceil(filtered.length / f.pageSize));
+  f.page = Math.min(f.page, totalPages);
+  const start = (f.page - 1) * f.pageSize;
+  const paged = filtered.slice(start, start + f.pageSize);
+
+  const rows = paged.map(r => {
+    const sm = statusMeta(r.status), cm = critMeta(r.criticality);
+    const site = siteById(r.siteId);
+    const checkboxCell = appState.deleteMode
+      ? `<td><input type="checkbox" data-action="toggle-select-row" data-id="${r.id}" ${appState.selectedIds.includes(r.id) ? "checked" : ""}/></td>`
+      : "";
+    return `<tr>
+      ${checkboxCell}
+      <td>${r.scope}</td><td>${r.jurisdiction}</td><td>${r.agency}</td>
+      <td style="white-space:nowrap;">${r.normType} ${r.normNumber}</td>
+      <td style="max-width:220px;">${r.title}</td>
+      <td>${site ? site.name : "-"}</td><td>${r.responsible}</td>
+      <td>${badge(sm)}</td><td>${badge(cm)}</td>
+      <td style="white-space:nowrap;">${fmtDate(r.nextReview)}</td>
+      <td style="text-align:center;">${r.evidenceCount}</td>
+      <td style="white-space:nowrap;">
+        <button class="lm-icon-action" title="Ver" data-action="open-requirement-detail" data-id="${r.id}"><span class="msym" style="font-size:17px;">visibility</span></button>
+        <button class="lm-icon-action" title="Editar" data-action="open-requirement-edit" data-id="${r.id}" ${!perms().canEdit ? "disabled" : ""}><span class="msym" style="font-size:17px;">edit</span></button>
+        <button class="lm-icon-action" title="Evaluar" data-action="open-requirement-edit" data-id="${r.id}" ${!perms().canEdit ? "disabled" : ""}><span class="msym" style="font-size:17px;">fact_check</span></button>
+        <button class="lm-icon-action" title="Adjuntar evidencia" data-action="change-tab" data-tab="evidence" ${!perms().canEdit ? "disabled" : ""}><span class="msym" style="font-size:17px;">attach_file</span></button>
+        <button class="lm-icon-action" title="Eliminar" data-action="confirm-delete-requirement" data-id="${r.id}" ${!perms().canDelete ? "disabled" : ""}><span class="msym" style="font-size:17px;color:var(--danger);">delete</span></button>
+      </td></tr>`;
+  }).join("");
+
+  const allFilteredIds = filtered.map(r => r.id);
+  const allFilteredSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => appState.selectedIds.includes(id));
+  const deleteToolbar = appState.deleteMode ? `
+    <div class="lm-row" style="margin-bottom:14px;background:var(--danger-bg);border-radius:12px;padding:10px 14px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;">
+        <input type="checkbox" data-action="toggle-select-all-matrix" ${allFilteredSelected ? "checked" : ""}/>Seleccionar todas (${filtered.length})
+      </label>
+      <span style="font-size:12.5px;color:var(--muted);">${appState.selectedIds.length} seleccionada(s)</span>
+      <button class="lm-btn" data-action="open-delete-selected" ${appState.selectedIds.length === 0 ? "disabled" : ""}>
+        <span class="msym" style="font-size:16px;">delete</span>Eliminar seleccionadas
+      </button>
+      ${demoData.realAdmin ? `
+        <button class="lm-btn lm-btn-danger" data-action="open-delete-all">
+          <span class="msym" style="font-size:16px;">delete_forever</span>Eliminar TODO (${demoData.requirements.length})
+        </button>` : ""}
+    </div>` : "";
+
+  return `
+  <div class="lm-card">
+    <div class="lm-row" style="margin-bottom:14px;">
+      <input class="lm-input" style="flex:1;min-width:220px;" placeholder="Buscar norma, título u obligación..." data-action="filter-matrix" data-field="search" value="${f.search}" />
+      <select class="lm-select" data-action="filter-matrix" data-field="scope">
+        <option value="all">Ámbito: todos</option>${scopeOptions.map(o => `<option value="${o}" ${f.scope===o?"selected":""}>${o}</option>`).join("")}
+      </select>
+      <select class="lm-select" data-action="filter-matrix" data-field="jurisdiction">
+        <option value="all">Jurisdicción: todas</option>${jurisdictionOptions.map(o => `<option value="${o}" ${f.jurisdiction===o?"selected":""}>${o}</option>`).join("")}
+      </select>
+      <select class="lm-select" data-action="filter-matrix" data-field="site">
+        <option value="all">Sede: todas</option>${demoData.sites.map(s => `<option value="${s.id}" ${f.site===s.id?"selected":""}>${s.name}</option>`).join("")}
+      </select>
+      <select class="lm-select" data-action="filter-matrix" data-field="agency">
+        <option value="all">Organismo: todos</option>${agencyOptions.map(o => `<option value="${o}" ${f.agency===o?"selected":""}>${o}</option>`).join("")}
+      </select>
+      <select class="lm-select" data-action="filter-matrix" data-field="status">
+        <option value="all">Estado: todos</option>
+        <option value="cumple" ${f.status==="cumple"?"selected":""}>Cumple</option>
+        <option value="no_cumple" ${f.status==="no_cumple"?"selected":""}>No cumple</option>
+        <option value="pendiente" ${f.status==="pendiente"?"selected":""}>Pendiente</option>
+        <option value="no_aplica" ${f.status==="no_aplica"?"selected":""}>No aplica</option>
+      </select>
+      <select class="lm-select" data-action="filter-matrix" data-field="criticality">
+        <option value="all">Criticidad: todas</option>
+        <option value="critica" ${f.criticality==="critica"?"selected":""}>Crítica</option>
+        <option value="alta" ${f.criticality==="alta"?"selected":""}>Alta</option>
+        <option value="media" ${f.criticality==="media"?"selected":""}>Media</option>
+        <option value="baja" ${f.criticality==="baja"?"selected":""}>Baja</option>
+      </select>
+      <button class="lm-btn lm-btn-ghost" data-action="clear-matrix-filters"><span class="msym" style="font-size:16px;">filter_alt_off</span>Limpiar filtros</button>
+      <button class="lm-btn ${appState.deleteMode ? "lm-btn-danger" : ""}" data-action="toggle-delete-mode" ${!perms().canDelete ? "disabled" : ""}>
+        <span class="msym" style="font-size:16px;">${appState.deleteMode ? "close" : "checklist"}</span>${appState.deleteMode ? "Cancelar selección" : "Modo borrado"}
+      </button>
+    </div>
+
+    ${deleteToolbar}
+
+    ${filtered.length === 0 ? `
+      <div class="lm-empty-state">
+        <span class="msym">gavel</span>
+        <div style="font-weight:700;color:#4A5568;margin-top:8px;">No se encontraron normas</div>
+        <div style="font-size:13px;margin-top:4px;">Ajustá los filtros o creá una nueva norma para esta sede.</div>
+      </div>` : `
+      <div class="lm-table-scroll">
+        <table class="lm-table">
+          <thead><tr>
+            ${appState.deleteMode ? `<th><input type="checkbox" data-action="toggle-select-all-matrix" ${allFilteredSelected ? "checked" : ""}/></th>` : ""}
+            <th data-action="sort-matrix" data-key="scope" style="cursor:pointer;">Ámbito</th><th>Jurisdicción</th><th>Organismo</th><th>Norma</th><th>Título</th>
+            <th>Sede</th><th>Responsable</th><th>Estado</th><th>Criticidad</th>
+            <th data-action="sort-matrix" data-key="nextReview" style="cursor:pointer;">Próx. revisión</th><th>Evid.</th><th>Acciones</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12.5px;color:var(--muted);">
+        <span>Mostrando ${filtered.length === 0 ? 0 : start+1}-${Math.min(start+f.pageSize, filtered.length)} de ${filtered.length} requisitos</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="lm-pager-btn" data-action="matrix-page" data-dir="-1" ${f.page<=1?"disabled":""}><span class="msym" style="font-size:16px;">chevron_left</span></button>
+          <span>Página ${f.page} / ${totalPages}</span>
+          <button class="lm-pager-btn" data-action="matrix-page" data-dir="1" ${f.page>=totalPages?"disabled":""}><span class="msym" style="font-size:16px;">chevron_right</span></button>
+        </div>
+      </div>`}
+  </div>`;
+}
+
+// -------- 8. SEDES (renderSites) --------
+function renderSites(){
+  const cards = demoData.sites.map(site => {
+    const reqs = demoData.requirements.filter(r => r.siteId === site.id);
+    const c = reqs.filter(r => r.status === "cumple").length;
+    const pct = reqs.length ? Math.round((c / reqs.length) * 100) : 0;
+    const pctColor = pct >= 80 ? "var(--ok)" : pct >= 50 ? "var(--warn)" : "var(--danger)";
+    const statusBadge = site.active ? { label: "Activa", color: "var(--ok)", bg: "var(--ok-bg)" } : { label: "Inactiva", color: "var(--slate)", bg: "var(--slate-bg)" };
+    return `<div class="lm-site-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div style="font-weight:700;">${site.name}</div><div style="font-size:12px;color:#8A93A0;margin-top:2px;">${site.municipality}, ${site.province}</div></div>
+        ${badge(statusBadge)}
+      </div>
+      <div style="font-size:12.5px;color:#4A5568;margin-top:10px;">${site.address}</div>
+      <div style="font-size:12.5px;color:#4A5568;margin-top:4px;">Actividad: ${site.activity}</div>
+      <div style="font-size:12.5px;color:#4A5568;margin-top:4px;">Procesos: ${site.processes}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:12px;">
+        <div style="font-size:12px;color:#8A93A0;">${reqs.length} requisitos aplicables</div>
+        <div style="font-size:13px;font-weight:700;color:${pctColor};">${pct}%</div>
+      </div>
+      <div style="font-size:12px;color:#8A93A0;margin-top:4px;">Próxima auditoría: ${fmtDate(site.nextAudit)}</div>
+      <div style="margin-top:12px;">
+        <button class="lm-btn-ghost-sm" data-action="open-site-edit" data-id="${site.id}" ${!perms().canEdit?"disabled":""}><span class="msym" style="font-size:16px;">edit</span>Editar</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  return `<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+      <button class="lm-btn lm-btn-primary" data-action="open-site-create" ${!perms().canCreate?"disabled":""}><span class="msym" style="font-size:18px;">add</span>Nueva sede</button>
+    </div>
+    <div class="lm-site-grid">${cards}</div>`;
+}
+
+// -------- 9. AUDITORÍAS (renderAudits) --------
+function renderAudits(){
+  const rows = [...demoData.audits].sort((a,b) => a.date.localeCompare(b.date)).map(a => {
+    const am = auditStatusMeta(a.status);
+    const site = siteById(a.siteId);
+    const d = new Date(a.date + "T00:00:00");
+    const startDisabled = !perms().canEdit || a.status !== "programada";
+    const closeDisabled = !perms().canEdit || a.status === "cerrada" || a.status === "programada";
+    return `<div class="lm-audit-row">
+      <div class="lm-audit-date"><div style="font-size:11px;color:#8A93A0;">${MONTHS[d.getMonth()]}</div><div style="font-size:20px;font-weight:700;color:var(--primary);">${String(d.getDate()).padStart(2,"0")}</div></div>
+      <div>
+        <div style="font-weight:700;">${site ? site.name : "-"} · ${a.type}</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">Auditor: ${a.auditor} · Alcance: ${a.scope}</div>
+        ${a.findings && a.status !== "programada" ? `<div style="font-size:12.5px;color:var(--warn);margin-top:4px;">Hallazgos: ${a.findings}</div>` : ""}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+        ${badge(am)}
+        <div style="display:flex;gap:6px;">
+          <button class="lm-btn-ghost-sm" data-action="start-audit" data-id="${a.id}" ${startDisabled?"disabled":""}>Iniciar</button>
+          <button class="lm-btn-ghost-sm" data-action="close-audit" data-id="${a.id}" ${closeDisabled?"disabled":""}>Cerrar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  return `<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+      <button class="lm-btn lm-btn-primary" data-action="open-audit-create" ${!perms().canCreate?"disabled":""}><span class="msym" style="font-size:18px;">add</span>Nueva auditoría</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">${rows}</div>`;
+}
+
+// -------- 10. EVIDENCIAS (renderEvidence) --------
+function renderEvidence(){
+  const f = appState.filters.evidence;
+  const filtered = demoData.evidences.filter(e => {
+    if (f.site !== "all" && e.siteId !== f.site) return false;
+    if (f.status !== "all" && e.status !== f.status) return false;
+    if (f.search && !e.name.toLowerCase().includes(f.search.toLowerCase())) return false;
+    return true;
+  });
+
+  const cards = filtered.map(e => {
+    const am = approvalMeta(e.status);
+    const site = siteById(e.siteId);
+    const req = demoData.requirements.find(r => r.id === e.requirementId);
+    return `<div class="lm-evidence-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span class="msym" style="font-size:22px;color:var(--primary);">description</span>${badge(am)}
+      </div>
+      <div style="font-weight:700;font-size:13px;margin-top:8px;">${e.name}</div>
+      <div style="font-size:12px;color:#8A93A0;margin-top:2px;">${req ? req.normType + " " + req.normNumber : "-"} · ${site ? site.name : "-"}</div>
+      <div style="font-size:12px;color:#8A93A0;margin-top:2px;">v${e.version} · cargado ${fmtDate(e.uploadDate)} · vence ${fmtDate(e.expiryDate)}</div>
+      <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;">
+        <button class="lm-btn-ghost-sm" data-action="view-evidence" data-id="${e.id}"><span class="msym" style="font-size:16px;">visibility</span>Ver</button>
+        <button class="lm-btn-ghost-sm" data-action="download-evidence" data-id="${e.id}"><span class="msym" style="font-size:16px;">download</span>Descargar</button>
+        <button class="lm-btn-ghost-sm" data-action="approve-evidence" data-id="${e.id}" ${!perms().canApprove?"disabled":""}><span class="msym" style="font-size:16px;color:var(--ok);">check</span></button>
+        <button class="lm-btn-ghost-sm" data-action="reject-evidence" data-id="${e.id}" ${!perms().canApprove?"disabled":""}><span class="msym" style="font-size:16px;color:var(--danger);">close</span></button>
+      </div>
+    </div>`;
+  }).join("");
+
+  return `
+    <div class="lm-dropzone ${f.dragover ? "dragover" : ""}" id="lm-dropzone">
+      <span class="msym" style="font-size:32px;color:var(--primary);">upload_file</span>
+      <div style="font-weight:700;margin-top:8px;">Arrastrá archivos aquí para cargarlos</div>
+      <div style="font-size:12.5px;color:#8A93A0;margin-top:2px;">o hacé clic en el botón para simular la carga de un documento de evidencia</div>
+      <button class="lm-btn lm-btn-primary" style="margin-top:12px;" data-action="simulate-upload" ${!perms().canEdit?"disabled":""}>Cargar evidencia demo</button>
+    </div>
+    <div class="lm-row" style="margin:16px 0;">
+      <input class="lm-input" style="flex:1;min-width:220px;" placeholder="Buscar documento o norma..." data-action="filter-evidence" data-field="search" value="${f.search}" />
+      <select class="lm-select" data-action="filter-evidence" data-field="site">
+        <option value="all">Sede: todas</option>${demoData.sites.map(s => `<option value="${s.id}" ${f.site===s.id?"selected":""}>${s.name}</option>`).join("")}
+      </select>
+      <select class="lm-select" data-action="filter-evidence" data-field="status">
+        <option value="all">Aprobación: todas</option>
+        <option value="aprobado" ${f.status==="aprobado"?"selected":""}>Aprobado</option>
+        <option value="pendiente" ${f.status==="pendiente"?"selected":""}>Pendiente</option>
+        <option value="rechazado" ${f.status==="rechazado"?"selected":""}>Rechazado</option>
+      </select>
+    </div>
+    ${filtered.length === 0 ? `<div class="lm-empty-state"><span class="msym">folder_off</span><div style="font-weight:700;color:#4A5568;margin-top:8px;">No hay evidencias que coincidan</div></div>` : `<div class="lm-evidence-grid">${cards}</div>`}`;
+}
+
+// -------- 11. ALERTAS (renderAlerts) --------
+function renderAlerts(){
+  const f = appState.filters.alerts;
+  const priorities = ["all","critica","alta","media","baja"];
+  const filtered = demoData.alerts.filter(a => f.priority === "all" || a.priority === f.priority)
+    .sort((a,b) => (a.resolved === b.resolved ? 0 : a.resolved ? 1 : -1));
+
+  const cards = filtered.map(a => {
+    const pm = priorityMeta(a.priority);
+    return `<div class="lm-alert-card" style="border-left-color:${pm.color};opacity:${a.resolved ? .55 : 1};">
+      <div style="display:flex;gap:12px;">
+        <span class="msym" style="font-size:22px;color:${pm.color};">${pm.icon}</span>
+        <div>
+          <div style="font-weight:700;font-size:13.5px;">${a.title}</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">${a.description}</div>
+          <div style="font-size:11.5px;color:#8A93A0;margin-top:4px;">${fmtDate(a.date)} · Asignado a: ${a.assignedTo}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;">
+        <span class="lm-badge" style="background:${pm.bg};color:${pm.color};">${pm.label}</span>
+        <button class="lm-btn-ghost-sm" data-action="toggle-alert-read" data-id="${a.id}">${a.read ? "Marcar no leída" : "Marcar leída"}</button>
+        <button class="lm-btn-ghost-sm" data-action="open-assign-alert" data-id="${a.id}" ${!perms().canEdit?"disabled":""}>Asignar</button>
+        <button class="lm-btn-ghost-sm" data-action="resolve-alert" data-id="${a.id}" ${!perms().canApprove?"disabled":""}>Resolver</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  return `<div class="lm-row" style="margin-bottom:16px;">
+      ${priorities.map(p => `<button class="lm-btn ${f.priority===p?"lm-btn-primary":""}" data-action="filter-alerts-priority" data-priority="${p}">${p==="all"?"Todas":priorityMeta(p).label}</button>`).join("")}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">${cards}</div>`;
+}
+
+// -------- 12. BITÁCORA (renderAuditLog) --------
+function renderAuditLog(){
+  const f = appState.filters.auditlog;
+  const filtered = demoData.auditLog.filter(l => !f.search || (l.user + " " + l.action + " " + l.entity).toLowerCase().includes(f.search.toLowerCase()));
+  const rows = filtered.map(l => `<tr>
+    <td style="white-space:nowrap;">${l.timestamp}</td><td>${l.user}</td><td>${l.action}</td><td>${l.entity}</td><td>${l.record}</td>
+    <td style="color:var(--muted);">${l.detail}</td><td style="color:#8A93A0;">${l.ip}</td></tr>`).join("");
+
+  return `<div class="lm-card">
+    <div class="lm-row" style="margin-bottom:14px;">
+      <input class="lm-input" style="flex:1;min-width:220px;" placeholder="Buscar por usuario, acción o entidad..." data-action="filter-log" value="${f.search}" />
+      <button class="lm-btn lm-btn-ghost" data-action="export-audit-log" ${!perms().canExport?"disabled":""}><span class="msym" style="font-size:16px;">download</span>Exportar CSV</button>
+    </div>
+    <div class="lm-table-scroll">
+      <table class="lm-table">
+        <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Registro</th><th>Detalle</th><th>IP</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// -------- 13. DIÁLOGOS --------
+function renderDialogs(){
+  const root = document.getElementById("dialog-root");
+  const d = appState.dialogs;
+  let html = "";
+
+  if (d.requirement.open){
+    const r = d.requirement.data;
+    const scopeOptions = withCatalog(SCOPE_CATALOG, demoData.requirements.map(x => x.scope));
+    const jurisdictionOptions = withCatalog(JURISDICTION_CATALOG, demoData.requirements.map(x => x.jurisdiction));
+    const agencyOptions = withCatalog(AGENCY_CATALOG, demoData.requirements.map(x => x.agency));
+    html += `<div class="lm-overlay" data-action="dialog-backdrop" data-dialog="requirement">
+      <div class="lm-dialog" style="max-width:680px;" data-stop="1">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div style="font-weight:700;font-size:16px;">${d.requirement.mode === "create" ? "Nueva norma" : "Editar norma"}</div>
+          <button class="lm-icon-btn" data-action="close-requirement-dialog"><span class="msym">close</span></button>
+        </div>
+        <div class="lm-form-grid">
+          <div class="lm-section-label">Marco normativo</div>
+          <select class="lm-form-input" data-field="scope">${scopeOptions.map(o => `<option value="${o}" ${r.scope===o?"selected":""}>${o}</option>`).join("")}</select>
+          <select class="lm-form-input" data-field="jurisdiction">${jurisdictionOptions.map(o => `<option value="${o}" ${r.jurisdiction===o?"selected":""}>${o}</option>`).join("")}</select>
+          <select class="lm-form-input" data-field="agency">${agencyOptions.map(o => `<option value="${o}" ${r.agency===o?"selected":""}>${o}</option>`).join("")}</select>
+          <input class="lm-form-input" data-field="normNumber" placeholder="N° de norma (ej. 19587)" value="${r.normNumber||""}" />
+
+          <div class="lm-section-label">Detalle</div>
+          <input class="lm-form-input" style="grid-column:1/-1;" data-field="title" placeholder="Título de la norma" value="${r.title||""}" />
+          <textarea class="lm-form-input" style="grid-column:1/-1;height:64px;" data-field="obligation" placeholder="Obligación aplicable">${r.obligation||""}</textarea>
+
+          <div class="lm-section-label">Responsabilidad y seguimiento</div>
+          <select class="lm-form-input" data-field="siteId">${demoData.sites.map(s => `<option value="${s.id}" ${r.siteId===s.id?"selected":""}>${s.name}</option>`).join("")}</select>
+          <input class="lm-form-input" data-field="responsible" placeholder="Responsable" value="${r.responsible||""}" />
+          <select class="lm-form-input" data-field="status">
+            <option value="cumple" ${r.status==="cumple"?"selected":""}>Cumple</option>
+            <option value="no_cumple" ${r.status==="no_cumple"?"selected":""}>No cumple</option>
+            <option value="pendiente" ${r.status==="pendiente"?"selected":""}>Pendiente</option>
+            <option value="no_aplica" ${r.status==="no_aplica"?"selected":""}>No aplica</option>
+          </select>
+          <select class="lm-form-input" data-field="criticality">
+            <option value="critica" ${r.criticality==="critica"?"selected":""}>Crítica</option>
+            <option value="alta" ${r.criticality==="alta"?"selected":""}>Alta</option>
+            <option value="media" ${r.criticality==="media"?"selected":""}>Media</option>
+            <option value="baja" ${r.criticality==="baja"?"selected":""}>Baja</option>
+          </select>
+          <input type="date" class="lm-form-input" data-field="nextReview" value="${r.nextReview||""}" />
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+          <button class="lm-btn" data-action="close-requirement-dialog">Cancelar</button>
+          <button class="lm-btn lm-btn-primary" data-action="save-requirement">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (d.requirementDetail.open){
+    const r = demoData.requirements.find(x => x.id === d.requirementDetail.id) || {};
+    const site = siteById(r.siteId);
+    const timeline = demoData.auditLog.filter(l => l.record === r.id);
+    html += `<div class="lm-overlay" data-action="dialog-backdrop" data-dialog="requirementDetail">
+      <div class="lm-dialog" style="max-width:600px;" data-stop="1">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-weight:700;font-size:16px;">${r.title||""}</div>
+          <button class="lm-icon-btn" data-action="close-requirement-detail"><span class="msym">close</span></button>
+        </div>
+        <div style="font-size:12.5px;color:var(--muted);margin-bottom:16px;">${r.normType||""} ${r.normNumber||""} · ${r.agency||""} · ${site?site.name:"-"}</div>
+        <div class="lm-section-label" style="margin-top:0;">Historial de cambios</div>
+        <div style="margin-top:10px;">
+          ${timeline.length === 0 ? `<div style="font-size:12.5px;color:#8A93A0;">Sin cambios registrados.</div>` : timeline.map(t => `
+            <div class="lm-timeline-item">
+              <div class="lm-timeline-dot"><span style="width:9px;height:9px;border-radius:50%;background:var(--primary);flex-shrink:0;display:block;"></span><span style="width:1px;flex:1;background:var(--border);display:block;"></span></div>
+              <div style="font-size:12.5px;"><div style="color:#8A93A0;">${t.timestamp}</div><div style="font-weight:600;">${t.action} — ${t.user}</div><div style="color:var(--muted);">${t.detail}</div></div>
+            </div>`).join("")}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (d.requirementDelete.open){
+    html += `<div class="lm-overlay" data-action="dialog-backdrop" data-dialog="requirementDelete">
+      <div class="lm-dialog" style="max-width:400px;text-align:center;" data-stop="1">
+        <span class="msym" style="font-size:36px;color:var(--danger);">warning</span>
+        <div style="font-weight:700;margin-top:8px;">Eliminar requisito</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px;">Esta acción no se puede deshacer. ¿Confirmás la eliminación?</div>
+        <div style="display:flex;justify-content:center;gap:8px;margin-top:20px;">
+          <button class="lm-btn" data-action="close-requirement-delete">Cancelar</button>
+          <button class="lm-btn lm-btn-danger" data-action="execute-delete-requirement">Eliminar</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (d.deleteSelected.open){
+    html += `<div class="lm-overlay" data-action="dialog-backdrop" data-dialog="deleteSelected">
+      <div class="lm-dialog" style="max-width:400px;text-align:center;" data-stop="1">
+        <span class="msym" style="font-size:36px;color:var(--danger);">warning</span>
+        <div style="font-weight:700;margin-top:8px;">Eliminar ${appState.selectedIds.length} norma(s)</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px;">Esta acción no se puede deshacer.</div>
+        <div style="display:flex;justify-content:center;gap:8px;margin-top:20px;">
+          <button class="lm-btn" data-action="close-delete-selected">Cancelar</button>
+          <button class="lm-btn lm-btn-danger" data-action="execute-delete-selected">Eliminar</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (d.deleteAll.open){
+    html += `<div class="lm-overlay" data-action="dialog-backdrop" data-dialog="deleteAll">
+      <div class="lm-dialog" style="max-width:420px;text-align:center;" data-stop="1">
+        <span class="msym" style="font-size:36px;color:var(--danger);">delete_forever</span>
+        <div style="font-weight:700;margin-top:8px;">Eliminar TODA la matriz legal</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px;">Se eliminarán las ${demoData.requirements.length} norma(s) de esta empresa. Esta acción no se puede deshacer.</div>
+        <input type="password" class="lm-form-input" id="lm-delete-all-password" placeholder="Contraseña de confirmación" style="margin-top:16px;" value="${d.deleteAll.password || ""}" />
+        ${d.deleteAll.error ? `<div style="font-size:12.5px;color:var(--danger);margin-top:6px;">${d.deleteAll.error}</div>` : ""}
+        <div style="display:flex;justify-content:center;gap:8px;margin-top:20px;">
+          <button class="lm-btn" data-action="close-delete-all">Cancelar</button>
+          <button class="lm-btn lm-btn-danger" data-action="execute-delete-all">Eliminar todo</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (d.site.open){
+    const site = d.site.data;
+    html += `<div class="lm-overlay" data-action="dialog-backdrop" data-dialog="site">
+      <div class="lm-dialog" style="max-width:520px;" data-stop="1">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div style="font-weight:700;font-size:16px;">${d.site.mode === "create" ? "Nueva sede" : "Editar sede"}</div>
+          <button class="lm-icon-btn" data-action="close-site-dialog"><span class="msym">close</span></button>
+        </div>
+        <div class="lm-form-grid">
+          <input class="lm-form-input" style="grid-column:1/-1;" data-field="name" placeholder="Nombre de la sede" value="${site.name||""}" />
+          <input class="lm-form-input" style="grid-column:1/-1;" data-field="address" placeholder="Dirección" value="${site.address||""}" />
+          <input class="lm-form-input" data-field="province" placeholder="Provincia" value="${site.province||""}" />
+          <input class="lm-form-input" data-field="municipality" placeholder="Municipio" value="${site.municipality||""}" />
+          <input class="lm-form-input" data-field="activity" placeholder="Actividad" value="${site.activity||""}" />
+          <input class="lm-form-input" data-field="processes" placeholder="Procesos" value="${site.processes||""}" />
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+          <button class="lm-btn" data-action="close-site-dialog">Cancelar</button>
+          <button class="lm-btn lm-btn-primary" data-action="save-site">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (d.audit.open){
+    const a = d.audit.data;
+    html += `<div class="lm-overlay" data-action="dialog-backdrop" data-dialog="audit">
+      <div class="lm-dialog" style="max-width:520px;" data-stop="1">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div style="font-weight:700;font-size:16px;">Nueva auditoría</div>
+          <button class="lm-icon-btn" data-action="close-audit-dialog"><span class="msym">close</span></button>
+        </div>
+        <div class="lm-form-grid">
+          <input type="date" class="lm-form-input" data-field="date" value="${a.date||""}" />
+          <select class="lm-form-input" data-field="siteId">${demoData.sites.map(s => `<option value="${s.id}" ${a.siteId===s.id?"selected":""}>${s.name}</option>`).join("")}</select>
+          <input class="lm-form-input" data-field="auditor" placeholder="Auditor" value="${a.auditor||""}" />
+          <input class="lm-form-input" data-field="type" placeholder="Tipo (interna/externa)" value="${a.type||""}" />
+          <input class="lm-form-input" style="grid-column:1/-1;" data-field="scope" placeholder="Alcance" value="${a.scope||""}" />
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+          <button class="lm-btn" data-action="close-audit-dialog">Cancelar</button>
+          <button class="lm-btn lm-btn-primary" data-action="save-audit">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (d.alertAssign.open){
+    html += `<div class="lm-overlay" data-action="dialog-backdrop" data-dialog="alertAssign">
+      <div class="lm-dialog" style="max-width:380px;" data-stop="1">
+        <div style="font-weight:700;margin-bottom:12px;">Asignar responsable</div>
+        <input class="lm-form-input" id="lm-assign-input" placeholder="Nombre del responsable" value="${d.alertAssign.value}" />
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
+          <button class="lm-btn" data-action="close-assign-alert">Cancelar</button>
+          <button class="lm-btn lm-btn-primary" data-action="confirm-assign-alert">Asignar</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (d.publishUpdate.open){
+    const email = demoData.company.contactEmail || "";
+    html += `<div class="lm-overlay" data-action="dialog-backdrop" data-dialog="publishUpdate">
+      <div class="lm-dialog" style="max-width:520px;" data-stop="1">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-weight:700;font-size:16px;">Publicar actualización para el cliente</div>
+          <button class="lm-icon-btn" data-action="close-publish-update"><span class="msym">close</span></button>
+        </div>
+        <div style="font-size:13px;line-height:1.6;color:var(--muted);margin-bottom:14px;">
+          Se enviará un correo a <strong>${email || "(sin correo de contacto configurado)"}</strong> avisando que hay una nueva actualización en la Matriz Legal, con un botón para entrar y verificar.
+        </div>
+        ${d.publishUpdate.loading ? `
+          <div style="font-size:13px;color:var(--muted);padding:24px 0;text-align:center;">
+            <span class="msym" style="font-size:20px;vertical-align:middle;">autorenew</span>
+            Analizando los últimos cambios cargados...
+          </div>
+        ` : `
+          <div style="font-size:11px;font-weight:700;color:#8A93A0;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">
+            Resumen automático (podés editarlo antes de enviar)
+          </div>
+          ${d.publishUpdate.noChanges ? `<div style="font-size:12.5px;color:var(--warn);margin-bottom:8px;">No se detectaron cambios desde la última publicación. Podés escribir igual un mensaje puntual para el cliente.</div>` : ""}
+          <textarea class="lm-form-input" id="lm-publish-summary" style="width:100%;height:130px;" placeholder="- Detalle del cambio 1&#10;- Detalle del cambio 2">${d.publishUpdate.summary || ""}</textarea>
+        `}
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
+          <button class="lm-btn" data-action="close-publish-update">Cancelar</button>
+          <button class="lm-btn lm-btn-primary" data-action="send-publish-update" ${!email || d.publishUpdate.sending || d.publishUpdate.loading ? "disabled" : ""}>
+            ${d.publishUpdate.sending ? "Enviando..." : "Enviar notificación"}
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  root.innerHTML = html;
+}
+
+function renderToast(){
+  document.getElementById("toast-root").innerHTML = appState.toast ? `<div class="lm-toast">${appState.toast}</div>` : "";
+}
+
+// -------- Render maestro --------
+function render(){
+  renderRoleBar();
+  const tabContent = {
+    dashboard: renderDashboard,
+    matrix: renderLegalMatrix,
+    sites: renderSites,
+    audits: renderAudits,
+    evidence: renderEvidence,
+    alerts: renderAlerts,
+    auditlog: renderAuditLog
+  }[appState.activeTab]();
+
+  document.getElementById("app").innerHTML = `
+    ${renderHeader()}
+    ${renderKPIs()}
+    ${renderTabsNav()}
+    <main class="lm-main">${tabContent}</main>`;
+
+  renderDialogs();
+  renderToast();
+  attachDynamicListeners();
+}
+
+function attachDynamicListeners(){
+  const dz = document.getElementById("lm-dropzone");
+  if (dz){
+    dz.addEventListener("dragover", e => { e.preventDefault(); appState.filters.evidence.dragover = true; dz.classList.add("dragover"); });
+    dz.addEventListener("dragleave", () => { appState.filters.evidence.dragover = false; dz.classList.remove("dragover"); });
+    dz.addEventListener("drop", e => {
+      e.preventDefault();
+      appState.filters.evidence.dragover = false;
+      const fileName = (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) ? e.dataTransfer.files[0].name : "Documento_cargado.pdf";
+      uploadEvidence(fileName);
+    });
+  }
+}
+
+function showToast(msg){
+  appState.toast = msg;
+  renderToast();
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => { appState.toast = null; renderToast(); }, 2200);
+}
+
+function downloadCSV(filename, rows, cols){
+  const csv = [cols.join(",")].concat(rows.map(r => cols.map(c => JSON.stringify(r[c] ?? "")).join(","))).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ==========================================================================
+   17. EVENTOS E INTERACCIONES
+   ========================================================================== */
+function changeRole(role){
+  appState.currentRole = role;
+  render();
+}
+
+function applyFilters(){ render(); }
+
+function openRequirementDialog(mode, id){
+  if (mode === "create" && !perms().canCreate) return;
+  if (mode === "edit" && !perms().canEdit) return;
+  if (mode === "create" && demoData.sites.length === 0){ showToast("Primero creá una sede en la pestaña Sedes."); return; }
+  const data = mode === "edit" ? { ...demoData.requirements.find(r => r.id === id) } :
+    { scope: "Seguridad e Higiene", jurisdiction: "Nacional", agency: "SRT", normType: "Ley", normNumber: "", title: "", obligation: "", siteId: demoData.sites[0].id, responsible: "", status: "pendiente", criticality: "media", nextReview: "" };
+  appState.dialogs.requirement = { open: true, mode, data };
+  render();
+}
+
+function saveRequirement(){
+  // BACKEND CALLBACK: create_requirement / update_requirement
+  const dlg = appState.dialogs.requirement;
+  const overlay = document.querySelector('[data-dialog="requirement"]');
+  const form = {};
+  overlay.querySelectorAll("[data-field]").forEach(el => { form[el.dataset.field] = el.value; });
+  const merged = { ...dlg.data, ...form };
+  if (dlg.mode === "create"){
+    const created = { ...merged, id: "r" + Date.now(), evidenceCount: 0, normType: merged.normType || "Ley" };
+    demoData.requirements.push(created);
+    persist("requirements", "POST", created).then(function(data){ created.id = String(data.id); render(); }).catch(function(){});
+  } else {
+    const idx = demoData.requirements.findIndex(r => r.id === merged.id);
+    if (idx >= 0) demoData.requirements[idx] = merged;
+    persist("requirements/" + merged.id, "PUT", merged).catch(function(){});
+  }
+  appState.dialogs.requirement.open = false;
+  render();
+  showToast(dlg.mode === "create" ? "Norma creada" : "Norma actualizada");
+}
+
+function editRequirement(id){ openRequirementDialog("edit", id); }
+
+function closeRequirementDialog(){ appState.dialogs.requirement.open = false; render(); }
+
+function openRequirementDetail(id){ appState.dialogs.requirementDetail = { open: true, id }; render(); }
+function closeRequirementDetail(){ appState.dialogs.requirementDetail.open = false; render(); }
+
+function confirmDeleteRequirement(id){
+  if (!perms().canDelete) return;
+  appState.dialogs.requirementDelete = { open: true, id };
+  render();
+}
+function closeRequirementDelete(){ appState.dialogs.requirementDelete.open = false; render(); }
+
+function deleteRequirement(id){
+  const idx = demoData.requirements.findIndex(r => r.id === id);
+  if (idx >= 0) demoData.requirements.splice(idx, 1);
+  persist("requirements/" + id, "DELETE").catch(function(){});
+}
+function executeDeleteRequirement(){
+  deleteRequirement(appState.dialogs.requirementDelete.id);
+  appState.dialogs.requirementDelete.open = false;
+  render();
+  showToast("Norma eliminada");
+}
+
+function toggleDeleteMode(){
+  if (!perms().canDelete) return;
+  appState.deleteMode = !appState.deleteMode;
+  appState.selectedIds = [];
+  render();
+}
+function toggleSelectRow(id, checked){
+  const set = new Set(appState.selectedIds);
+  if (checked) set.add(id); else set.delete(id);
+  appState.selectedIds = [...set];
+  render();
+}
+function toggleSelectAllMatrix(){
+  const filteredIds = getFilteredRequirements().map(r => r.id);
+  const allSelected = filteredIds.length > 0 && filteredIds.every(id => appState.selectedIds.includes(id));
+  appState.selectedIds = allSelected ? [] : filteredIds;
+  render();
+}
+function openDeleteSelectedDialog(){
+  if (appState.selectedIds.length === 0) return;
+  appState.dialogs.deleteSelected.open = true;
+  render();
+}
+function closeDeleteSelectedDialog(){ appState.dialogs.deleteSelected.open = false; render(); }
+function executeDeleteSelected(){
+  const ids = appState.selectedIds.slice();
+  requestDeleteBulk(ids).then(function(res){
+    if (!res.ok){ showToast((res.data && res.data.detail) || "No se pudieron eliminar las normas."); return; }
+    demoData.requirements = demoData.requirements.filter(r => !ids.includes(r.id));
+    appState.selectedIds = [];
+    appState.deleteMode = false;
+    appState.dialogs.deleteSelected.open = false;
+    render();
+    showToast(res.data.deleted + " norma(s) eliminada(s).");
+  });
+}
+function openDeleteAllDialog(){
+  if (!demoData.realAdmin) return;
+  appState.dialogs.deleteAll = { open: true, password: "", error: "" };
+  render();
+}
+function closeDeleteAllDialog(){ appState.dialogs.deleteAll.open = false; render(); }
+function executeDeleteAll(){
+  const input = document.getElementById("lm-delete-all-password");
+  const password = input ? input.value : "";
+  requestDeleteAll(password).then(function(res){
+    if (!res.ok){
+      appState.dialogs.deleteAll.error = (res.data && res.data.detail) || "Contraseña incorrecta.";
+      appState.dialogs.deleteAll.password = password;
+      render();
+      return;
+    }
+    demoData.requirements = [];
+    appState.selectedIds = [];
+    appState.deleteMode = false;
+    appState.dialogs.deleteAll.open = false;
+    render();
+    showToast(res.data.deleted + " norma(s) eliminada(s). Matriz vaciada.");
+  });
+}
+
+function openSiteDialog(mode, id){
+  if (mode === "create" && !perms().canCreate) return;
+  if (mode === "edit" && !perms().canEdit) return;
+  const data = mode === "edit" ? { ...siteById(id) } : { name: "", address: "", province: "", municipality: "", activity: "", processes: "" };
+  appState.dialogs.site = { open: true, mode, data };
+  render();
+}
+function closeSiteDialog(){ appState.dialogs.site.open = false; render(); }
+
+function saveSite(){
+  // BACKEND CALLBACK: create_site
+  const dlg = appState.dialogs.site;
+  const overlay = document.querySelector('[data-dialog="site"]');
+  const form = {};
+  overlay.querySelectorAll("[data-field]").forEach(el => { form[el.dataset.field] = el.value; });
+  const merged = { ...dlg.data, ...form, active: dlg.data.active !== false, nextAudit: dlg.data.nextAudit || "-" };
+  if (dlg.mode === "create"){
+    const created = { ...merged, id: "site-" + Date.now() };
+    demoData.sites.push(created);
+    persist("sites", "POST", created).then(function(data){ created.id = String(data.id); render(); }).catch(function(){});
+  } else {
+    const idx = demoData.sites.findIndex(s => s.id === merged.id);
+    if (idx >= 0) demoData.sites[idx] = merged;
+    persist("sites/" + merged.id, "PUT", merged).catch(function(){});
+  }
+  appState.dialogs.site.open = false;
+  render();
+  showToast("Sede guardada");
+}
+
+function openAuditDialog(){
+  if (!perms().canCreate) return;
+  if (demoData.sites.length === 0){ showToast("Primero creá una sede en la pestaña Sedes."); return; }
+  appState.dialogs.audit = { open: true, data: { date: "", siteId: demoData.sites[0].id, auditor: "", type: "Interna", scope: "" } };
+  render();
+}
+function closeAuditDialog(){ appState.dialogs.audit.open = false; render(); }
+
+function saveAudit(){
+  // BACKEND CALLBACK: create_audit
+  const overlay = document.querySelector('[data-dialog="audit"]');
+  const form = {};
+  overlay.querySelectorAll("[data-field]").forEach(el => { form[el.dataset.field] = el.value; });
+  const created = { ...form, id: "a" + Date.now(), status: "programada", result: "", findings: "", actionPlan: "", closeDate: "" };
+  demoData.audits.push(created);
+  persist("audits", "POST", created).then(function(data){ created.id = String(data.id); render(); }).catch(function(){});
+  appState.dialogs.audit.open = false;
+  render();
+  showToast("Auditoría creada");
+}
+
+function startAudit(id){
+  if (!perms().canEdit) return;
+  const a = demoData.audits.find(x => x.id === id);
+  if (a) a.status = "en_curso";
+  render();
+}
+function closeAudit(id){
+  if (!perms().canEdit) return;
+  const a = demoData.audits.find(x => x.id === id);
+  if (a){ a.status = "cerrada"; a.closeDate = "2026-07-17"; }
+  render();
+  showToast("Auditoría cerrada");
+}
+
+function uploadEvidence(fileName){
+  if (!perms().canEdit) return;
+  if (demoData.requirements.length === 0 || demoData.sites.length === 0){ showToast("Primero creá una sede y una norma."); return; }
+  const created = { id: "e" + Date.now(), name: fileName, requirementId: demoData.requirements[0].id, siteId: demoData.sites[0].id, type: "Documento", uploadDate: new Date().toISOString().slice(0,10), expiryDate: "-", user: ROLE_LABELS[appState.currentRole], status: "pendiente", version: 1 };
+  demoData.evidences.unshift(created);
+  persist("evidence", "POST", created).then(function(data){ created.id = String(data.id); render(); }).catch(function(){});
+  render();
+  showToast("Evidencia cargada");
+}
+function simulateUpload(){ uploadEvidence("Nueva_evidencia_" + (demoData.evidences.length + 1) + ".pdf"); }
+
+function approveEvidence(id){
+  if (!perms().canApprove) return;
+  const e = demoData.evidences.find(x => x.id === id);
+  if (e) e.status = "aprobado";
+  persist("evidence/" + id + "/approve", "POST").catch(function(){});
+  render();
+  showToast("Evidencia aprobada");
+}
+function rejectEvidence(id){
+  if (!perms().canApprove) return;
+  const e = demoData.evidences.find(x => x.id === id);
+  if (e) e.status = "rechazado";
+  render();
+  showToast("Evidencia rechazada");
+}
+
+function toggleAlertRead(id){
+  const a = demoData.alerts.find(x => x.id === id);
+  if (a) a.read = !a.read;
+  render();
+}
+function openAssignAlert(id){
+  if (!perms().canEdit) return;
+  appState.dialogs.alertAssign = { open: true, id, value: "" };
+  render();
+}
+function closeAssignAlert(){ appState.dialogs.alertAssign.open = false; render(); }
+function confirmAssignAlert(){
+  const input = document.getElementById("lm-assign-input");
+  const value = input ? input.value : "";
+  const a = demoData.alerts.find(x => x.id === appState.dialogs.alertAssign.id);
+  if (a && value) a.assignedTo = value;
+  appState.dialogs.alertAssign.open = false;
+  render();
+  showToast("Responsable asignado");
+}
+function resolveAlert(id){
+  if (!perms().canApprove) return;
+  const a = demoData.alerts.find(x => x.id === id);
+  if (a){ a.resolved = true; a.read = true; }
+  persist("alerts/" + id + "/resolve", "POST").catch(function(){});
+  render();
+  showToast("Alerta resuelta");
+}
+
+function fetchChangesSummary(){
+  return fetch("/api/legal-matrix/" + EMPRESA_ID + "/changes-summary")
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); });
+}
+function openPublishUpdateDialog(){
+  if (!demoData.isIdeasStaff) return;
+  appState.dialogs.publishUpdate = { open: true, summary: "", sending: false, loading: true, noChanges: false };
+  render();
+  fetchChangesSummary()
+    .then(function(data){
+      const dlg = appState.dialogs.publishUpdate;
+      if (!dlg.open) return;
+      const items = data.items || [];
+      dlg.summary = items.map(function(item){ return "- " + item; }).join("\n");
+      dlg.noChanges = items.length === 0;
+      dlg.loading = false;
+      render();
+    })
+    .catch(function(){
+      const dlg = appState.dialogs.publishUpdate;
+      dlg.loading = false;
+      dlg.noChanges = true;
+      render();
+    });
+}
+function closePublishUpdateDialog(){ appState.dialogs.publishUpdate.open = false; render(); }
+function sendPublishUpdate(){
+  const dlg = appState.dialogs.publishUpdate;
+  const input = document.getElementById("lm-publish-summary");
+  const summary = input ? input.value.trim() : "";
+  if (!summary){ showToast("Ingresá un resumen de la actualización."); return; }
+  dlg.summary = summary;
+  dlg.sending = true;
+  render();
+  persist("notify-update", "POST", { summary: summary })
+    .then(function(data){
+      dlg.open = false;
+      dlg.sending = false;
+      render();
+      showToast(data.ok ? "Notificación enviada a " + data.to : "No se pudo enviar el correo.");
+    })
+    .catch(function(){
+      dlg.sending = false;
+      render();
+      showToast("No se pudo enviar la notificación.");
+    });
+}
+
+function exportMatrix(){
+  showToast("Generando reporte ejecutivo...");
+  window.open("/api/legal-matrix/" + EMPRESA_ID + "/export-pdf", "_blank");
+}
+function exportAuditLog(){
+  downloadCSV("bitacora.csv", demoData.auditLog, ["timestamp","user","action","entity","record","detail","ip"]);
+  showToast("Bitácora exportada");
+}
+
+// -------- Delegación de eventos --------
+document.addEventListener("click", e => {
+  if (appState.notifOpen && !e.target.closest(".lm-notif-dropdown") && !e.target.closest('[data-action="toggle-notifications"]')) {
+    appState.notifOpen = false; render();
+  }
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+  const action = el.dataset.action;
+
+  switch(action){
+    case "change-role": changeRole(el.dataset.role); break;
+    case "change-tab": appState.activeTab = el.dataset.tab; appState.notifOpen = false; render(); break;
+    case "toggle-notifications": appState.notifOpen = !appState.notifOpen; render(); break;
+    case "open-requirement-create": openRequirementDialog("create"); break;
+    case "import-requirements": {
+      const input = document.getElementById("import-excel-input");
+      if (input) input.click();
+      break;
+    }
+    case "open-requirement-edit": editRequirement(el.dataset.id); break;
+    case "open-requirement-detail": openRequirementDetail(el.dataset.id); break;
+    case "close-requirement-dialog": closeRequirementDialog(); break;
+    case "save-requirement": saveRequirement(); break;
+    case "close-requirement-detail": closeRequirementDetail(); break;
+    case "confirm-delete-requirement": confirmDeleteRequirement(el.dataset.id); break;
+    case "close-requirement-delete": closeRequirementDelete(); break;
+    case "execute-delete-requirement": executeDeleteRequirement(); break;
+    case "toggle-delete-mode": toggleDeleteMode(); break;
+    case "open-delete-selected": openDeleteSelectedDialog(); break;
+    case "close-delete-selected": closeDeleteSelectedDialog(); break;
+    case "execute-delete-selected": executeDeleteSelected(); break;
+    case "open-delete-all": openDeleteAllDialog(); break;
+    case "close-delete-all": closeDeleteAllDialog(); break;
+    case "execute-delete-all": executeDeleteAll(); break;
+    case "clear-matrix-filters":
+      appState.filters.matrix = { ...appState.filters.matrix, search:"", scope:"all", jurisdiction:"all", site:"all", agency:"all", status:"all", criticality:"all", page:1 };
+      render(); break;
+    case "sort-matrix": {
+      const f = appState.filters.matrix;
+      f.sortDir = (f.sortKey === el.dataset.key && f.sortDir === "asc") ? "desc" : "asc";
+      f.sortKey = el.dataset.key;
+      render(); break;
+    }
+    case "matrix-page": appState.filters.matrix.page += parseInt(el.dataset.dir, 10); render(); break;
+    case "open-site-create": openSiteDialog("create"); break;
+    case "open-site-edit": openSiteDialog("edit", el.dataset.id); break;
+    case "close-site-dialog": closeSiteDialog(); break;
+    case "save-site": saveSite(); break;
+    case "open-audit-create": openAuditDialog(); break;
+    case "close-audit-dialog": closeAuditDialog(); break;
+    case "save-audit": saveAudit(); break;
+    case "start-audit": startAudit(el.dataset.id); break;
+    case "close-audit": closeAudit(el.dataset.id); break;
+    case "simulate-upload": simulateUpload(); break;
+    case "view-evidence": showToast("Vista previa: " + (demoData.evidences.find(e=>e.id===el.dataset.id)||{}).name); break;
+    case "download-evidence": showToast("Descargando " + (demoData.evidences.find(e=>e.id===el.dataset.id)||{}).name); break;
+    case "approve-evidence": approveEvidence(el.dataset.id); break;
+    case "reject-evidence": rejectEvidence(el.dataset.id); break;
+    case "filter-alerts-priority": appState.filters.alerts.priority = el.dataset.priority; render(); break;
+    case "toggle-alert-read": toggleAlertRead(el.dataset.id); break;
+    case "open-assign-alert": openAssignAlert(el.dataset.id); break;
+    case "close-assign-alert": closeAssignAlert(); break;
+    case "confirm-assign-alert": confirmAssignAlert(); break;
+    case "resolve-alert": resolveAlert(el.dataset.id); break;
+    case "open-publish-update": openPublishUpdateDialog(); break;
+    case "close-publish-update": closePublishUpdateDialog(); break;
+    case "send-publish-update": sendPublishUpdate(); break;
+    case "export-matrix": exportMatrix(); break;
+    case "export-audit-log": exportAuditLog(); break;
+    case "dialog-backdrop":
+      if (!e.target.closest("[data-stop]")) {
+        const dlg = el.dataset.dialog;
+        if (dlg === "requirement") closeRequirementDialog();
+        else if (dlg === "requirementDetail") closeRequirementDetail();
+        else if (dlg === "requirementDelete") closeRequirementDelete();
+        else if (dlg === "deleteSelected") closeDeleteSelectedDialog();
+        else if (dlg === "deleteAll") closeDeleteAllDialog();
+        else if (dlg === "site") closeSiteDialog();
+        else if (dlg === "audit") closeAuditDialog();
+        else if (dlg === "alertAssign") closeAssignAlert();
+        else if (dlg === "publishUpdate") closePublishUpdateDialog();
+      }
+      break;
+  }
+});
+
+document.addEventListener("change", e => {
+  const el = e.target;
+  if (el.id === "import-excel-input"){ handleImportFile(el.files && el.files[0]); el.value = ""; return; }
+  if (el.dataset.action === "change-site"){ appState.selectedSite = el.value; render(); return; }
+  if (el.dataset.action === "filter-matrix"){ appState.filters.matrix[el.dataset.field] = el.value; appState.filters.matrix.page = 1; render(); return; }
+  if (el.dataset.action === "filter-evidence"){ appState.filters.evidence[el.dataset.field] = el.value; render(); return; }
+  if (el.dataset.action === "toggle-select-row"){ toggleSelectRow(el.dataset.id, el.checked); return; }
+  if (el.dataset.action === "toggle-select-all-matrix"){ toggleSelectAllMatrix(); return; }
+});
+
+document.addEventListener("input", e => {
+  const el = e.target;
+  if (el.dataset.action === "filter-matrix" && el.tagName === "INPUT"){ appState.filters.matrix[el.dataset.field] = el.value; appState.filters.matrix.page = 1; render(); return; }
+  if (el.dataset.action === "filter-evidence" && el.tagName === "INPUT"){ appState.filters.evidence[el.dataset.field] = el.value; render(); return; }
+  if (el.dataset.action === "filter-log"){ appState.filters.auditlog.search = el.value; render(); return; }
+});
+
+/* ==========================================================================
+   18. INICIALIZACIÓN
+   ========================================================================== */
+document.addEventListener("DOMContentLoaded", () => {
+  render();
+});
+</script>
+</body>
+</html>
