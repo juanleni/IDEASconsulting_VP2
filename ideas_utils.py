@@ -5,6 +5,7 @@ import os
 import secrets
 import smtplib
 import unicodedata
+from datetime import date
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -147,6 +148,12 @@ def html_safe(texto) -> str:
     return html.escape("" if texto is None else str(texto))
 
 
+def _fmt_fecha_larga_es_local(d: date) -> str:
+    meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+             "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+    return f"{d.day} de {meses[d.month - 1]} de {d.year}"
+
+
 def generar_token_seguro() -> str:
     return secrets.token_urlsafe(32)
 
@@ -217,6 +224,163 @@ def enviar_correo_acceso(correo_destino, nombre_empresa, token, base_url=None):
         print(f"Enlace directo: {enlace}")
         print("=== FIN CORREO (SIMULADO / FALLBACK) ===")
         return {"ok": False, "to": correo, "subject": asunto, "link": enlace, "html": html_body, "error": str(exc)}
+
+
+def enviar_correo_alertas_legal_matrix(correo_destino, nombre_empresa, alertas, base_url=None):
+    correo = str(correo_destino or "").strip()
+    empresa = str(nombre_empresa or "").strip()
+    default_local_base = os.getenv("IDEAS_PUBLIC_BASE_URL", "http://127.0.0.1:8502")
+    base = str(base_url or default_local_base).rstrip("/")
+    asunto = f"IDEAS Consulting - {len(alertas)} vencimiento(s) en tu Matriz Legal"
+
+    prioridad_color = {"critica": "#B91C1C", "alta": "#B45309", "media": "#0E3A53", "baja": "#6B7480"}
+    filas_html = "".join(
+        f"""<tr>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#0f172a;">{html_safe(a.get('titulo'))}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b;">{html_safe(a.get('detalle'))}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;color:{prioridad_color.get(str(a.get('prioridad') or '').lower(), '#0E3A53')};text-transform:uppercase;">{html_safe(a.get('prioridad'))}</td>
+        </tr>"""
+        for a in alertas
+    )
+
+    html_body = f"""
+    <div style="margin:0;padding:24px;background:#f3f6fb;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+      <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#0f172a 0%,#1f7ed6 100%);padding:22px 28px;">
+          <img src="{base}/assets/logo.png" alt="IDEAS Consulting" width="150" style="display:block;border:0;outline:none;text-decoration:none;" />
+          <h1 style="margin:16px 0 0 0;color:#ffffff;font-size:22px;line-height:1.3;font-weight:700;">
+            Vencimientos en la Matriz Legal
+          </h1>
+        </div>
+        <div style="padding:26px 28px;">
+          <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#334155;">
+            Hola {html_safe(empresa) or 'equipo'}, estos son los requisitos legales que vencen pronto o ya vencieron:
+          </p>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th align="left" style="padding:8px;font-size:12px;color:#8A93A0;border-bottom:1px solid #e2e8f0;">Norma</th>
+                <th align="left" style="padding:8px;font-size:12px;color:#8A93A0;border-bottom:1px solid #e2e8f0;">Detalle</th>
+                <th align="left" style="padding:8px;font-size:12px;color:#8A93A0;border-bottom:1px solid #e2e8f0;">Prioridad</th>
+              </tr>
+            </thead>
+            <tbody>{filas_html}</tbody>
+          </table>
+          <a href="{base}/sistema-gestion/matriz-legal" style="display:inline-block;margin-top:20px;background:#1f7ed6;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:14px;">
+            Ver Matriz Legal Digital
+          </a>
+        </div>
+        <div style="padding:14px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;">
+          IDEAS Consulting
+        </div>
+      </div>
+    </div>
+    """
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = asunto
+        msg["From"] = SMTP_USER
+        msg["To"] = correo
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(SMTP_USER, [correo], msg.as_string())
+        server.quit()
+        return {"ok": True, "to": correo, "subject": asunto, "html": html_body}
+    except Exception as exc:
+        print("=== ENVIO DE ALERTAS MATRIZ LEGAL (SIMULADO / FALLBACK) ===")
+        print(f"Error SMTP: {exc}")
+        print(f"Para: {correo}")
+        print(f"Asunto: {asunto}")
+        print("=== FIN ALERTAS MATRIZ LEGAL (SIMULADO / FALLBACK) ===")
+        return {"ok": False, "to": correo, "subject": asunto, "html": html_body, "error": str(exc)}
+
+
+def _resumen_bullets_html(resumen_text: str) -> str:
+    lineas = [
+        ln.lstrip("-*•").strip()
+        for ln in str(resumen_text or "").splitlines()
+        if ln.strip("-*• \t")
+    ]
+    if not lineas:
+        return f'<div style="font-size:14.5px;line-height:1.6;color:#0f172a;">{html_safe(resumen_text)}</div>'
+    items = "".join(
+        f"""<li style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;{('border-bottom:1px solid #eef2f7;' if i < len(lineas) - 1 else '')}">
+          <span style="flex-shrink:0;width:20px;height:20px;margin-top:1px;border-radius:50%;background:#e8f2fd;color:#1f7ed6;font-size:12px;font-weight:700;line-height:20px;text-align:center;">✓</span>
+          <span style="font-size:14.5px;line-height:1.55;color:#0f172a;">{html_safe(linea)}</span>
+        </li>"""
+        for i, linea in enumerate(lineas)
+    )
+    return f'<ul style="margin:0;padding:0;list-style:none;">{items}</ul>'
+
+
+def enviar_correo_actualizacion_matriz_legal(correo_destino, nombre_empresa, resumen, autor="", base_url=None):
+    correo = str(correo_destino or "").strip()
+    empresa = str(nombre_empresa or "").strip()
+    resumen_text = str(resumen or "").strip()
+    autor_text = str(autor or "").strip()
+    fecha_text = _fmt_fecha_larga_es_local(date.today())
+    default_local_base = os.getenv("IDEAS_PUBLIC_BASE_URL", "http://127.0.0.1:8502")
+    base = str(base_url or default_local_base).rstrip("/")
+    enlace = f"{base}/sistema-gestion/matriz-legal"
+    asunto = "IDEAS Consulting - Nueva actualización en tu Matriz Legal"
+
+    html_body = f"""
+    <div style="margin:0;padding:24px;background:#f3f6fb;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.06);">
+        <div style="background:linear-gradient(135deg,#0f172a 0%,#1f7ed6 100%);padding:26px 28px;">
+          <img src="{base}/assets/logo.png" alt="IDEAS Consulting" width="140" style="display:block;border:0;outline:none;text-decoration:none;" />
+          <div style="margin-top:18px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.72);">Matriz Legal Digital</div>
+          <h1 style="margin:6px 0 0 0;color:#ffffff;font-size:23px;line-height:1.3;font-weight:700;">
+            Nueva actualización disponible
+          </h1>
+        </div>
+        <div style="padding:28px 28px 8px;">
+          <p style="margin:0 0 18px 0;font-size:15px;line-height:1.6;color:#334155;">
+            Hola {html_safe(empresa) or 'equipo'}, tu equipo de IDEAS Consulting acaba de actualizar la Matriz Legal Digital de tu empresa. Estos son los cambios más relevantes:
+          </p>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:6px 18px;margin:0 0 22px 0;">
+            {_resumen_bullets_html(resumen_text)}
+          </div>
+          <div style="text-align:center;margin:0 0 22px 0;">
+            <a href="{enlace}" style="display:inline-block;background:#1f7ed6;color:#ffffff;text-decoration:none;padding:13px 30px;border-radius:10px;font-weight:700;font-size:15px;">
+              Entrar para verificar
+            </a>
+          </div>
+          <p style="margin:0 0 20px 0;font-size:12.5px;line-height:1.6;color:#94a3b8;text-align:center;">
+            {fecha_text}{" · Publicado por " + html_safe(autor_text) if autor_text else ""}
+          </p>
+        </div>
+        <div style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;">
+          IDEAS Consulting · Este es un aviso automático, no es necesario responder este correo.
+        </div>
+      </div>
+    </div>
+    """
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = asunto
+        msg["From"] = SMTP_USER
+        msg["To"] = correo
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(SMTP_USER, [correo], msg.as_string())
+        server.quit()
+        return {"ok": True, "to": correo, "subject": asunto, "html": html_body}
+    except Exception as exc:
+        print("=== ENVIO DE ACTUALIZACION MATRIZ LEGAL (SIMULADO / FALLBACK) ===")
+        print(f"Error SMTP: {exc}")
+        print(f"Para: {correo}")
+        print(f"Asunto: {asunto}")
+        print("=== FIN ACTUALIZACION MATRIZ LEGAL (SIMULADO / FALLBACK) ===")
+        return {"ok": False, "to": correo, "subject": asunto, "html": html_body, "error": str(exc)}
 
 
 def enviar_correo_cotizacion(nombre, contacto, servicio, detalles, destinatario: str | None = None):
