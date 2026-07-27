@@ -258,7 +258,14 @@ from modules_environment import (  # noqa: E402
     go_to_environment_module,
     register_environment_module,
 )
-from modules_legal_matrix import go_to_legal_matrix_module, register_legal_matrix_module  # noqa: E402
+from modules_legal_matrix import (  # noqa: E402
+    go_to_legal_matrix_module,
+    register_legal_matrix_module,
+    guardar_legal_matrix_delete_password,
+    tiene_legal_matrix_password_personalizada,
+    obtener_legal_matrix_alert_settings,
+    guardar_legal_matrix_alert_settings,
+)
 from modules_quality import (  # noqa: E402
     go_to_quality_module,
     register_quality_module,
@@ -270,6 +277,7 @@ from modules_sst import (  # noqa: E402
 from modules_users import go_to_users_module, register_users_module  # noqa: E402
 from modules_lab import go_to_lab_module, register_lab_module  # noqa: E402
 from services.lab_ai_scheduler import start_lab_ai_scheduler  # noqa: E402
+from services.legal_matrix_alert_scheduler import start_legal_matrix_alert_scheduler  # noqa: E402
 try:
     from services.dashboard.dashboard_service import get_data_sources_for_company  # noqa: E402
 except Exception:  # pragma: no cover
@@ -1237,8 +1245,15 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
         drawer_note = 'Sistema de gestión'
         drawer_support = 'Acceso simple a tus módulos habilitados, sin información de otros clientes.'
 
+    drawer = None
     if user_role == 'admin':
-        with ui.left_drawer(value=True, bordered=False).classes('p-4'):
+        # value=False + show-if-above: en pantallas >=768px Quasar fuerza el
+        # drawer visible (igual que antes), en pantallas chicas arranca
+        # cerrado y se maneja con el botón hamburguesa del header — antes
+        # quedaba forzado abierto (value=True) tapando todo el contenido en
+        # el celular, sin ninguna forma de cerrarlo.
+        drawer = ui.left_drawer(value=False, bordered=False).classes('p-4').props('breakpoint=768 show-if-above')
+        with drawer:
             with ui.column().classes('ideas-brand-card w-full'):
                 if logo:
                     ui.image(logo).classes('w-28 mb-3')
@@ -1246,13 +1261,18 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                 ui.label(drawer_note).classes('text-xs uppercase tracking-widest text-slate-500')
                 ui.separator().classes('my-3')
                 ui.label('Navegación').classes('text-[11px] uppercase tracking-[0.22em] text-slate-400')
+
+            def _go_to(route: str) -> None:
+                drawer.hide()  # no-op en desktop (show-if-above la fuerza visible); cierra en mobile
+                ui.navigate.to(route)
+
             for label, route, icon in nav_items:
-                ui.button(label, icon=icon, on_click=lambda r=route: ui.navigate.to(r)).props('flat align=left').classes('ideas-nav-btn')
+                ui.button(label, icon=icon, on_click=lambda r=route: _go_to(r)).props('flat align=left').classes('ideas-nav-btn')
             with ui.column().classes('ideas-brand-card w-full mt-4'):
                 ui.label('Board-ready').classes('text-[11px] uppercase tracking-[0.18em] text-slate-400')
                 ui.label(drawer_title).classes('text-slate-900 font-semibold mt-1')
                 ui.label(drawer_support).classes('text-sm text-slate-500 mt-1')
-            ui.button('Web institucional', icon='public', on_click=lambda: ui.navigate.to('/')).props('flat align=left').classes('ideas-nav-btn mt-2')
+            ui.button('Web institucional', icon='public', on_click=lambda: _go_to('/')).props('flat align=left').classes('ideas-nav-btn mt-2')
             if is_platform_authenticated():
                 ui.button('Salir', icon='logout', on_click=logout_platform).props('flat align=left color=negative').classes('ideas-nav-btn')
 
@@ -1971,8 +1991,10 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                 ui.button(icon='refresh', on_click=reset_conversation).props('flat round dense').classes('text-slate-600')
             render_ai_workspace_view('')
     with ui.header().classes('ideas-topbar'):
-        with ui.row().classes('w-full items-center justify-between px-4'):
+        with ui.row().classes('w-full items-center justify-between px-4 flex-wrap'):
             with ui.row().classes('items-center gap-3'):
+                if drawer is not None:
+                    ui.button(icon='menu', on_click=drawer.toggle).props('flat round dense').classes('text-slate-600')
                 if back_route:
                     ui.button(
                         icon='arrow_back',
@@ -1994,7 +2016,7 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                     with ui.column().classes('gap-0'):
                         ui.label('IDEAS Consulting V2').classes('text-slate-900 font-bold')
                         ui.label(page_title).classes('text-sm text-slate-500')
-            with ui.row().classes('items-center gap-2'):
+            with ui.row().classes('items-center gap-2 flex-wrap justify-end'):
                 smart_button = ui.button(assistant_name, icon='auto_awesome', on_click=_toggle_drawer).props('flat dense').classes('text-blue-700 font-bold')
                 if not ai_enabled_session:
                     smart_button.disable()
@@ -2198,6 +2220,10 @@ def set_selection(empresa_id: int | None, diagnostico_id: int | None = None) -> 
 
     app.storage.user['current_empresa_id'] = empresa_id
     app.storage.user['current_diag_id'] = diag_id
+    # management_company_id es el selector "libre" de empresa dentro de cada
+    # módulo; se mantiene alineado con la selección oficial para que ambos
+    # nunca queden apuntando a empresas distintas.
+    app.storage.user['management_company_id'] = empresa_id
 
 
 def start_edit(diagnostico_id: int, duplicate: bool = False) -> None:
@@ -2899,7 +2925,7 @@ if not INSTITUTIONAL_ONLY:
         'eliminar_sst_capacitacion': eliminar_sst_capacitacion,
     })
     register_quality_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'valor_afirmativo': valor_afirmativo, 'fix_text': fix_text, 'obtener_problemas_calidad_empresa': obtener_problemas_calidad_empresa, 'obtener_problema_calidad_detalle': obtener_problema_calidad_detalle, 'crear_problema_calidad_8d': crear_problema_calidad_8d, 'actualizar_problema_calidad_8d': actualizar_problema_calidad_8d, 'eliminar_problema_calidad_8d': eliminar_problema_calidad_8d, 'obtener_5_porque_problema_calidad': obtener_5_porque_problema_calidad, 'guardar_5_porque_problema_calidad': guardar_5_porque_problema_calidad, 'obtener_ishikawa_problema_calidad': obtener_ishikawa_problema_calidad, 'guardar_ishikawa_problema_calidad': guardar_ishikawa_problema_calidad, 'obtener_acciones_8d': obtener_acciones_8d, 'guardar_accion_8d': guardar_accion_8d, 'eliminar_accion_8d': eliminar_accion_8d, 'generar_reporte_8d': generar_reporte_8d, 'generar_pdf_8d': generar_pdf_8d, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'sugerir_causas_ishikawa': sugerir_causas_ishikawa_guarded, 'set_ai_focus_context': set_ai_focus_context})
-    register_users_module(ui, {'app': app, 'ensure_platform_access': ensure_platform_access, 'shell': shell, 'fix_text': fix_text, 'obtener_usuarios': obtener_usuarios, 'crear_usuario': guarded_crear_usuario, 'actualizar_usuario': guarded_actualizar_usuario, 'eliminar_usuario': guarded_eliminar_usuario, 'obtener_empresas': obtener_empresas, 'list_modules_catalog': list_modules_catalog, 'get_available_modules_for_company': get_available_modules_for_company, 'get_enabled_modules_for_user': get_enabled_modules_for_user, 'assign_modules_to_user': assign_modules_to_user})
+    register_users_module(ui, {'app': app, 'ensure_platform_access': ensure_platform_access, 'shell': shell, 'fix_text': fix_text, 'obtener_usuarios': obtener_usuarios, 'crear_usuario': guarded_crear_usuario, 'actualizar_usuario': guarded_actualizar_usuario, 'eliminar_usuario': guarded_eliminar_usuario, 'obtener_empresas': obtener_empresas, 'list_modules_catalog': list_modules_catalog, 'get_available_modules_for_company': get_available_modules_for_company, 'get_enabled_modules_for_user': get_enabled_modules_for_user, 'assign_modules_to_user': assign_modules_to_user, 'guardar_legal_matrix_delete_password': guardar_legal_matrix_delete_password, 'tiene_legal_matrix_password_personalizada': tiene_legal_matrix_password_personalizada, 'obtener_legal_matrix_alert_settings': obtener_legal_matrix_alert_settings, 'guardar_legal_matrix_alert_settings': guardar_legal_matrix_alert_settings})
     register_lab_module(ui, {
         'ensure_platform_access': ensure_platform_access,
         'shell': shell,
@@ -2978,6 +3004,7 @@ render_port = os.getenv('PORT')
 run_port = int(render_port) if render_port else 8502
 run_host = '0.0.0.0'
 start_lab_ai_scheduler()
+start_legal_matrix_alert_scheduler()
 
 ui.run(
     title='IDEAS Consulting V2',
