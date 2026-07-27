@@ -6,3 +6,14 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python nicegui_v2/app.py
     autoDeploy: false
+
+  - type: web
+    name: ideas-mobile-legal-matrix
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python mobile_legal_matrix/app.py
+    autoDeploy: false
+    envVars:
+      - key: MOBILE_LEGAL_MATRIX_STORAGE_SECRET
+        generateValue: true
