@@ -266,6 +266,10 @@ from modules_legal_matrix import (  # noqa: E402
     obtener_legal_matrix_alert_settings,
     guardar_legal_matrix_alert_settings,
 )
+from modules_legal_curation import (  # noqa: E402
+    go_to_legal_curation_module,
+    register_legal_curation_module,
+)
 from modules_quality import (  # noqa: E402
     go_to_quality_module,
     register_quality_module,
@@ -278,6 +282,7 @@ from modules_users import go_to_users_module, register_users_module  # noqa: E40
 from modules_lab import go_to_lab_module, register_lab_module  # noqa: E402
 from services.lab_ai_scheduler import start_lab_ai_scheduler  # noqa: E402
 from services.legal_matrix_alert_scheduler import start_legal_matrix_alert_scheduler  # noqa: E402
+from services.legal_curation_scheduler import start_legal_curation_scheduler  # noqa: E402
 try:
     from services.dashboard.dashboard_service import get_data_sources_for_company  # noqa: E402
 except Exception:  # pragma: no cover
@@ -1231,6 +1236,7 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
             ('Resultados', '/resultados', 'analytics'),
             ('Historial', '/historial', 'history'),
             ('Usuarios', '/sistema-gestion/usuarios', 'manage_accounts'),
+            ('Curación Normativa', '/sistema-gestion/curacion-normativa', 'fact_check'),
             ('Smart IdeAs Admin', '/sistema-gestion/smart-ideas-admin', 'tune'),
         ]
         drawer_title = 'Panel IDEAS'
@@ -2910,6 +2916,7 @@ if not INSTITUTIONAL_ONLY:
     register_risks_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_matrices_riesgos_empresa': obtener_matrices_riesgos_empresa, 'obtener_matriz_riesgos_detalle': obtener_matriz_riesgos_detalle, 'obtener_items_riesgos_matriz': obtener_items_riesgos_matriz, 'crear_matriz_riesgos': crear_matriz_riesgos, 'actualizar_matriz_riesgos': actualizar_matriz_riesgos, 'eliminar_matriz_riesgos': eliminar_matriz_riesgos, 'crear_item_riesgo': crear_item_riesgo, 'actualizar_item_riesgo': actualizar_item_riesgo, 'eliminar_item_riesgo': eliminar_item_riesgo, 'set_ai_focus_context': set_ai_focus_context})
     register_environment_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_aspectos_ambientales_empresa': obtener_aspectos_ambientales_empresa, 'crear_aspecto_ambiental': crear_aspecto_ambiental, 'actualizar_aspecto_ambiental': actualizar_aspecto_ambiental, 'eliminar_aspecto_ambiental': eliminar_aspecto_ambiental, 'obtener_requisitos_legales_ambientales_empresa': obtener_requisitos_legales_ambientales_empresa, 'crear_requisito_legal_ambiental': crear_requisito_legal_ambiental, 'actualizar_requisito_legal_ambiental': actualizar_requisito_legal_ambiental, 'eliminar_requisito_legal_ambiental': eliminar_requisito_legal_ambiental, 'obtener_simulacros_ambientales_empresa': obtener_simulacros_ambientales_empresa, 'crear_simulacro_ambiental': crear_simulacro_ambiental, 'actualizar_simulacro_ambiental': actualizar_simulacro_ambiental, 'eliminar_simulacro_ambiental': eliminar_simulacro_ambiental, 'obtener_ambiental_capacitaciones_empresa': obtener_ambiental_capacitaciones_empresa, 'crear_ambiental_capacitacion': crear_ambiental_capacitacion, 'actualizar_ambiental_capacitacion': actualizar_ambiental_capacitacion, 'eliminar_ambiental_capacitacion': eliminar_ambiental_capacitacion, 'sugerir_matriz_legal_ia': sugerir_matriz_legal_ia_guarded, 'generar_reporte_simulacro': generar_reporte_simulacro, 'set_ai_focus_context': set_ai_focus_context})
     register_legal_matrix_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle})
+    register_legal_curation_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'fix_text': fix_text})
     register_sst_module(ui, {
         'ensure_platform_access': ensure_platform_access,
         'shell': shell,
@@ -3005,6 +3012,7 @@ run_port = int(render_port) if render_port else 8502
 run_host = '0.0.0.0'
 start_lab_ai_scheduler()
 start_legal_matrix_alert_scheduler()
+start_legal_curation_scheduler()
 
 ui.run(
     title='IDEAS Consulting V2',
