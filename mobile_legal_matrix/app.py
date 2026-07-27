@@ -264,9 +264,9 @@ def login_page() -> None:
 
                 def _face_id() -> None:
                     ui.notify(
-                        'Face ID necesita una conexión segura (HTTPS). Vas a poder activarlo cuando la '
-                        'app esté desplegada así — por ahora ingresá con usuario y contraseña.',
-                        type='warning', timeout=6000,
+                        'Face ID todavía no está activado en esta versión — por ahora ingresá con '
+                        'usuario y contraseña.',
+                        type='warning', timeout=5000,
                     )
                 ui.button('Ingresar con Face ID', icon='o_fingerprint', on_click=_face_id).props(
                     'outline no-caps'
