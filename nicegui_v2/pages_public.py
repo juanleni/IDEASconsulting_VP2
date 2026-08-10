@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ideas_utils import enviar_correo_cotizacion
+from ideas_utils import enviar_correo_cotizacion, ideus_wordmark_html
 
 
 def register_public_pages(ui, deps: dict) -> None:
@@ -165,6 +165,37 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-public-brand .name { color: #f8fafc !important; }
             .ideas-public-brand .tag { color: #a3a3a3 !important; }
+            .ideus-wordmark {
+                --brand-font-size-primary: 1.05rem;
+                --brand-color: #f8fafc;
+                --brand-color-secondary: rgba(255, 255, 255, .56);
+                display: flex;
+                flex-direction: column;
+                line-height: 1.08;
+                gap: .22em;
+            }
+            .ideus-wordmark .ideus-wordmark-name {
+                font-weight: 500;
+                letter-spacing: .1em;
+                color: var(--brand-color) !important;
+                font-size: var(--brand-font-size-primary);
+                white-space: nowrap;
+            }
+            .ideus-wordmark .ideus-wordmark-by {
+                font-weight: 700;
+                letter-spacing: .12em;
+                text-transform: uppercase;
+                color: var(--brand-color-secondary) !important;
+                font-size: max(calc(var(--brand-font-size-primary) * .3), 8px);
+                white-space: nowrap;
+            }
+            .ideus-wordmark--on-dark { --brand-color: #f8fafc; --brand-color-secondary: rgba(255, 255, 255, .56); }
+            .ideus-wordmark--topbar { --brand-font-size-primary: 1.08rem; }
+            .ideus-wordmark--login { --brand-font-size-primary: 1.55rem; }
+            .ideus-wordmark--hero {
+                --brand-font-size-primary: clamp(2.4rem, 5.4vw, 3.6rem);
+                margin: 6px 0 2px;
+            }
             .ideas-public-login-link {
                 background: #d6df00 !important;
                 border-color: #d6df00 !important;
@@ -716,6 +747,249 @@ def register_public_pages(ui, deps: dict) -> None:
                 border-radius: 2px !important;
                 background: rgba(37, 211, 102, .14) !important;
             }
+            .ideas-saas-stats-row {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 20px;
+                padding: 36px 0;
+                margin-top: 6px;
+                border-top: 1px solid rgba(255, 255, 255, .08);
+                border-bottom: 1px solid rgba(255, 255, 255, .08);
+            }
+            .ideas-saas-stat {
+                text-align: center;
+                padding: 0 8px;
+            }
+            .ideas-saas-stat strong {
+                display: block;
+                color: #ffffff;
+                font-size: clamp(1.9rem, 2.6vw, 2.4rem);
+                font-weight: 900;
+                line-height: 1;
+            }
+            .ideas-saas-stat span {
+                display: block;
+                margin-top: 9px;
+                color: rgba(255, 255, 255, .62);
+                font-size: .84rem;
+                line-height: 1.45;
+            }
+            .ideas-module-directory {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 10px;
+                padding: 8px 0 4px;
+            }
+            .ideas-module-chip {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 9px 16px;
+                background: #262626;
+                border: 1px solid rgba(255, 255, 255, .1);
+                color: rgba(255, 255, 255, .82);
+                font-size: .84rem;
+                font-weight: 700;
+                text-decoration: none;
+            }
+            .ideas-module-chip .material-icons {
+                font-size: 1.05rem;
+                color: #d6df00;
+            }
+            .ideas-module-detail {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                gap: 52px;
+                align-items: center;
+                padding: 58px 0;
+                border-top: 1px solid rgba(255, 255, 255, .06);
+                scroll-margin-top: 100px;
+            }
+            .ideas-module-detail.reverse .ideas-module-visual {
+                order: -1;
+            }
+            .ideas-module-copy .index {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                color: rgba(255, 255, 255, .48);
+                font-size: .8rem;
+                font-weight: 900;
+                letter-spacing: .06em;
+                text-transform: uppercase;
+            }
+            .ideas-module-copy .index .material-icons {
+                font-size: 1.25rem;
+                color: #d6df00;
+            }
+            .ideas-module-copy h3 {
+                margin: 14px 0 12px;
+                color: #ffffff;
+                font-size: clamp(1.55rem, 2.3vw, 2.15rem);
+                font-weight: 900;
+                line-height: 1.12;
+            }
+            .ideas-module-copy p {
+                margin: 0 0 20px;
+                color: rgba(255, 255, 255, .68);
+                line-height: 1.72;
+            }
+            .ideas-module-features {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .ideas-module-feature {
+                display: flex;
+                align-items: flex-start;
+                gap: 10px;
+                color: rgba(255, 255, 255, .8);
+                font-size: .94rem;
+                line-height: 1.5;
+            }
+            .ideas-module-feature .check {
+                flex: 0 0 auto;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 20px;
+                height: 20px;
+                margin-top: 1px;
+                background: rgba(214, 223, 0, .16);
+                color: #d6df00;
+                font-size: .74rem;
+                font-weight: 900;
+            }
+            .ideas-mockup {
+                border: 1px solid rgba(255, 255, 255, .1);
+                background: #1c1c1c;
+                overflow: hidden;
+            }
+            .ideas-mockup-bar {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 11px 14px;
+                background: #242424;
+                border-bottom: 1px solid rgba(255, 255, 255, .08);
+            }
+            .ideas-mockup-bar i {
+                width: 9px;
+                height: 9px;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, .16);
+                display: inline-block;
+            }
+            .ideas-mockup-bar span {
+                margin-left: 8px;
+                color: rgba(255, 255, 255, .38);
+                font-size: .72rem;
+                font-weight: 700;
+            }
+            .ideas-mockup-body {
+                padding: 22px;
+                min-height: 230px;
+            }
+            .ideas-mockup-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                padding: 12px 14px;
+                margin-bottom: 9px;
+                background: #262626;
+                border-left: 3px solid var(--accent, #d6df00);
+                font-size: .82rem;
+                color: rgba(255, 255, 255, .82);
+            }
+            .ideas-mockup-row .tag2 {
+                padding: 3px 9px;
+                font-size: .64rem;
+                font-weight: 800;
+                letter-spacing: .02em;
+                text-transform: uppercase;
+            }
+            .tag2.ok { background: rgba(74, 222, 128, .16); color: #4ade80; }
+            .tag2.warn { background: rgba(250, 204, 21, .16); color: #facc15; }
+            .tag2.danger { background: rgba(248, 113, 113, .16); color: #f87171; }
+            .ideas-mockup-chart {
+                display: flex;
+                align-items: flex-end;
+                gap: 14px;
+                height: 175px;
+            }
+            .ideas-mockup-chart .col {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-end;
+                height: 100%;
+                gap: 8px;
+            }
+            .ideas-mockup-chart .col .bar {
+                width: 100%;
+                background: linear-gradient(180deg, var(--accent, #d6df00), rgba(214, 223, 0, .22));
+            }
+            .ideas-mockup-chart .col span {
+                font-size: .68rem;
+                color: rgba(255, 255, 255, .55);
+                text-align: center;
+            }
+            .ideas-mockup-flow {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 10px;
+            }
+            .ideas-mockup-node {
+                padding: 13px 16px;
+                background: #262626;
+                border: 1px solid rgba(255, 255, 255, .14);
+                border-top: 3px solid var(--accent, #d6df00);
+                font-size: .78rem;
+                color: #fff;
+                font-weight: 700;
+            }
+            .ideas-mockup-arrow {
+                color: rgba(255, 255, 255, .28);
+                font-size: 1.2rem;
+            }
+            .ideas-mockup-check {
+                display: flex;
+                align-items: center;
+                gap: 11px;
+                padding: 10px 0;
+                border-bottom: 1px solid rgba(255, 255, 255, .06);
+                font-size: .85rem;
+                color: rgba(255, 255, 255, .82);
+            }
+            .ideas-mockup-check:last-child { border-bottom: 0; }
+            .ideas-mockup-flow-center {
+                display: flex;
+                align-items: center;
+                min-height: 150px;
+            }
+            .ideas-mockup-caption {
+                margin: 20px 0 0;
+                text-align: center;
+                color: rgba(255, 255, 255, .48);
+                font-size: .78rem;
+            }
+            .ideas-mockup-check .dot {
+                flex: 0 0 auto;
+                width: 21px;
+                height: 21px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(74, 222, 128, .16);
+                color: #4ade80;
+                font-size: .76rem;
+                font-weight: 900;
+            }
             @media (max-width: 980px) {
                 .ideas-public-nav {
                     grid-template-columns: 1fr !important;
@@ -739,6 +1013,12 @@ def register_public_pages(ui, deps: dict) -> None:
                 }
                 .ideas-public-brand .tag {
                     font-size: .78rem !important;
+                }
+                .ideus-wordmark--topbar {
+                    --brand-font-size-primary: .94rem !important;
+                }
+                .ideus-wordmark--hero {
+                    --brand-font-size-primary: clamp(1.9rem, 9vw, 2.6rem) !important;
                 }
                 .ideas-public-actions {
                     width: 100% !important;
@@ -766,7 +1046,8 @@ def register_public_pages(ui, deps: dict) -> None:
                 .ideas-saas-feature,
                 .ideas-saas-grid,
                 .ideas-saas-proof,
-                .ideas-saas-bullets {
+                .ideas-saas-bullets,
+                .ideas-module-detail {
                     grid-template-columns: 1fr !important;
                 }
                 .ideas-process,
@@ -774,6 +1055,17 @@ def register_public_pages(ui, deps: dict) -> None:
                 .ideas-visual-card,
                 .ideas-wide-stats {
                     grid-template-columns: 1fr !important;
+                }
+                .ideas-saas-stats-row {
+                    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                    gap: 20px 14px !important;
+                }
+                .ideas-module-detail.reverse .ideas-module-visual {
+                    order: 0 !important;
+                }
+                .ideas-module-detail {
+                    padding: 40px 0 !important;
+                    gap: 24px !important;
                 }
                 .ideas-stage {
                     gap: 24px !important;
@@ -916,10 +1208,45 @@ def register_public_pages(ui, deps: dict) -> None:
             ui.icon(icon).classes('icon')
             ui.html(f'<h3>{title}</h3><p>{text}</p>')
 
-    def saas_card(icon: str, title: str, text: str) -> None:
-        with ui.card().classes('ideas-dark-card ideas-saas-card shadow-lg hover:shadow-2xl'):
+    def saas_card(icon: str, title: str, text: str, anchor: str = '') -> None:
+        classes = 'ideas-dark-card ideas-saas-card shadow-lg hover:shadow-2xl'
+        with ui.card().classes(classes).props(f'id={anchor}' if anchor else ''):
             ui.icon(icon).classes('icon')
             ui.html(f'<h3>{title}</h3><p>{text}</p>')
+
+    def mockup_shell(label: str, body_html: str) -> str:
+        return (
+            '<div class="ideas-mockup">'
+            f'<div class="ideas-mockup-bar"><i></i><i></i><i></i><span>{label}</span></div>'
+            f'<div class="ideas-mockup-body">{body_html}</div>'
+            '</div>'
+        )
+
+    def mockup_flow(nodes: list[str]) -> str:
+        parts = []
+        for index, node in enumerate(nodes):
+            if index:
+                parts.append('<span class="ideas-mockup-arrow">&rarr;</span>')
+            parts.append(f'<div class="ideas-mockup-node">{node}</div>')
+        return f'<div class="ideas-mockup-flow">{"".join(parts)}</div>'
+
+    def mockup_rows(rows: list[tuple[str, str, str]]) -> str:
+        parts = [
+            f'<div class="ideas-mockup-row"><span>{label}</span><span class="tag2 {tag_class}">{tag_text}</span></div>'
+            for label, tag_text, tag_class in rows
+        ]
+        return ''.join(parts)
+
+    def mockup_chart(bars: list[tuple[int, str]]) -> str:
+        parts = [
+            f'<div class="col"><div class="bar" style="height:{height}%"></div><span>{label}</span></div>'
+            for height, label in bars
+        ]
+        return f'<div class="ideas-mockup-chart">{"".join(parts)}</div>'
+
+    def mockup_check(items: list[str]) -> str:
+        parts = [f'<div class="ideas-mockup-check"><span class="dot">&#10003;</span><span>{item}</span></div>' for item in items]
+        return ''.join(parts)
 
     def render_platform_saas_content() -> None:
         modules = [
@@ -955,13 +1282,120 @@ def register_public_pages(ui, deps: dict) -> None:
             ),
         ]
 
+        stats = [
+            ('-70%', 'Menos tiempo buscando información dispersa en planillas y correos'),
+            ('100%', 'Trazabilidad de acciones, responsables y vencimientos'),
+            ('6', 'Módulos conectados dentro de un mismo workspace'),
+            ('24/7', 'Asistencia con Smart Assist entrenado en tu empresa'),
+        ]
+
+        module_details = [
+            (
+                'account_tree',
+                'Mapas de Procesos Dinámicos',
+                'Modelá cada proceso con sus entradas, salidas, responsables y controles clave, y entendé de un vistazo cómo se conecta con riesgos, documentos e indicadores.',
+                [
+                    'Diagramas interactivos por proceso y por área',
+                    'Responsables, entradas, salidas y controles asociados',
+                    'Vinculación directa con riesgos y documentos relacionados',
+                ],
+                mockup_shell(
+                    'Mapa de Procesos · Planta 1',
+                    f'<div class="ideas-mockup-flow-center">{mockup_flow(["Compras", "Producción", "Calidad", "Despacho"])}</div>'
+                    '<p class="ideas-mockup-caption">4 procesos vinculados con sus riesgos y documentos asociados</p>',
+                ),
+            ),
+            (
+                'warning',
+                'Matrices de Riesgos Inteligentes',
+                'Evaluá riesgos por proceso, probabilidad e impacto, priorizando qué atender primero con trazabilidad completa de cada plan de acción.',
+                [
+                    'Matriz probabilidad x impacto con priorización automática',
+                    'Planes de acción con responsable y fecha límite',
+                    'Alertas cuando un riesgo crítico queda sin tratamiento',
+                ],
+                mockup_shell('Matriz de Riesgos · Vigente', mockup_rows([
+                    ('Corte en prensa hidráulica', 'Alto', 'danger'),
+                    ('Falta de EPP en línea 2', 'Medio', 'warn'),
+                    ('Fuga menor de aceite', 'Bajo', 'ok'),
+                    ('Capacitación vencida - Soldadura', 'Medio', 'warn'),
+                ])),
+            ),
+            (
+                'eco',
+                'Medio Ambiente y SST',
+                'Centralizá aspectos ambientales, requisitos legales, simulacros, incidentes y controles de seguridad y salud ocupacional en un mismo lugar.',
+                [
+                    'Requisitos legales ambientales y de seguridad al día',
+                    'Registro de incidentes, hallazgos y simulacros',
+                    'Seguimiento de vencimientos normativos con alertas',
+                ],
+                mockup_shell('Cumplimiento Legal · SST', mockup_check([
+                    'Matriz legal ambiental actualizada',
+                    'Simulacro de incendio realizado',
+                    'Capacitación en alturas vigente',
+                    'Elementos de protección auditados',
+                ])),
+            ),
+            (
+                'dashboard',
+                'Dashboards y KPIs',
+                'Convertí datos operativos en indicadores claros, alertas y tableros ejecutivos para seguir desempeño, tendencias y desvíos en tiempo real.',
+                [
+                    'Indicadores por proceso, área y objetivo estratégico',
+                    'Tendencias, desvíos y semáforos automáticos',
+                    'Reportes ejecutivos listos para compartir',
+                ],
+                mockup_shell('Dashboard Ejecutivo · KPIs', mockup_chart([
+                    (72, 'OEE'), (91, 'Calidad'), (58, 'Entregas'), (84, 'SST'),
+                ])),
+            ),
+            (
+                'library_books',
+                'Gestión Documental Activa',
+                'Organizá normas, procedimientos, registros y evidencias para que cada equipo trabaje siempre con información vigente y disponible.',
+                [
+                    'Control de versiones y vigencia de cada documento',
+                    'Acceso segmentado por rol y por empresa',
+                    'Búsqueda asistida por IA sobre el contenido vigente',
+                ],
+                mockup_shell('Gestión Documental · Vigencias', mockup_rows([
+                    ('Procedimiento de Calidad Rev.4', 'Vigente', 'ok'),
+                    ('Instructivo SST Línea 2', 'Vigente', 'ok'),
+                    ('Manual Ambiental Rev.2', 'Por revisar', 'warn'),
+                    ('Registro de Auditoría Interna', 'Vencido', 'danger'),
+                ])),
+            ),
+            (
+                'fact_check',
+                'Gestión de Calidad y Resolución',
+                'Gestioná no conformidades, problemas 8D, causas raíz, acciones correctivas y aprendizaje organizacional con seguimiento real.',
+                [
+                    'No conformidades, 8D y causa raíz en un solo flujo',
+                    'Acciones correctivas con seguimiento de cierre',
+                    'Historial de aprendizaje reutilizable entre equipos',
+                ],
+                mockup_shell('No Conformidades · Abiertas', mockup_rows([
+                    ('NC-014 Desvío dimensional', 'En análisis', 'warn'),
+                    ('NC-011 Reclamo de cliente', 'Acción definida', 'warn'),
+                    ('NC-009 Falla de proveedor', 'Cerrada', 'ok'),
+                    ('NC-016 Retrabajo en línea 3', 'Crítica', 'danger'),
+                ])),
+            ),
+        ]
+
         with ui.element('main').classes('ideas-public-home ideas-saas-page'):
             with ui.column().classes('w-full items-center text-center py-12 ideas-public-inner ideas-saas-hero'):
                 ui.html(
                     '<div class="ideas-kicker-dark">Plataforma SaaS</div>'
-                    '<h1>IDEAS Workspace: El Copiloto Inteligente para la Gestión Integral de tu Organización</h1>'
+                    + ideus_wordmark_html('hero', on_dark=True)
+                    + '<h1>El Copiloto Inteligente para la Gestión Integral de tu Organización</h1>'
                     '<p>Transforma la forma en que administras tu empresa con una plataforma SaaS agil, centralizada y potenciada por Inteligencia Artificial.</p>'
                 )
+
+            with ui.element('section').classes('ideas-public-inner ideas-saas-stats-row'):
+                for value, label in stats:
+                    ui.html(f'<div class="ideas-saas-stat"><strong>{value}</strong><span>{label}</span></div>')
 
             with ui.element('section').classes('w-full max-w-6xl mx-auto ideas-saas-proof'):
                 ui.html(
@@ -970,7 +1404,7 @@ def register_public_pages(ui, deps: dict) -> None:
                         <div class="ideas-kicker-dark">Por que elegirlo</div>
                         <h2>Una plataforma para dejar de perseguir informacion y empezar a dirigir con evidencia.</h2>
                         <p>
-                        IDEAS Workspace ordena el sistema de gestion completo: procesos, riesgos, documentos,
+                        IDEUS ordena el sistema de gestion completo: procesos, riesgos, documentos,
                         indicadores, calidad, ambiente, SST y acciones. Cada modulo trabaja conectado, con responsables,
                         vencimientos, trazabilidad y asistencia IA entrenada sobre el contexto real de la empresa.
                         </p>
@@ -986,9 +1420,34 @@ def register_public_pages(ui, deps: dict) -> None:
                     ]:
                         ui.html(f'<div class="ideas-saas-bullet"><strong>{title}</strong><span>{text}</span></div>')
 
+            with ui.element('div').classes('ideas-public-inner'):
+                ui.html(
+                    '<div class="ideas-module-directory">' + ''.join(
+                        f'<a class="ideas-module-chip" href="#modulo-{index}">'
+                        f'<span class="material-icons">{icon}</span>{title}</a>'
+                        for index, (icon, title, _text) in enumerate(modules)
+                    ) + '</div>'
+                )
+
             with ui.grid(columns=3).classes('w-full max-w-6xl gap-6 py-8 mx-auto ideas-saas-grid'):
                 for icon, title, text in modules:
                     saas_card(icon, title, text)
+
+            for index, (icon, title, text, features, mockup_html) in enumerate(module_details):
+                reverse_class = ' reverse' if index % 2 == 1 else ''
+                with ui.element('section').classes(f'ideas-public-inner ideas-module-detail{reverse_class}').props(f'id=modulo-{index}'):
+                    with ui.element('div').classes('ideas-module-copy'):
+                        ui.html(
+                            f'<div class="index"><span class="material-icons">{icon}</span>Módulo {index + 1:02d}</div>'
+                            f'<h3>{title}</h3>'
+                            f'<p>{text}</p>'
+                            '<div class="ideas-module-features">' + ''.join(
+                                f'<div class="ideas-module-feature"><span class="check">&#10003;</span><span>{feature}</span></div>'
+                                for feature in features
+                            ) + '</div>'
+                        )
+                    with ui.element('div').classes('ideas-module-visual'):
+                        ui.html(mockup_html)
 
             with ui.row().classes('w-full max-w-6xl justify-between py-12 mx-auto ideas-saas-feature'):
                 with ui.card().classes('ideas-dark-card shadow-lg'):
@@ -1215,12 +1674,12 @@ def register_public_pages(ui, deps: dict) -> None:
                                         '''
                                         <h3>Plataforma SaaS</h3>
                                         <p>
-                                        IDEAS Workspace es el sistema operativo de gestion para empresas que necesitan ordenar
+                                        IDEUS es el sistema operativo de gestion para empresas que necesitan ordenar
                                         procesos, documentos, riesgos, KPIs, calidad, ambiente y SST en un solo lugar. Integra
                                         trazabilidad, responsables, vencimientos y Smart Assist para transformar informacion
                                         dispersa en accion concreta.
                                         </p>
-                                        <div class="tag">Conocer IDEAS Workspace</div>
+                                        <div class="tag">Conocer IDEUS</div>
                                         '''
                                     )
                                 with ui.element('article').classes('bg-slate-800/80 border-2 border-blue-500/50 shadow-xl p-6 rounded-xl text-white cursor-pointer hover:bg-slate-700 transition-all').on('click', lambda _e: dialog_cotizacion.open()):

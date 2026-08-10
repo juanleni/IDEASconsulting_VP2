@@ -4,6 +4,8 @@ from datetime import datetime
 import httpx
 from sqlalchemy import select
 
+from ideas_utils import ideus_wordmark_html
+
 
 AUTH_API_BASE_URL = 'http://127.0.0.1:8000/api'
 
@@ -84,6 +86,7 @@ def register_platform_pages(ui, app, deps: dict) -> None:
         with shell_container:
             ui.html('<div class="ideas-public-section"><div class="ideas-kicker">Acceso seguro</div><h2>Recuperar contraseña</h2><p>Ingresa tu correo de contacto y te enviaremos un enlace para crear o recuperar tu contraseña.</p></div>')
             with ui.card().classes('ideas-public-card ideas-login-card'):
+                ui.html(ideus_wordmark_html('login', extra_class='ideus-login-wordmark'))
                 ui.html('<div class="ideas-login-title">Recuperación de acceso</div><div class="ideas-login-note">Si el correo existe, recibirás un enlace válido por 24 horas.</div>')
                 correo_input = ui.input('Correo electrónico').classes('w-full').props('outlined type=email')
 
@@ -114,6 +117,7 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                 return
 
             with ui.card().classes('ideas-public-card ideas-login-card'):
+                ui.html(ideus_wordmark_html('login', extra_class='ideus-login-wordmark'))
                 ui.html('<div class="ideas-login-title">Crear acceso</div><div class="ideas-login-note">Define usuario y contraseña para ingresar a la plataforma.</div>')
                 username_input = ui.input('Usuario').classes('w-full').props('outlined')
                 password_input = ui.input('Nueva contraseña', password=True, password_toggle_button=True).classes('w-full').props('outlined')
@@ -173,6 +177,7 @@ def register_platform_pages(ui, app, deps: dict) -> None:
         with shell_container:
             ui.html('<div class="ideas-public-section"><div class="ideas-kicker">Acceso seguro</div><h2>Portal de gestión</h2><p>Ingresa con tu usuario y contraseña para continuar a tu espacio de trabajo.</p></div>')
             with ui.card().classes('ideas-public-card ideas-login-card'):
+                ui.html(ideus_wordmark_html('login', extra_class='ideus-login-wordmark'))
                 ui.html('<div class="ideas-login-title">Iniciar sesión</div><div class="ideas-login-note">Acceso para usuarios autorizados. Una vez autenticado, podrás operar según tus permisos.</div>')
                 usuario = ui.input('Usuario').classes('w-full').props('outlined')
                 password = ui.input('Contrasena', password=True, password_toggle_button=True).classes('w-full').props('outlined')
@@ -401,74 +406,26 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                         ui.label('Entradas rápidas para la operación diaria del equipo IDEAS.').classes('ideas-section-note')
                     ui.badge('Modo interno', color='primary').classes('px-3 py-2')
 
-                with ui.grid(columns=4).classes('ideas-grid-3 w-full').style('margin-top:8px;'):
-                    shortcut_1 = ui.card().classes('ideas-module-card cursor-pointer')
-                    shortcut_1.on('click', lambda _e: ui.navigate.to('/empresas'))
-                    with shortcut_1:
-                        ui.html(
-                            '''
-                            <div class="ideas-module-top">
-                                <div class="ideas-module-icon"><span class="material-icons">business</span></div>
-                            </div>
-                            <div>
-                                <h3>Empresas</h3>
-                                <p>Administra el portfolio de clientes, logos, branding y datos institucionales.</p>
-                            </div>
-                            '''
-                        )
-                        with ui.row().classes('w-full justify-end mt-3'):
-                            ui.button('Ingresar', icon='open_in_new', on_click=lambda: ui.navigate.to('/empresas')).props('flat color=primary')
+                home_shortcuts = [
+                    ('Empresas', 'business', '/empresas'),
+                    ('Diagnóstico', 'assignment_add', '/diagnostico'),
+                    ('Workspace Ejecutivo', 'dashboard_customize', '/sistema-gestion'),
+                    ('Usuarios y Permisos', 'manage_accounts', '/sistema-gestion/usuarios'),
+                ]
+                with ui.tabs().classes('w-full mt-1 ideas-panel p-2 rounded-[24px]'):
+                    home_shortcut_tabs = {
+                        title: ui.tab(title, icon=icon).props('no-caps').classes('text-slate-700')
+                        for title, icon, _route in home_shortcuts
+                    }
 
-                    shortcut_2 = ui.card().classes('ideas-module-card cursor-pointer')
-                    shortcut_2.on('click', lambda _e: ui.navigate.to('/diagnostico'))
-                    with shortcut_2:
-                        ui.html(
-                            '''
-                            <div class="ideas-module-top">
-                                <div class="ideas-module-icon"><span class="material-icons">assignment_add</span></div>
-                            </div>
-                            <div>
-                                <h3>Diagnóstico</h3>
-                                <p>Inicia relevamientos, consolida respuestas y construye el corte ejecutivo.</p>
-                            </div>
-                            '''
-                        )
-                        with ui.row().classes('w-full justify-end mt-3'):
-                            ui.button('Ingresar', icon='open_in_new', on_click=lambda: ui.navigate.to('/diagnostico')).props('flat color=primary')
+                def _open_home_shortcut(title: str) -> None:
+                    for item_title, _icon, route in home_shortcuts:
+                        if item_title == title:
+                            ui.navigate.to(route)
+                            return
 
-                    shortcut_3 = ui.card().classes('ideas-module-card cursor-pointer')
-                    shortcut_3.on('click', lambda _e: ui.navigate.to('/sistema-gestion'))
-                    with shortcut_3:
-                        ui.html(
-                            '''
-                            <div class="ideas-module-top">
-                                <div class="ideas-module-icon"><span class="material-icons">dashboard_customize</span></div>
-                            </div>
-                            <div>
-                                <h3>Workspace Ejecutivo</h3>
-                                <p>Accede a los sistemas activos y módulos operativos de cada cliente.</p>
-                            </div>
-                            '''
-                        )
-                        with ui.row().classes('w-full justify-end mt-3'):
-                            ui.button('Ingresar', icon='open_in_new', on_click=lambda: ui.navigate.to('/sistema-gestion')).props('flat color=primary')
-
-                    shortcut_4 = ui.card().classes('ideas-module-card cursor-pointer')
-                    shortcut_4.on('click', lambda _e: ui.navigate.to('/sistema-gestion/usuarios'))
-                    with shortcut_4:
-                        ui.html(
-                            '''
-                            <div class="ideas-module-top">
-                                <div class="ideas-module-icon"><span class="material-icons">manage_accounts</span></div>
-                            </div>
-                            <div>
-                                <h3>Usuarios y Permisos</h3>
-                                <p>Gestioná perfiles, roles y accesos granulares del entorno multiempresa.</p>
-                            </div>
-                            '''
-                        )
-                        with ui.row().classes('w-full justify-end mt-3'):
-                            ui.button('Ingresar', icon='open_in_new', on_click=lambda: ui.navigate.to('/sistema-gestion/usuarios')).props('flat color=primary')
+                for title, tab_obj in home_shortcut_tabs.items():
+                    tab_obj.on('click', lambda _e, t=title: _open_home_shortcut(t))
 
                 with ui.card().classes('ideas-panel w-full').style('margin-top:24px;'):
                     ui.label('Alertas y Actividades Pendientes').classes('ideas-section-title')

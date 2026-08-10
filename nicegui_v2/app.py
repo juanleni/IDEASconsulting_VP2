@@ -225,6 +225,7 @@ from ideas_utils import (  # noqa: E402
     obtener_responsable_sugerido,
     enviar_correo_acceso,
     generar_token_seguro,
+    ideus_wordmark_html,
     obtener_color_contraste,
     valor_afirmativo,
 )
@@ -386,6 +387,26 @@ def inject_global_styles() -> None:
         .ideas-topbar-brand img { width:36px; height:36px; object-fit:contain; }
         .ideas-topbar-brand .brand-title { color:var(--ideas-navy); font-weight:800; line-height:1; }
         .ideas-topbar-brand .brand-subtitle { color:#64748b; font-size:.82rem; margin-top:.18rem; }
+        .ideus-wordmark {
+            --brand-font-size-primary: 1.05rem;
+            --brand-color: var(--ideas-navy);
+            --brand-color-secondary: #64748b;
+            display: flex; flex-direction: column; line-height: 1.08; gap: .22em;
+        }
+        .ideus-wordmark .ideus-wordmark-name {
+            font-weight: 500; letter-spacing: .1em; color: var(--brand-color);
+            font-size: var(--brand-font-size-primary); white-space: nowrap;
+        }
+        .ideus-wordmark .ideus-wordmark-by {
+            font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+            color: var(--brand-color-secondary);
+            font-size: max(calc(var(--brand-font-size-primary) * .3), 8px);
+            white-space: nowrap;
+        }
+        .ideus-wordmark--on-dark { --brand-color: #f8fafc; --brand-color-secondary: rgba(255,255,255,.56); }
+        .ideus-wordmark--topbar { --brand-font-size-primary: 1.08rem; }
+        .ideus-wordmark--login { --brand-font-size-primary: 1.55rem; }
+        .ideus-wordmark--hero { --brand-font-size-primary: clamp(2.2rem, 4.4vw, 3.1rem); }
         .ideas-hero-brand { display:flex; align-items:center; gap:1rem; margin-bottom:1rem; }
         .ideas-hero-brand img { width:68px; height:68px; object-fit:contain; filter:drop-shadow(0 12px 22px rgba(15,23,42,.10)); }
         .ideas-hero-brand .brand-name { color:var(--ideas-navy); font-size:1.05rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
@@ -488,6 +509,7 @@ def inject_global_styles() -> None:
         .ideas-public-section h2, .ideas-public-section p, .ideas-login-title, .ideas-login-note, .ideas-kicker, .ideas-chip, .ideas-quick-card .value, .ideas-quick-card .detail { word-break:normal; overflow-wrap:normal; hyphens:none; }
         .ideas-login-card { max-width:560px; margin-top:8px; padding:22px 24px; }
         .ideas-login-title { color:var(--ideas-navy); font-size:1.9rem; font-weight:700; letter-spacing:-.03em; margin:0 0 10px; }
+        .ideus-login-wordmark { margin-bottom:16px; }
         .ideas-login-note { color:#5b6878; line-height:1.8; margin-bottom:18px; }
         .nicegui-content, .q-page { padding:0 !important; }
         .q-drawer { background:radial-gradient(circle at top left, rgba(15,143,97,.09), transparent 28%), linear-gradient(180deg, rgba(249,252,251,.99) 0%, rgba(239,246,243,.99) 100%); border-right:1px solid var(--ideas-line); }
@@ -579,7 +601,7 @@ def inject_global_styles() -> None:
             .ideas-8d-dialog .q-dialog__inner { padding-right: 0; }
         }
         @media (max-width: 1100px) { .ideas-hero-card, .ideas-score-guide, .ideas-grid-2, .ideas-grid-3, .ideas-public-hero, .ideas-editorial-band, .ideas-feature-list, .ideas-module-grid { grid-template-columns:1fr; } .ideas-public-nav { grid-template-columns:1fr; align-items:flex-start; padding:16px 24px; left:0; transform:none; width:100%; } .ideas-public-actions { justify-self:start; justify-content:flex-start; } }
-        @media (max-width: 520px) { .ideas-public-shell { padding:0 16px 36px 16px; } .ideas-public-nav { padding:14px 18px; gap:14px; } .ideas-public-brand img { width:42px; height:42px; } .ideas-public-brand .name { font-size:1rem; } .ideas-public-brand .tag { font-size:.78rem; } .ideas-public-actions { width:100%; justify-content:space-between; gap:12px; } .ideas-public-login-link, .ideas-public-return-link { min-height:40px; padding:0 14px; } .ideas-whatsapp-link.topbar span:last-child { display:none; } .ideas-login-card { max-width:100%; padding:24px 20px; } .ideas-public-section h2 { font-size:1.8rem; } }
+        @media (max-width: 520px) { .ideas-public-shell { padding:0 16px 36px 16px; } .ideas-public-nav { padding:14px 18px; gap:14px; } .ideas-public-brand img { width:42px; height:42px; } .ideas-public-brand .name { font-size:1rem; } .ideas-public-brand .tag { font-size:.78rem; } .ideas-public-actions { width:100%; justify-content:space-between; gap:12px; } .ideas-public-login-link, .ideas-public-return-link { min-height:40px; padding:0 14px; } .ideas-whatsapp-link.topbar span:last-child { display:none; } .ideas-login-card { max-width:100%; padding:24px 20px; } .ideas-public-section h2 { font-size:1.8rem; } .ideus-wordmark--topbar { --brand-font-size-primary: .92rem; } .ideas-topbar-center { order:3; width:100%; justify-content:flex-start !important; margin-top:6px; } }
         </style>
         '''
     )
@@ -1225,6 +1247,8 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                 app.storage.user['logged_empresa_nombre'] = empresa_sesion
         except Exception:
             empresa_sesion = ''
+
+    ui.page_title(f'IDEUS | {page_title} · {empresa_sesion}' if empresa_sesion else f'IDEUS | {page_title}')
 
     if user_role == 'admin':
         nav_items = [
@@ -2012,16 +2036,17 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                         <div class="ideas-topbar-brand">
                             <img src="{logo}" alt="IDEAS logo" />
                             <div>
-                                <div class="brand-title">IDEAS Consulting</div>
-                                <div class="brand-subtitle">{page_title}</div>
+                                <div class="brand-subtitle">IDEUS &mdash; {page_title}</div>
                             </div>
                         </div>
                         '''
                     )
                 else:
                     with ui.column().classes('gap-0'):
-                        ui.label('IDEAS Consulting V2').classes('text-slate-900 font-bold')
+                        ui.label('IDEUS').classes('text-slate-900 font-bold')
                         ui.label(page_title).classes('text-sm text-slate-500')
+            with ui.row().classes('items-center justify-center flex-1 ideas-topbar-center'):
+                ui.html(ideus_wordmark_html('topbar'))
             with ui.row().classes('items-center gap-2 flex-wrap justify-end'):
                 smart_button = ui.button(assistant_name, icon='auto_awesome', on_click=_toggle_drawer).props('flat dense').classes('text-blue-700 font-bold')
                 if not ai_enabled_session:
@@ -2049,6 +2074,15 @@ def quick_card(label: str, value: str, detail: str) -> str:
 def public_shell(page_title: str):
     inject_global_styles()
     logo = get_logo_url()
+    ui.page_title(f'IDEUS | {page_title}')
+    ui.add_head_html(
+        f'''
+        <meta name="description" content="IDEUS, la plataforma de gestion inteligente desarrollada por IDEAS Consulting: procesos, riesgos, calidad, SST, documentos y KPIs en un solo workspace.">
+        <meta property="og:site_name" content="IDEUS">
+        <meta property="og:title" content="IDEUS | {page_title} — by IDEAS Consulting">
+        <meta property="og:description" content="La plataforma de gestion inteligente desarrollada por IDEAS Consulting.">
+        '''
+    )
     if page_title == 'Acceso':
         actions_html = '''
             <a class="ideas-public-return-link" href="/">
@@ -2086,11 +2120,8 @@ def public_shell(page_title: str):
             f'''
             <div class="ideas-public-nav">
                 <div class="ideas-public-brand">
-                    {f'<img src="{logo}" alt="IDEAS logo" />' if logo else ''}
-                    <div>
-                        <div class="name">IDEAS Consulting</div>
-                        <div class="tag">{page_title}</div>
-                    </div>
+                    {f'<img src="{logo}" alt="Isotipo de IDEAS Consulting" />' if logo else ''}
+                    {ideus_wordmark_html('topbar', on_dark=True)}
                 </div>
                 <div class="ideas-public-actions">
                     {actions_html}
@@ -2906,7 +2937,7 @@ def smart_ideas_admin_page():
                     ).classes('text-slate-600')
 
 
-register_public_pages(ui, {'public_shell': public_shell, 'get_banner_url': get_banner_url})
+register_public_pages(ui, {'public_shell': public_shell, 'get_banner_url': get_banner_url, 'ideus_wordmark_html': ideus_wordmark_html})
 
 if not INSTITUTIONAL_ONLY:
     register_management_page(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'fix_text': fix_text, 'quick_card': quick_card, 'render_metrics': render_metrics, 'certifications_summary': certifications_summary, 'set_selection': set_selection, 'obtener_color_contraste': obtener_color_contraste, 'go_to_documents_library': go_to_documents_library, 'go_to_company_documents_module': go_to_company_documents_module, 'go_to_process_maps_module': go_to_process_maps_module, 'go_to_kpi_module': go_to_kpi_module, 'go_to_risks_module': go_to_risks_module, 'go_to_environment_module': go_to_environment_module, 'go_to_legal_matrix_module': go_to_legal_matrix_module, 'go_to_quality_module': go_to_quality_module, 'go_to_sst_module': go_to_sst_module, 'go_to_users_module': go_to_users_module, 'go_to_lab_module': go_to_lab_module, 'can_access_module': can_access_module_code_for_current_user})
@@ -3005,7 +3036,7 @@ if not INSTITUTIONAL_ONLY:
         'get_enabled_modules_for_user': get_enabled_modules_for_user,
         'get_data_sources_for_company': get_data_sources_for_company,
     })
-    register_platform_pages(ui, app, {'public_shell': public_shell, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'get_banner_url': get_banner_url, 'get_logo_url': get_logo_url, 'quick_card': quick_card, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'obtener_alertas_globales': obtener_alertas_globales, 'verificar_usuario': verificar_usuario, 'verificar_login_empresa': verificar_login_empresa, 'guardar_token_empresa': guardar_token_empresa, 'verificar_token_empresa': verificar_token_empresa, 'actualizar_password_empresa': actualizar_password_empresa, 'provisionar_acceso_empresa': provisionar_acceso_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'set_selection': set_selection, 'PLATFORM_USER': PLATFORM_USER, 'PLATFORM_PASSWORD': PLATFORM_PASSWORD})
+    register_platform_pages(ui, app, {'public_shell': public_shell, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'get_banner_url': get_banner_url, 'get_logo_url': get_logo_url, 'quick_card': quick_card, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'obtener_alertas_globales': obtener_alertas_globales, 'verificar_usuario': verificar_usuario, 'verificar_login_empresa': verificar_login_empresa, 'guardar_token_empresa': guardar_token_empresa, 'verificar_token_empresa': verificar_token_empresa, 'actualizar_password_empresa': actualizar_password_empresa, 'provisionar_acceso_empresa': provisionar_acceso_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'set_selection': set_selection, 'PLATFORM_USER': PLATFORM_USER, 'PLATFORM_PASSWORD': PLATFORM_PASSWORD, 'ideus_wordmark_html': ideus_wordmark_html})
     register_diagnostic_pages(ui, app, {'pd': pd, 'go': go, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'guardar_empresa': guarded_guardar_empresa, 'actualizar_empresa': guarded_actualizar_empresa, 'eliminar_empresa': guarded_eliminar_empresa, 'guardar_fuente_empresa': guarded_guardar_fuente_empresa, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'eliminar_fuente': guarded_eliminar_fuente, 'guardar_token_empresa': guardar_token_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'go_to_management_workspace': go_to_management_workspace, 'set_selection': set_selection, 'leer_diagnostico_excel': leer_diagnostico_excel, 'grouped_questions': grouped_questions, 'load_criteria': load_criteria, 'company_options': company_options, 'current_selection': current_selection, 'diagnosis_record': diagnosis_record, 'diagnosis_response_dicts': diagnosis_response_dicts, 'split_evidence_values': split_evidence_values, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'actualizar_diagnostico': guarded_actualizar_diagnostico, 'guardar_diagnostico': guarded_guardar_diagnostico, 'obtener_nivel': obtener_nivel, 'obtener_conclusion': obtener_conclusion, 'diagnosis_rows': diagnosis_rows, 'diagnosis_badge_style': diagnosis_badge_style, 'diagnosis_options': diagnosis_options, 'build_eje_scores': build_eje_scores, 'build_plan': build_plan, 'short_axis_label': short_axis_label, 'obtener_mensaje_direccion': obtener_mensaje_direccion, 'quick_card': quick_card, 'obtener_prioridad_recomendada': obtener_prioridad_recomendada, 'start_edit': start_edit, 'render_metrics': render_metrics, 'eliminar_diagnostico': guarded_eliminar_diagnostico, 'generar_pdf_ejecutivo_v2': generar_pdf_ejecutivo_v2, 'get_available_modules_for_company': get_available_modules_for_company, 'assign_modules_to_company': assign_modules_to_company, 'sync_user_modules_after_company_change': sync_user_modules_after_company_change})
 render_port = os.getenv('PORT')
 run_port = int(render_port) if render_port else 8502
@@ -3015,7 +3046,7 @@ start_legal_matrix_alert_scheduler()
 start_legal_curation_scheduler()
 
 ui.run(
-    title='IDEAS Consulting V2',
+    title='IDEUS | IDEAS Consulting',
     favicon=FAVICON_ICO_PATH,
     host=run_host,
     port=run_port,

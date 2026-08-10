@@ -14,6 +14,7 @@ if str(THIS_DIR) not in sys.path:
     sys.path.append(str(THIS_DIR))
 
 from pages_public import register_public_pages  # noqa: E402
+from ideas_utils import ideus_wordmark_html  # noqa: E402
 
 app.add_static_files('/assets', str(ROOT))
 FAVICON_ICO_PATH = ROOT / 'favicon.ico'
@@ -31,17 +32,23 @@ def get_banner_url() -> str:
     return '/assets/logo.png'
 
 
-def public_shell(_page_title: str):
+def public_shell(page_title: str):
+    ui.page_title(f'IDEUS | {page_title}')
+    ui.add_head_html(
+        f'''
+        <meta name="description" content="IDEUS, la plataforma de gestion inteligente desarrollada por IDEAS Consulting: procesos, riesgos, calidad, SST, documentos y KPIs en un solo workspace.">
+        <meta property="og:site_name" content="IDEUS">
+        <meta property="og:title" content="IDEUS | {page_title} — by IDEAS Consulting">
+        <meta property="og:description" content="La plataforma de gestion inteligente desarrollada por IDEAS Consulting.">
+        '''
+    )
     with ui.header().classes('ideas-public-topbar'):
         ui.html(
-            '''
+            f'''
             <div class="ideas-public-nav">
                 <div class="ideas-public-brand">
-                    <img src="/assets/logo.png" alt="IDEAS logo" />
-                    <div>
-                        <div class="name">IDEAS Consulting</div>
-                        <div class="tag">Inicio</div>
-                    </div>
+                    <img src="/assets/logo.png" alt="Isotipo de IDEAS Consulting" />
+                    {ideus_wordmark_html('topbar', on_dark=True)}
                 </div>
                 <div class="ideas-public-actions">
                     <a class="ideas-whatsapp-link topbar" href="https://wa.me/541170068904" target="_blank" rel="noopener noreferrer">
@@ -61,13 +68,14 @@ register_public_pages(
         'public_shell': public_shell,
         'get_banner_url': get_banner_url,
         'platform_enabled': False,
+        'ideus_wordmark_html': ideus_wordmark_html,
     },
 )
 
 render_port = os.getenv('PORT')
 run_port = int(render_port) if render_port else 8502
 ui.run(
-    title='IDEAS Consulting',
+    title='IDEUS | IDEAS Consulting',
     favicon=FAVICON_ICO_PATH,
     host='0.0.0.0',
     port=run_port,

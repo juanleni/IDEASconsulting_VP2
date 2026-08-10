@@ -13,6 +13,27 @@ SMTP_USER = "ideasconsultingargentina@gmail.com"
 SMTP_PASSWORD = "ohvsamrfmbpumnbz"
 
 
+def ideus_wordmark_html(size: str = 'topbar', on_dark: bool = False, extra_class: str = '') -> str:
+    """Reusable IDEUS product wordmark: 'IDEUS' + 'BY IDEAS CONSULTING' byline.
+
+    Same proportion everywhere (byline ~30% of the name size) via the
+    --brand-font-size-primary / --brand-color* CSS tokens (see .ideus-wordmark
+    rules injected by inject_global_styles() in app.py and public_styles() in
+    pages_public.py).
+    """
+    classes = f'ideus-wordmark ideus-wordmark--{size}'
+    if on_dark:
+        classes += ' ideus-wordmark--on-dark'
+    if extra_class:
+        classes += f' {extra_class}'
+    return (
+        f'<div class="{classes}">'
+        '<div class="ideus-wordmark-name">IDEUS</div>'
+        '<div class="ideus-wordmark-by">by IDEAS Consulting</div>'
+        '</div>'
+    )
+
+
 def obtener_logo_path() -> str | None:
     candidatos = [
         "logo.png",
