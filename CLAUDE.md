@@ -7,7 +7,7 @@ Git no está en el PATH en esta máquina: usar `& "C:\Program Files\Git\cmd\git.
 
 ## Qué es esto
 
-Plataforma de consultoría (IDEAS Consulting) con un sitio público institucional y un sistema de gestión interno (actualmente en proceso de rebranding a **"IDEUS"**, posicionado como "by IDEAS Consulting") para clientes: Calidad/8D, Ambiente, SST, Riesgos, KPIs, Documentos, Laboratorio, Mapas de proceso y **Matriz Legal Digital** (el módulo con más desarrollo activo últimamente).
+Plataforma de consultoría. **IDEAS Consulting** es la consultora; **IDEUS** es el nombre del producto/plataforma en sí (sistema de gestión), mostrado como "IDEUS — by IDEAS Consulting". Sitio público institucional + sistema de gestión interno para clientes: Calidad/8D, Ambiente, SST, Riesgos, KPIs, Documentos, Laboratorio, Mapas de proceso y **Matriz Legal Digital** (el módulo con más desarrollo activo últimamente).
 
 ## Arquitectura — 3 frentes en paralelo
 
@@ -17,20 +17,25 @@ Plataforma de consultoría (IDEAS Consulting) con un sitio público instituciona
 
 ## Estado al 2026-08-10
 
-**Últimos 7 commits (2026-07-27)** — foco: Matriz Legal Digital.
+**Commits previos (2026-07-27)** — foco: Matriz Legal Digital.
 - App mobile con login real, evidencia, deploy en Render.
 - Shell responsive mobile en la plataforma principal.
 - Scheduler de alertas de vencimiento + template del dashboard.
 - **Panel de curación normativa** (`modules_legal_curation.py`, solo `IDEAS_ADMIN`): ingesta candidatos desde SAIJ, Boletín Oficial SRT (scraper) y SRT Digesto (API), a una tabla `normas_raw` para revisar/aprobar antes de que lleguen a la matriz de un cliente. El conector SRT Digesto saca su propio token de auth del endpoint público de SRT en cada corrida (sin credencial guardada). Verificado end-to-end con datos reales.
   **Gap conocido, no resuelto:** "aprobar" solo marca la norma como revisada en `normas_raw` — todavía no decide a qué empresa(s) se publica, porque ese mapeo empresa↔norma no está definido en ningún lado.
 
-**WIP sin commitear (lo que se venía trabajando en la última sesión):**
-Rebranding del sistema de gestión a **"IDEUS"** (wordmark "IDEUS" + "by IDEAS Consulting"). Toca `app.py`, `pages_public.py`, `institutional_app.py`, `ideas_utils.py` (nuevo helper reutilizable `ideus_wordmark_html()`) y todos los `modules_*.py` (probablemente solo por el título de página / imports, revisar diff antes de commitear). Además:
-- Panel nuevo en Usuarios (`modules_users.py`): contraseña de borrado total de la Matriz Legal + configuración de alertas por email, para `EMPRESA_ADMIN`.
-- `pages_public.py`: ~475 líneas nuevas, rediseño de secciones del sitio público (stats, hero, etc.).
-- Sin trackear todavía: `nicegui_v2/tests/` (tests del scheduler de alertas de Matriz Legal) y `nicegui_v2/Curacion Normas/` (prototipos fuente de los 3 conectores de curación normativa, ya integrados en `modules_legal_curation.py`).
+**Commits nuevos de esta sesión (2026-08-10), local en `main`, ya hechos pero todavía no pusheados a GitHub:**
+- `Rebrand management platform as IDEUS, by IDEAS Consulting` — helper reutilizable `ideus_wordmark_html()` en `ideas_utils.py`, aplicado en `app.py`, `institutional_app.py`, `pages_public.py`, `pages_platform.py` (topbar, login, sitio público, meta tags, page titles).
+- `Let IDEAS_ADMIN deep-link into a company's workspace/module via empresa_id` — los 8 `modules_*.py` + `pages_management.py` ahora leen `empresa_id` de la query string para `IDEAS_ADMIN`, y se sacó el bloqueo que le impedía a admin entrar a `/sistema-gestion`.
+- `Add Matriz Legal delete-password and email alert settings to Usuarios` — panel para `EMPRESA_ADMIN`: contraseña de borrado total de la matriz + alertas por email configurables.
+- `Add pytest suite for Matriz Legal and its alert scheduler` — `nicegui_v2/tests/` + `requirements-dev.txt`.
+- `Add legal-curation prototype sources for reference` — `nicegui_v2/Curacion Normas/` (fuentes originales de los 3 conectores, no se importan desde la app).
+- `Add CLAUDE.md project context` — este archivo.
 
-**Antes de seguir:** decidir si el rebranding a IDEUS se commitea tal cual o se sigue iterando — está a medio camino (mezcla cambios de branding con el panel de contraseña/alertas de Matriz Legal en los mismos archivos sin commitear).
+**Pendiente, no algo para "seguir trabajando" sino housekeeping:**
+- Pushear a GitHub (`git push`) y, si Render no auto-actualiza, Manual Deploy de `ideas-consulting-v2` en el dashboard.
+- `nicegui_v2/ideas.db` — archivo suelto sin trackear que no debería existir ahí (la app espera `ideas.db` solo en la raíz del repo). Sin confirmar aún si borrarlo.
+- `ideas.db` (raíz) tiene cambios sin commitear (datos de prueba locales, no código) — no se commiteó a propósito.
 
 ## Pendientes conocidos
 
