@@ -7,6 +7,7 @@ from pathlib import Path
 from nicegui import app, events, run, ui
 from dashboard_customizer import render_dashboard_customizer
 from knowledge_helpers import build_quality_brainstorm_lines, summarize_sources_for_context
+from company_context import empresa_id_from_query_for_admin, with_empresa_id
 
 
 UPLOAD_DIR = Path(__file__).resolve().parents[1] / 'uploads' / 'quality'
@@ -17,7 +18,7 @@ def go_to_quality_module(company_id: int | None = None, set_selection_fn=None) -
         app.storage.user['management_company_id'] = int(company_id)
         if set_selection_fn:
             set_selection_fn(int(company_id), None)
-    ui.navigate.to('/sistema-gestion/calidad')
+    ui.navigate.to(with_empresa_id('/sistema-gestion/calidad', company_id))
 
 
 def _extract_int(value) -> int | None:
@@ -1652,11 +1653,15 @@ def register_quality_module(ui, deps: dict) -> None:
 
         shell_container = shell('Gestion de calidad', back_route='/sistema-gestion', module_key='quality')
         company_map = company_options()
-        selected_company_id = app.storage.user.get('management_company_id') or current_selection()[0]
+        query_empresa_id = empresa_id_from_query_for_admin()
+        selected_company_id = query_empresa_id or app.storage.user.get('management_company_id') or current_selection()[0]
         try:
             selected_company_id = int(selected_company_id) if selected_company_id else None
         except Exception:
             selected_company_id = None
+        if query_empresa_id and selected_company_id:
+            app.storage.user['management_company_id'] = selected_company_id
+            set_selection(selected_company_id, None)
         if not selected_company_id and company_map:
             selected_company_id = next(iter(company_map.keys()))
             app.storage.user['management_company_id'] = selected_company_id
@@ -1677,7 +1682,7 @@ def register_quality_module(ui, deps: dict) -> None:
                     lambda _e: (
                         app.storage.user.__setitem__('management_company_id', int(company_select.value) if company_select.value else None),
                         set_selection(int(company_select.value), None) if company_select.value else None,
-                        ui.navigate.to('/sistema-gestion/calidad'),
+                        ui.navigate.to(with_empresa_id('/sistema-gestion/calidad', company_select.value)),
                     )
                 )
 

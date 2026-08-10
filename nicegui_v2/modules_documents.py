@@ -5,6 +5,7 @@ from pathlib import Path
 
 from nicegui import app, run, ui
 from knowledge_helpers import summarize_sources_for_context
+from company_context import empresa_id_from_query_for_admin, with_empresa_id
 
 
 DOCUMENT_STANDARDS = {
@@ -131,7 +132,7 @@ def go_to_company_documents_module(company_id: int | None = None, set_selection_
         app.storage.user['management_company_id'] = int(company_id)
         if set_selection_fn:
             set_selection_fn(int(company_id), None)
-    ui.navigate.to('/sistema-gestion/documentos/empresa')
+    ui.navigate.to(with_empresa_id('/sistema-gestion/documentos/empresa', company_id))
 
 
 def load_requirement_rows() -> list[dict]:
@@ -546,11 +547,15 @@ def register_documents_module(ui, deps: dict) -> None:
         if not ensure_platform_access():
             return
         company_map = company_options()
-        selected_company_id = app.storage.user.get('management_company_id') or current_selection()[0]
+        query_empresa_id = empresa_id_from_query_for_admin()
+        selected_company_id = query_empresa_id or app.storage.user.get('management_company_id') or current_selection()[0]
         try:
             selected_company_id = int(selected_company_id) if selected_company_id else None
         except Exception:
             selected_company_id = None
+        if query_empresa_id and selected_company_id:
+            app.storage.user['management_company_id'] = selected_company_id
+            set_selection(selected_company_id, None)
         if not selected_company_id and company_map:
             selected_company_id = next(iter(company_map.keys()))
             app.storage.user['management_company_id'] = selected_company_id
@@ -578,7 +583,7 @@ def register_documents_module(ui, deps: dict) -> None:
                         lambda _e: (
                             app.storage.user.__setitem__('management_company_id', int(company_select.value) if company_select.value else None),
                             set_selection(int(company_select.value), None) if company_select.value else None,
-                            ui.navigate.to('/sistema-gestion/documentos/empresa'),
+                            ui.navigate.to(with_empresa_id('/sistema-gestion/documentos/empresa', company_select.value)),
                         )
                     )
                 if selected_company:

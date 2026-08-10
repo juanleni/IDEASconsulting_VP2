@@ -11,6 +11,7 @@ import pandas as pd
 
 from nicegui import app, ui
 from dashboard_customizer import render_dashboard_customizer
+from company_context import empresa_id_from_query_for_admin, with_empresa_id
 
 
 LAB_SUBMODULES = [
@@ -37,7 +38,7 @@ def go_to_lab_module(company_id: int | None = None, set_selection_fn=None) -> No
         app.storage.user["management_company_id"] = int(company_id)
         if set_selection_fn:
             set_selection_fn(int(company_id), None)
-    ui.navigate.to("/sistema-gestion/lab-iso-17025")
+    ui.navigate.to(with_empresa_id("/sistema-gestion/lab-iso-17025", company_id))
 
 
 def _actor_name() -> str:
@@ -240,6 +241,10 @@ def register_lab_module(ui, deps: dict) -> None:
             return
         shell_container = shell("LAB ISO/IEC 17025", back_route="/sistema-gestion", module_key="lab_17025")
         empresa_id, _diag = current_selection()
+        query_empresa_id = empresa_id_from_query_for_admin()
+        if query_empresa_id and query_empresa_id != empresa_id:
+            empresa_id = query_empresa_id
+            set_selection(int(empresa_id), None)
         if not empresa_id:
             options = company_options()
             if options:

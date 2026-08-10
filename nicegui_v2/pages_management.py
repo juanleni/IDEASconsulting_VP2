@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from nicegui import app, ui
+from company_context import empresa_id_from_query_for_admin, with_empresa_id
 
 
 def latest_diagnosis_for_company(empresa_id: int | None, diagnosis_rows_fn) -> dict | None:
@@ -78,7 +79,7 @@ def go_to_management_workspace(empresa_id: int | None, set_selection_fn) -> None
     if empresa_id:
         app.storage.user['management_company_id'] = int(empresa_id)
         set_selection_fn(int(empresa_id), None)
-    ui.navigate.to('/sistema-gestion')
+    ui.navigate.to(with_empresa_id('/sistema-gestion', empresa_id))
 
 
 def sistemas_activos_para_empresa(selected_company: dict | None, permisos: str) -> dict[str, dict]:
@@ -140,11 +141,15 @@ def render_management_workspace_page(
     company_map = company_options_fn()
     session_role = str(app.storage.user.get('role') or '')
     forced_company_id = app.storage.user.get('logged_empresa_id') if session_role != 'admin' else None
-    selected_company_id = forced_company_id or app.storage.user.get('management_company_id') or current_selection_fn()[0]
+    query_empresa_id = empresa_id_from_query_for_admin()
+    selected_company_id = forced_company_id or query_empresa_id or app.storage.user.get('management_company_id') or current_selection_fn()[0]
     try:
         selected_company_id = int(selected_company_id) if selected_company_id else None
     except Exception:
         selected_company_id = None
+    if query_empresa_id and selected_company_id:
+        app.storage.user['management_company_id'] = selected_company_id
+        set_selection_fn(selected_company_id, None)
     if not selected_company_id and company_map:
         selected_company_id = next(iter(company_map.keys()))
         app.storage.user['management_company_id'] = selected_company_id
@@ -159,7 +164,7 @@ def render_management_workspace_page(
                 lambda _e: (
                     app.storage.user.__setitem__('management_company_id', int(company_select.value) if company_select.value else None),
                     set_selection_fn(int(company_select.value), None) if company_select.value else None,
-                    ui.navigate.to('/sistema-gestion'),
+                    ui.navigate.to(with_empresa_id('/sistema-gestion', company_select.value)),
                 )
             )
         elif company_map and selected_company_id:
@@ -206,7 +211,7 @@ def render_management_workspace_page(
             </div>
             '''
         ).classes('w-full').style('display:block;width:100%;margin:0;')
-        if session_role == 'empresa':
+        if session_role in ('empresa', 'admin'):
             all_module_cards = [
                 ('Documentos', 'description', 'documentos', go_to_company_documents_module_fn),
                 ('Mapas', 'alt_route', 'mapas-proceso', go_to_process_maps_module_fn),
@@ -499,10 +504,6 @@ def register_management_page(ui, deps: dict) -> None:
     @ui.page('/sistema-gestion')
     def management_workspace_page() -> None:
         if not ensure_platform_access():
-            return
-        if app.storage.user.get('role') == 'admin':
-            ui.notify('Acceso denegado: El workspace es exclusivo para cuentas de empresa.', type='negative')
-            ui.navigate.to('/dashboard')
             return
         render_management_workspace_page(
             shell_fn=deps['shell'],
