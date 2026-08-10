@@ -20,6 +20,10 @@ def register_users_module(ui, deps: dict) -> None:
     get_available_modules_for_company = deps.get('get_available_modules_for_company')
     get_enabled_modules_for_user = deps.get('get_enabled_modules_for_user')
     assign_modules_to_user = deps.get('assign_modules_to_user')
+    guardar_legal_matrix_delete_password = deps.get('guardar_legal_matrix_delete_password')
+    tiene_legal_matrix_password_personalizada = deps.get('tiene_legal_matrix_password_personalizada')
+    obtener_legal_matrix_alert_settings = deps.get('obtener_legal_matrix_alert_settings')
+    guardar_legal_matrix_alert_settings = deps.get('guardar_legal_matrix_alert_settings')
 
     modulos_opciones = {
         'cert_iso_9001': 'Sistema de Gestion de Calidad',
@@ -83,6 +87,63 @@ def register_users_module(ui, deps: dict) -> None:
                 ui.label('Administra usuarios globales y usuarios asociados a cada empresa-cliente.').classes('ideas-section-note mb-4')
             else:
                 ui.label(f"Administra solo usuarios de {_empresa_nombre(_empresa_id_sesion())}.").classes('ideas-section-note mb-4')
+
+            if (
+                user_rol == 'empresa'
+                and local_user_role == 'EMPRESA_ADMIN'
+                and callable(guardar_legal_matrix_delete_password)
+                and callable(tiene_legal_matrix_password_personalizada)
+                and _empresa_id_sesion()
+            ):
+                empresa_actual = _empresa_id_sesion()
+                password_personalizada = tiene_legal_matrix_password_personalizada(empresa_actual)
+                with ui.card().classes('ideas-panel w-full mb-4'):
+                    ui.label('Matriz Legal · Contraseña de borrado total').classes('ideas-section-title')
+                    estado_txt = 'Ya configuraste una contraseña personalizada.' if password_personalizada else 'Usando la contraseña por defecto (IDEAS).'
+                    ui.label(f'Se pide antes de eliminar TODA la matriz legal de tu empresa. {estado_txt}').classes('ideas-section-note')
+                    with ui.row().classes('w-full items-end gap-3 mt-2'):
+                        matrix_password_input = ui.input(
+                            'Nueva contraseña de borrado total',
+                            password=True,
+                            password_toggle_button=True,
+                        ).classes('flex-1').props('outlined dense hint="Dejá en blanco para conservar la actual"')
+
+                        def _guardar_password_matriz() -> None:
+                            nueva = str(matrix_password_input.value or '').strip()
+                            if not nueva:
+                                ui.notify('Ingresá una contraseña nueva para actualizarla.', type='warning')
+                                return
+                            guardar_legal_matrix_delete_password(empresa_actual, nueva)
+                            ui.notify('Contraseña actualizada.', type='positive')
+                            matrix_password_input.value = ''
+
+                        ui.button('Guardar', icon='save', on_click=_guardar_password_matriz).props('color=primary')
+
+            if (
+                user_rol == 'empresa'
+                and local_user_role == 'EMPRESA_ADMIN'
+                and callable(obtener_legal_matrix_alert_settings)
+                and callable(guardar_legal_matrix_alert_settings)
+                and _empresa_id_sesion()
+            ):
+                empresa_actual = _empresa_id_sesion()
+                alert_settings = obtener_legal_matrix_alert_settings(empresa_actual)
+                with ui.card().classes('ideas-panel w-full mb-4'):
+                    ui.label('Matriz Legal · Alertas por email').classes('ideas-section-title')
+                    ui.label('Aviso diario (08:00) por correo de normas vencidas o próximas a vencer, al contacto registrado de la empresa.').classes('ideas-section-note')
+                    with ui.row().classes('w-full items-end gap-3 mt-2'):
+                        alertas_switch = ui.switch('Activadas', value=alert_settings['activo'])
+                        dias_input = ui.number(
+                            'Días de anticipación', value=alert_settings['dias_anticipacion'], min=1, max=365,
+                        ).classes('w-48').props('outlined dense')
+
+                        def _guardar_alert_settings() -> None:
+                            guardar_legal_matrix_alert_settings(
+                                empresa_actual, bool(alertas_switch.value), int(dias_input.value or 30),
+                            )
+                            ui.notify('Preferencias de alertas actualizadas.', type='positive')
+
+                        ui.button('Guardar', icon='save', on_click=_guardar_alert_settings).props('color=primary')
 
             def _usuarios_visibles() -> list[dict]:
                 if user_rol == 'admin':
