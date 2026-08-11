@@ -78,7 +78,11 @@ def _inject_theme() -> None:
     <meta name="apple-mobile-web-app-title" content="Matriz Legal">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#0E3A53">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+      body, .nicegui-content { font-family: "Poppins", -apple-system, "Segoe UI", sans-serif !important; }
       body { background:#F2F2F7 !important; }
       .lm-card { border-radius:14px !important; box-shadow:0 1px 3px rgba(16,24,40,.05) !important; }
       .lm-tight .q-field__control { border-radius:12px !important; }
@@ -217,8 +221,9 @@ def login_page() -> None:
 
         with ui.column().classes('w-full flex-1 items-center px-6').style('padding-top:48px;'):
             ui.image(MARK_URL).classes('rounded-2xl').style('width:76px; height:76px; margin-bottom:14px;')
-            ui.label('IDEAS Consulting').classes('text-base font-medium').style('color:#1B2433;')
-            ui.label('Matriz Legal').classes('text-xs mb-6').style('color:#8A93A1;')
+            ui.label('IDEUS').classes('text-lg').style('color:#1B2433; font-weight:500; letter-spacing:.1em;')
+            ui.label('BY IDEAS CONSULTING').classes('text-[9px] font-bold').style('color:#8A93A1; letter-spacing:.12em; margin-top:2px;')
+            ui.label('Matriz Legal').classes('text-xs mb-6 mt-1').style('color:#8A93A1;')
 
             with ui.column().classes('w-full max-w-sm gap-1'):
                 ui.label('Usuario').classes('lm-field-label')
@@ -306,7 +311,7 @@ def main_page() -> None:
             with ui.row().classes('w-full items-center justify-between'):
                 with ui.row().classes('items-center gap-2'):
                     ui.image(MARK_URL).classes('w-7 h-7 rounded-md')
-                    ui.label('IDEAS Consulting').classes(
+                    ui.label('IDEUS').classes(
                         'text-[11px] font-semibold text-gray-500 tracking-wide uppercase'
                     )
                 with ui.row().classes('items-center gap-1'):
@@ -690,7 +695,7 @@ render_port = os.getenv('PORT')
 port = int(render_port) if render_port else int(os.getenv('MOBILE_LEGAL_MATRIX_PORT', '8600'))
 
 ui.run(
-    title='IDEAS · Matriz Legal',
+    title='IDEUS | Matriz Legal — by IDEAS Consulting',
     favicon=FAVICON,
     host='0.0.0.0',
     port=port,

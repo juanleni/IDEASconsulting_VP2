@@ -40,6 +40,12 @@ def public_shell(page_title: str):
         <meta property="og:site_name" content="IDEUS">
         <meta property="og:title" content="IDEUS | {page_title} — by IDEAS Consulting">
         <meta property="og:description" content="La plataforma de gestion inteligente desarrollada por IDEAS Consulting.">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>
+        body, .nicegui-content {{ font-family: "Poppins", "Segoe UI Variable", "Segoe UI", sans-serif; }}
+        </style>
         '''
     )
     with ui.header().classes('ideas-public-topbar'):
@@ -81,5 +87,5 @@ ui.run(
     port=run_port,
     reload=False,
     native=False,
-    storage_secret='ideas-consulting-v2-public',
+    storage_secret=os.getenv('NICEGUI_STORAGE_SECRET_PUBLIC', 'ideas-consulting-v2-public'),
 )

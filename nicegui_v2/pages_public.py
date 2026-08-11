@@ -113,6 +113,9 @@ def register_public_pages(ui, deps: dict) -> None:
     def public_styles() -> None:
         ui.add_head_html(
             '''
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
             <style>
             body,
             .nicegui-content,
@@ -120,6 +123,7 @@ def register_public_pages(ui, deps: dict) -> None:
             .q-page-container,
             .q-layout {
                 background: #191919 !important;
+                font-family: "Poppins", "Segoe UI Variable", "Segoe UI", sans-serif !important;
             }
             .ideas-public-shell {
                 max-width: none !important;

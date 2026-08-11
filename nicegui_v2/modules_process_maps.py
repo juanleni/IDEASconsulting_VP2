@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from nicegui import app, ui
+from nicegui import app, run, ui
 from dashboard_customizer import render_dashboard_customizer
 from company_context import empresa_id_from_query_for_admin, with_empresa_id
 
@@ -371,21 +371,24 @@ def register_process_maps_module(ui, deps: dict) -> None:
 
         with shell('Mapas de proceso', back_route='/sistema-gestion', module_key='process_maps') as shell_container:
             with shell_container:
-                def export_process_map_pdf() -> None:
+                async def export_process_map_pdf() -> None:
                     if not generar_pdf_mapa_procesos:
                         ui.notify('Generación de PDF no disponible.', type='warning')
                         return
+                    export_pdf_button.props('loading disable')
                     try:
                         company_name = fix_text(selected_company.get('razon_social', company_map.get(selected_company_id, 'Sin empresa activa'))) if selected_company else 'Sin empresa activa'
-                        pdf_path = generar_pdf_mapa_procesos(company_name, existing_rows)
+                        pdf_path = await run.io_bound(generar_pdf_mapa_procesos, company_name, existing_rows)
                         ui.download(str(pdf_path))
                     except Exception as exc:
                         ui.notify(f'No se pudo generar el PDF del mapa: {exc}', type='negative')
+                    finally:
+                        export_pdf_button.props(remove='loading disable')
 
                 ui.label('Mapas de proceso').classes('ideas-kicker')
                 with ui.row().classes('w-full items-center justify-between gap-4'):
                     ui.label('Landscape visual y tortuga por proceso').classes('text-3xl font-bold text-slate-900')
-                    ui.button(
+                    export_pdf_button = ui.button(
                         'Exportar a PDF',
                         icon='picture_as_pdf',
                         color='red-8',

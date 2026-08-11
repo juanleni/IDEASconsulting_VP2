@@ -4,7 +4,7 @@ import calendar
 import json
 import unicodedata
 
-from nicegui import app, ui
+from nicegui import app, run, ui
 from company_context import empresa_id_from_query_for_admin, with_empresa_id
 
 
@@ -240,7 +240,7 @@ def register_kpi_module(ui, deps: dict) -> None:
                 include_tendencia = ui.switch('Columna tendencia', value=True)
                 include_responsable = ui.switch('Columna responsable', value=True)
 
-            def do_export() -> None:
+            async def do_export() -> None:
                 chart_state = app.storage.user.setdefault('kpi_chart_state', {})
                 selected_ids = {int(item) for item in (selected_kpis.value or [])}
                 selected_rows = [dict(row) for row in kpis_rows if int(row.get('id') or 0) in selected_ids]
@@ -267,16 +267,19 @@ def register_kpi_module(ui, deps: dict) -> None:
                     'include_responsable': bool(include_responsable.value),
                     'custom_logo_path': company_logo_path,
                 }
+                export_button.props('loading disable')
                 try:
-                    pdf_path = generar_pdf_kpis(company_name, selected_rows, options)
+                    pdf_path = await run.io_bound(generar_pdf_kpis, company_name, selected_rows, options)
                     dialog.close()
                     ui.download(str(pdf_path))
                 except Exception as exc:
                     ui.notify(f'No se pudo generar el PDF de KPI: {exc}', type='negative')
+                finally:
+                    export_button.props(remove='loading disable')
 
             with ui.row().classes('w-full justify-end gap-2 mt-5'):
                 ui.button('Cancelar', on_click=dialog.close).props('flat')
-                ui.button('Generar y descargar PDF', icon='picture_as_pdf', on_click=do_export).props('unelevated color=primary')
+                export_button = ui.button('Generar y descargar PDF', icon='picture_as_pdf', on_click=do_export).props('unelevated color=primary')
         dialog.open()
 
     meses = [

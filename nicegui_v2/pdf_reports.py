@@ -80,9 +80,29 @@ def _base_style() -> str:
     return """
     <style>
         @page { size: A4; margin: 18mm 16mm; }
+        @font-face {
+            font-family: "Poppins";
+            src: url("assets/fonts/Poppins-Regular.woff2") format("woff2");
+            font-weight: 400; font-style: normal;
+        }
+        @font-face {
+            font-family: "Poppins";
+            src: url("assets/fonts/Poppins-Medium.woff2") format("woff2");
+            font-weight: 500; font-style: normal;
+        }
+        @font-face {
+            font-family: "Poppins";
+            src: url("assets/fonts/Poppins-SemiBold.woff2") format("woff2");
+            font-weight: 600; font-style: normal;
+        }
+        @font-face {
+            font-family: "Poppins";
+            src: url("assets/fonts/Poppins-Bold.woff2") format("woff2");
+            font-weight: 700; font-style: normal;
+        }
         :root {
             --ideas-navy: #0f172a;
-            --ideas-blue: #1f7ed6;
+            --ideas-blue: #2e8cff;
             --ideas-green: #0f8f61;
             --ideas-line: #dbe3ec;
             --ideas-soft: #f5f8fb;
@@ -91,7 +111,7 @@ def _base_style() -> str:
             --ideas-slate: #475569;
         }
         body {
-            font-family: "Segoe UI", Arial, sans-serif;
+            font-family: "Poppins", "Segoe UI", Arial, sans-serif;
             color: var(--ideas-slate);
             font-size: 10.5pt;
             line-height: 1.48;
@@ -105,6 +125,9 @@ def _base_style() -> str:
         header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
         .logo { width: 58px; height: 58px; object-fit: contain; }
         .brand { color: var(--ideas-green); font-weight: 800; letter-spacing: .12em; font-size: 9pt; text-transform: uppercase; }
+        .brand-ideus { color: var(--ideas-navy); font-weight: 500; letter-spacing: .1em; font-size: 10.5pt; }
+        .brand-by { color: var(--ideas-slate); font-weight: 700; letter-spacing: .12em; font-size: 7pt; text-transform: uppercase; margin-top: 1px; }
+        .brand-block { margin-bottom: 2px; }
         h1 { color: var(--ideas-navy); font-size: 25pt; line-height: 1.05; margin: 3px 0 5px; }
         h2 { color: var(--ideas-navy); font-size: 15pt; margin: 22px 0 10px; }
         h3 { color: var(--ideas-navy); font-size: 11.5pt; margin: 0 0 7px; }
@@ -237,7 +260,7 @@ def generar_pdf_ejecutivo_v2(
         <header>
             {_logo_html()}
             <div>
-                <div class="brand">IDEAS Consulting</div>
+                <div class="brand-block"><div class="brand-ideus">IDEUS</div><div class="brand-by">by IDEAS Consulting</div></div>
                 <h1>Reporte Ejecutivo Premium</h1>
                 <div class="subtitle">Sintesis de madurez organizacional para direccion, prioridades de gestion y lectura institucional.</div>
             </div>
@@ -292,99 +315,6 @@ def generar_pdf_ejecutivo_v2(
         </section>
 
         <footer>IDEAS Consulting · Reporte generado automaticamente desde la plataforma</footer>
-    </body>
-    </html>
-    """
-    return _write_pdf(html_content, pdf_path)
-
-
-def generar_pdf_8d(problema_data: dict, acciones_data: list[dict] | None = None) -> Path:
-    TMP_DIR.mkdir(parents=True, exist_ok=True)
-    acciones_data = acciones_data or []
-    empresa = problema_data.get("empresa") or problema_data.get("razon_social") or "Empresa"
-    titulo = problema_data.get("titulo") or "Analisis 8D"
-    fecha = problema_data.get("fecha") or "sin_fecha"
-    slug = limpiar_nombre_archivo(f"{empresa}_{titulo}_{fecha}".replace("/", "-").replace(":", "-"))
-    pdf_path = TMP_DIR / f"reporte_8d_{slug}.pdf"
-
-    acciones_d5_d6 = [
-        accion for accion in acciones_data if str(accion.get("fase_8d") or "").strip().upper() in {"D5", "D6"}
-    ] or acciones_data
-    acciones_rows = "\n".join(
-        f"""
-        <tr>
-            <td>{_esc(accion.get("fase_8d") or "-")}</td>
-            <td>{_esc(accion.get("accion") or "-")}</td>
-            <td>{_esc(accion.get("responsable") or "-")}</td>
-            <td>{_esc(accion.get("fecha") or "-")}</td>
-            <td>{_esc(accion.get("progreso") or "-")}</td>
-        </tr>
-        """
-        for accion in acciones_d5_d6
-    ) or '<tr><td colspan="5">Sin acciones D5/D6 registradas.</td></tr>'
-
-    ishikawa_fields = [
-        ("Efecto", problema_data.get("efecto")),
-        ("Mano de obra", problema_data.get("mano_obra")),
-        ("Maquina", problema_data.get("maquina")),
-        ("Material", problema_data.get("material")),
-        ("Metodo", problema_data.get("metodo")),
-        ("Medicion", problema_data.get("medicion")),
-        ("Medio ambiente", problema_data.get("medio_ambiente")),
-        ("Factores retenidos", problema_data.get("factores_retenidos")),
-    ]
-    ishikawa_html = "".join(f"<li><strong>{_esc(label)}:</strong> {_esc(value or 'Sin dato')}</li>" for label, value in ishikawa_fields)
-
-    html_content = f"""
-    <!doctype html>
-    <html>
-    <head><meta charset="utf-8">{_base_style()}</head>
-    <body>
-        <div class="topbar"></div>
-        <header>
-            {_logo_html()}
-            <div>
-                <div class="brand">IDEAS Consulting</div>
-                <h1>Reporte Ejecutivo 8D</h1>
-                <div class="subtitle">Analisis estructurado del problema, causa raiz y acciones correctivas D5/D6.</div>
-            </div>
-        </header>
-
-        <section class="hero">
-            <div class="label">Problema</div>
-            <h2>{_esc(titulo)}</h2>
-            <div>{_esc(empresa)} · {_esc(fecha)} · Estado: {_esc(problema_data.get("estado") or "Abierto")}</div>
-        </section>
-
-        <section class="grid-2 section">
-            <div class="card"><h3>Origen</h3><p>{_esc(problema_data.get("origen") or "Sin origen informado")}</p></div>
-            <div class="card"><h3>D2 · Descripcion</h3><p>{_esc(problema_data.get("d2_descripcion") or "Sin descripcion registrada")}</p></div>
-        </section>
-
-        <section class="grid-2 section">
-            <div class="card"><h3>D3 · Contencion</h3><p>{_esc(problema_data.get("d3_contencion") or "Sin contencion registrada")}</p></div>
-            <div class="card"><h3>D4 · Causa raiz</h3><p>{_esc(problema_data.get("d4_causa_raiz") or "Sin causa raiz registrada")}</p></div>
-        </section>
-
-        <section class="section">
-            <h2>Ishikawa</h2>
-            <div class="card"><ul>{ishikawa_html}</ul></div>
-        </section>
-
-        <section class="section">
-            <h2>Acciones D5/D6</h2>
-            <table>
-                <thead><tr><th>Fase</th><th>Accion</th><th>Responsable</th><th>Fecha limite</th><th>Progreso</th></tr></thead>
-                <tbody>{acciones_rows}</tbody>
-            </table>
-        </section>
-
-        <section class="grid-2 section">
-            <div class="card"><h3>D7 · Prevencion</h3><p>{_esc(problema_data.get("d7_prevencion") or "Sin prevencion registrada")}</p></div>
-            <div class="card"><h3>D8 · Cierre</h3><p>{_esc(problema_data.get("d8_cierre") or "Sin cierre registrado")}</p></div>
-        </section>
-
-        <footer>IDEAS Consulting · Reporte 8D generado automaticamente desde la plataforma</footer>
     </body>
     </html>
     """
@@ -620,7 +550,7 @@ def generar_reporte_simulacro(datos_simulacro: dict) -> Path:
     <head><meta charset="utf-8">{_base_style()}</head>
     <body>
         <div class="topbar"></div>
-        <header>{_logo_html()}<div><div class="brand">IDEAS Consulting</div><h1>Reporte de Simulacro Ambiental</h1></div></header>
+        <header>{_logo_html()}<div><div class="brand-block"><div class="brand-ideus">IDEUS</div><div class="brand-by">by IDEAS Consulting</div></div><h1>Reporte de Simulacro Ambiental</h1></div></header>
         <section class="metrics">
             <div class="card"><div class="label">Empresa</div><div class="value blue">{_esc(empresa)}</div></div>
             <div class="card"><div class="label">Fecha</div><div class="value">{_esc(fecha)}</div></div>
@@ -665,7 +595,7 @@ def generar_pdf_kpis(nombre_empresa: str, kpis: list[dict]) -> Path:
         <header>
             {_logo_html()}
             <div>
-                <div class="brand">IDEAS Consulting</div>
+                <div class="brand-block"><div class="brand-ideus">IDEUS</div><div class="brand-by">by IDEAS Consulting</div></div>
                 <h1>Reporte KPI</h1>
                 <div class="subtitle">Empresa: {_esc(nombre_empresa)} · Total KPI: {len(kpis or [])}</div>
             </div>
@@ -720,7 +650,7 @@ def generar_pdf_mapa_procesos(nombre_empresa: str, procesos: list[dict]) -> Path
         <header>
             {_logo_html()}
             <div>
-                <div class="brand">IDEAS Consulting</div>
+                <div class="brand-block"><div class="brand-ideus">IDEUS</div><div class="brand-by">by IDEAS Consulting</div></div>
                 <h1>Mapa de Procesos</h1>
                 <div class="subtitle">Empresa: {_esc(nombre_empresa)} · Total procesos: {len(procesos or [])}</div>
             </div>
@@ -1005,7 +935,7 @@ def generar_pdf_kpis(nombre_empresa: str, kpis: list[dict], options: dict | None
         <header>
             {_brand_logo_html(custom_logo_path)}
             <div>
-                <div class="brand">IDEAS Consulting</div>
+                <div class="brand-block"><div class="brand-ideus">IDEUS</div><div class="brand-by">by IDEAS Consulting</div></div>
                 <h1>Reporte KPI</h1>
                 <div class="subtitle">Empresa: {_esc(nombre_empresa)} · Total KPI: {len(kpis or [])}</div>
             </div>

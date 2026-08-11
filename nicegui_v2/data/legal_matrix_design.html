@@ -3,8 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Matriz Legal Digital</title>
+<title>IDEUS | Matriz Legal Digital — by IDEAS Consulting</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ==========================================================================
    1. VARIABLES Y SISTEMA VISUAL
@@ -19,7 +22,7 @@
   --radius-lg:20px; --radius-md:14px; --radius-sm:10px;
   --shadow-card:0 2px 10px rgba(16,24,40,.05);
   --shadow-dialog:0 24px 48px rgba(16,24,40,.28);
-  --font: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font: "Poppins", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 *{box-sizing:border-box;}
 body{margin:0;font-family:var(--font);color:var(--text);background:var(--bg);}
@@ -319,6 +322,10 @@ function renderHeader(){
   return `
     <header class="lm-header">
       <div style="min-width:260px;">
+        <div class="lm-ideus-wordmark" style="display:flex;flex-direction:column;line-height:1.05;gap:.15em;margin-bottom:6px;">
+          <span style="font-weight:500;letter-spacing:.1em;color:var(--primary);font-size:.82rem;">IDEUS</span>
+          <span style="font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-size:.55rem;">by IDEAS Consulting</span>
+        </div>
         <div class="lm-kicker">CUMPLIMIENTO Y TRAZABILIDAD</div>
         <div class="lm-title">Matriz Legal Digital</div>
         <div style="font-size:13px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:6px;">

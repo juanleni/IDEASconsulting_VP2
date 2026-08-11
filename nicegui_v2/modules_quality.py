@@ -1493,10 +1493,11 @@ def _show_quality_editor(
                 except Exception as exc:
                     ui.notify(f'No se pudo guardar el analisis: {exc}', type='negative')
 
-            def export_editor_pdf() -> None:
+            async def export_editor_pdf() -> None:
                 if not generar_pdf_8d_fn:
                     ui.notify('Generacion de PDF no disponible.', type='warning')
                     return
+                export_editor_button.props('loading disable')
                 try:
                     problema_id = ensure_problem_saved()
                     if not problema_id:
@@ -1539,10 +1540,12 @@ def _show_quality_editor(
                         'factores_retenidos': _list_to_csv(retained_state['values']),
                     }
                     acciones_d3 = obtener_acciones_fn(problema_id, 'D3') or []
-                    pdf_path = generar_pdf_8d_fn(problema_data, acciones_d3 + acciones_d5_d6)
+                    pdf_path = await run.io_bound(generar_pdf_8d_fn, problema_data, acciones_d3 + acciones_d5_d6)
                     ui.download(str(pdf_path))
                 except Exception as exc:
                     ui.notify(f'No se pudo generar el reporte 8D: {exc}', type='negative')
+                finally:
+                    export_editor_button.props(remove='loading disable')
 
             export_editor_button.on_click(export_editor_pdf)
             top_save_button.on_click(save_all)
