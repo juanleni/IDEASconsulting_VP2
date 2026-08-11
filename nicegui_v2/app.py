@@ -522,8 +522,8 @@ def inject_global_styles() -> None:
         .ideas-mode-banner { padding:18px 22px; border-radius:24px; background:linear-gradient(135deg, #0f172a 0%, #1f7ed6 100%); color:#eff6ff; margin-bottom:18px; }
         .ideas-mode-banner strong { display:block; font-size:1.1rem; margin-top:.2rem; }
         .ideas-public-shell { width:100%; max-width:1320px; margin:0 auto; padding:0 22px 34px 22px; }
-        .ideas-public-topbar { position:sticky; top:0; z-index:50; background:rgba(25,25,25,.92); backdrop-filter:blur(18px); border-bottom:1px solid rgba(255,255,255,.08); }
-        .ideas-public-nav { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:1rem; width:100vw; max-width:none; margin:0; padding:18px 72px; box-sizing:border-box; position:relative; left:50%; transform:translateX(-50%); }
+        .ideas-public-topbar { position:sticky; top:0; z-index:50; background:rgba(15,23,42,.92); backdrop-filter:blur(18px); border-bottom:1px solid rgba(255,255,255,.08); }
+        .ideas-public-nav { display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:center; gap:1.4rem; width:100vw; max-width:none; margin:0; padding:18px 72px; box-sizing:border-box; position:relative; left:50%; transform:translateX(-50%); }
         .ideas-public-brand { display:flex; align-items:center; gap:1rem; }
         .ideas-public-brand img { width:58px; height:58px; object-fit:contain; }
         .ideas-public-brand .name { color:#f8fafc; font-weight:900; font-size:1.15rem; letter-spacing:.01em; }
@@ -531,15 +531,20 @@ def inject_global_styles() -> None:
         .ideas-public-links { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
         .ideas-public-links a { color:#334155; text-decoration:none; font-weight:700; padding:.7rem .9rem; border-radius:999px; }
         .ideas-public-links a:hover { background:rgba(255,255,255,.9); }
+        .ideas-public-menu { display:flex; align-items:center; justify-content:center; gap:1.6rem; }
+        .ideas-public-menu-link { display:inline-flex; align-items:center; gap:6px; text-decoration:none; color:rgba(255,255,255,.72); font-weight:700; font-size:.94rem; padding:8px 0; white-space:nowrap; }
+        .ideas-public-menu-link .material-icons { font-size:1.1rem; }
+        .ideas-public-menu-link:hover { color:#00D6A6; }
+        .ideas-public-menu-link.active { color:#00D6A6; }
         .ideas-public-actions { display:flex; align-items:center; justify-content:flex-end; justify-self:end; gap:1.1rem; flex-wrap:wrap; }
         .ideas-public-home-link { text-decoration:none; color:rgba(255,255,255,.72); font-weight:850; padding:8px 0; }
-        .ideas-public-home-link:hover { color:#d6df00; }
+        .ideas-public-home-link:hover { color:#00D6A6; }
         .ideas-public-return-link { display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 14px; border-radius:2px; text-decoration:none; color:#f8fafc; font-weight:900; border:1px solid rgba(255,255,255,.18); }
-        .ideas-public-return-link:hover { color:#171717; background:#d6df00; border-color:#d6df00; }
+        .ideas-public-return-link:hover { color:#0F172A; background:#00D6A6; border-color:#00D6A6; }
         .ideas-public-return-link .material-icons { font-size:1.2rem; line-height:1; }
-        .ideas-public-login-link { display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 18px; border-radius:2px; text-decoration:none; background:#d6df00; color:#171717; font-weight:900; border:1px solid #d6df00; }
+        .ideas-public-login-link { display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 18px; border-radius:2px; text-decoration:none; background:#00D6A6; color:#0F172A; font-weight:900; border:1px solid #00D6A6; }
         .ideas-public-login-link .material-icons { font-size:1.2rem; line-height:1; }
-        .ideas-public-login-link:hover { background:#f0f715; color:#171717; }
+        .ideas-public-login-link:hover { background:#33e0bb; color:#0F172A; }
         .ideas-public-hero { display:grid; grid-template-columns:1.08fr .92fr; gap:20px; align-items:stretch; margin-top:0; }
         .ideas-public-card { border-radius:32px; background:rgba(255,255,255,.94); border:1px solid var(--ideas-line); box-shadow:var(--ideas-shadow); }
         .ideas-public-hero-copy { padding:34px 38px; position:relative; overflow:hidden; }
@@ -655,7 +660,7 @@ def inject_global_styles() -> None:
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(180deg, #d6df00, #ecf25d);
+            background: linear-gradient(180deg, #00D6A6, #5EEAD4);
             color: #1f2937;
             box-shadow: 0 0 0 1px rgba(15,23,42,.08), 0 6px 14px rgba(15,23,42,.16);
             animation: ideas-ai-bob 2.8s ease-in-out infinite;
@@ -672,7 +677,7 @@ def inject_global_styles() -> None:
         @media (max-width: 1200px) {
             .ideas-8d-dialog .q-dialog__inner { padding-right: 0; }
         }
-        @media (max-width: 1100px) { .ideas-hero-card, .ideas-score-guide, .ideas-grid-2, .ideas-grid-3, .ideas-public-hero, .ideas-editorial-band, .ideas-feature-list, .ideas-module-grid { grid-template-columns:1fr; } .ideas-public-nav { grid-template-columns:1fr; align-items:flex-start; padding:16px 24px; left:0; transform:none; width:100%; } .ideas-public-actions { justify-self:start; justify-content:flex-start; } }
+        @media (max-width: 1100px) { .ideas-hero-card, .ideas-score-guide, .ideas-grid-2, .ideas-grid-3, .ideas-public-hero, .ideas-editorial-band, .ideas-feature-list, .ideas-module-grid { grid-template-columns:1fr; } .ideas-public-nav { grid-template-columns:1fr; align-items:flex-start; padding:16px 24px; left:0; transform:none; width:100%; } .ideas-public-menu { justify-content:flex-start; flex-wrap:wrap; gap:1rem; } .ideas-public-actions { justify-self:start; justify-content:flex-start; } }
         @media (max-width: 520px) { .ideas-public-shell { padding:0 16px 36px 16px; } .ideas-public-nav { padding:14px 18px; gap:14px; } .ideas-public-brand img { width:42px; height:42px; } .ideas-public-brand .name { font-size:1rem; } .ideas-public-brand .tag { font-size:.78rem; } .ideas-public-actions { width:100%; justify-content:space-between; gap:12px; } .ideas-public-login-link, .ideas-public-return-link { min-height:40px; padding:0 14px; } .ideas-whatsapp-link.topbar span:last-child { display:none; } .ideas-login-card { max-width:100%; padding:24px 20px; } .ideas-public-section h2 { font-size:1.8rem; } .ideus-wordmark--topbar { --brand-font-size-primary: .92rem; } .ideas-topbar-center { order:3; width:100%; justify-content:flex-start !important; margin-top:6px; } }
         </style>
         '''
@@ -2307,6 +2312,7 @@ def public_shell(page_title: str):
         '''
     )
     if page_title == 'Acceso':
+        nav_html = ''
         actions_html = '''
             <a class="ideas-public-return-link" href="/">
                 <span class="material-icons" aria-hidden="true">public</span>
@@ -2319,6 +2325,17 @@ def public_shell(page_title: str):
             if page_title != 'Inicio'
             else ''
         )
+        platform_active = ' active' if page_title == 'Plataforma SaaS' else ''
+        nav_html = f'''
+            <nav class="ideas-public-menu">
+                {home_link_html}
+                <a class="ideas-public-menu-link{platform_active}" href="/soluciones/plataforma-saas">
+                    <span class="material-icons" aria-hidden="true">laptop_mac</span>
+                    <span>Plataforma IDEUS</span>
+                </a>
+                <a class="ideas-public-menu-link" href="/contacto">Contacto</a>
+            </nav>
+        '''
         whatsapp_html = '''
             <a class="ideas-whatsapp-link topbar" href="https://wa.me/541170068904" target="_blank" rel="noopener noreferrer">
                 <span class="ideas-whatsapp-icon">
@@ -2331,7 +2348,6 @@ def public_shell(page_title: str):
             </a>
         '''
         actions_html = f'''
-            {home_link_html}
             <a class="ideas-public-login-link" href="/plataforma">
                 <span class="material-icons" aria-hidden="true">login</span>
                 <span>Ingresa</span>
@@ -2346,6 +2362,7 @@ def public_shell(page_title: str):
                     {f'<img src="{logo}" alt="Isotipo de IDEAS Consulting" />' if logo else ''}
                     {ideus_wordmark_html('topbar', on_dark=True)}
                 </div>
+                {nav_html}
                 <div class="ideas-public-actions">
                     {actions_html}
                 </div>

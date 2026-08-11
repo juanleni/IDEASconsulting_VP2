@@ -113,28 +113,25 @@ def register_public_pages(ui, deps: dict) -> None:
     def public_styles() -> None:
         ui.add_head_html(
             '''
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
             <style>
             body,
             .nicegui-content,
             .q-page,
             .q-page-container,
             .q-layout {
-                background: #191919 !important;
-                font-family: "Poppins", "Segoe UI Variable", "Segoe UI", sans-serif !important;
+                background: #0F172A !important;
+                font-family: Aptos, "Segoe UI Variable", "Segoe UI", sans-serif !important;
             }
             .ideas-public-shell {
                 max-width: none !important;
                 padding: 0 !important;
-                background: #191919;
+                background: #0F172A;
             }
             .q-page-container {
                 padding-top: 0 !important;
             }
             .ideas-public-topbar {
-                background: rgba(18, 18, 18, .92) !important;
+                background: rgba(15, 23, 42, .92) !important;
                 border-bottom: 1px solid rgba(255, 255, 255, .08) !important;
             }
             .ideas-public-topbar .nicegui-html {
@@ -143,8 +140,9 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-public-nav {
                 display: grid !important;
-                grid-template-columns: minmax(0, 1fr) auto !important;
+                grid-template-columns: auto minmax(0, 1fr) auto !important;
                 align-items: center !important;
+                gap: 1.4rem !important;
                 width: 100vw !important;
                 max-width: none !important;
                 margin: 0 !important;
@@ -154,6 +152,28 @@ def register_public_pages(ui, deps: dict) -> None:
                 left: 50% !important;
                 transform: translateX(-50%) !important;
             }
+            .ideas-public-menu {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 1.6rem !important;
+                order: 1 !important;
+            }
+            .ideas-public-menu-link {
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                text-decoration: none !important;
+                color: rgba(255, 255, 255, .72) !important;
+                font-weight: 700 !important;
+                font-size: .94rem !important;
+                padding: 8px 0 !important;
+                white-space: nowrap !important;
+            }
+            .ideas-public-menu-link .material-icons { font-size: 1.1rem !important; }
+            .ideas-public-menu-link:hover, .ideas-public-menu-link.active {
+                color: #00D6A6 !important;
+            }
             .ideas-public-actions {
                 margin-left: auto !important;
                 justify-content: flex-end !important;
@@ -162,6 +182,7 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-public-brand {
                 flex: 0 0 auto !important;
+                order: 0 !important;
             }
             .ideas-public-brand img {
                 width: 62px !important;
@@ -201,9 +222,9 @@ def register_public_pages(ui, deps: dict) -> None:
                 margin: 6px 0 2px;
             }
             .ideas-public-login-link {
-                background: #d6df00 !important;
-                border-color: #d6df00 !important;
-                color: #171717 !important;
+                background: #00D6A6 !important;
+                border-color: #00D6A6 !important;
+                color: #0F172A !important;
             }
             .ideas-quote-dialog {
                 background: #1e293b !important;
@@ -255,7 +276,7 @@ def register_public_pages(ui, deps: dict) -> None:
             .ideas-public-home {
                 width: 100%;
                 min-height: 100vh;
-                background: #191919;
+                background: #0F172A;
                 color: #f8fafc;
                 overflow: hidden;
             }
@@ -267,7 +288,7 @@ def register_public_pages(ui, deps: dict) -> None:
                 min-height: auto !important;
                 display: grid !important;
                 grid-template-columns: minmax(0, .92fr) minmax(360px, .78fr) !important;
-                align-items: start !important;
+                align-items: stretch !important;
                 gap: 42px !important;
                 padding: 0 0 46px !important;
                 margin-top: 0 !important;
@@ -277,8 +298,8 @@ def register_public_pages(ui, deps: dict) -> None:
                 align-items: center;
                 width: max-content;
                 padding: 4px 8px;
-                background: #d6df00;
-                color: #171717;
+                background: #00D6A6;
+                color: #0F172A;
                 font-size: .68rem;
                 font-weight: 900;
                 letter-spacing: .04em;
@@ -311,7 +332,8 @@ def register_public_pages(ui, deps: dict) -> None:
                 margin-top: 24px;
             }
             .ideas-primary-action,
-            .ideas-secondary-action {
+            .ideas-secondary-action,
+            .ideas-ideus-action {
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
@@ -322,76 +344,100 @@ def register_public_pages(ui, deps: dict) -> None:
                 text-decoration: none;
             }
             .ideas-primary-action {
-                background: #d6df00;
-                color: #171717;
+                background: #00D6A6;
+                color: #0F172A;
             }
             .ideas-secondary-action {
                 color: #f8fafc;
                 border: 1px solid rgba(255, 255, 255, .24);
             }
+            .ideas-ideus-action {
+                color: #00D6A6;
+                border: 1px solid rgba(0, 214, 166, .5);
+                background: rgba(0, 214, 166, .08);
+            }
+            .ideas-ideus-action .material-icons { font-size: 1.15rem; }
+            .ideas-ideus-action:hover {
+                background: rgba(0, 214, 166, .16);
+                border-color: #00D6A6;
+            }
             .ideas-hero-visual {
                 position: relative;
                 min-height: 390px;
-                align-self: start;
+                align-self: stretch;
                 overflow: hidden;
-                border: 1px solid rgba(255, 255, 255, .08);
+                border-left: 1px solid rgba(255, 255, 255, .06);
+                display: flex;
+                flex-direction: column;
+                padding: 32px;
+                box-sizing: border-box;
                 background:
-                    linear-gradient(135deg, rgba(214, 223, 0, .16), transparent 32%),
-                    linear-gradient(315deg, rgba(31, 126, 214, .16), transparent 34%),
-                    #262626;
+                    radial-gradient(120% 90% at 78% 8%, rgba(0, 214, 166, .16), transparent 46%),
+                    radial-gradient(110% 100% at 8% 92%, rgba(46, 140, 255, .16), transparent 50%),
+                    #0F172A;
             }
             .ideas-hero-visual::after {
                 content: "";
                 position: absolute;
                 inset: 0;
                 background:
-                    linear-gradient(90deg, rgba(255, 255, 255, .06) 1px, transparent 1px),
-                    linear-gradient(180deg, rgba(255, 255, 255, .05) 1px, transparent 1px);
+                    linear-gradient(90deg, rgba(255, 255, 255, .04) 1px, transparent 1px),
+                    linear-gradient(180deg, rgba(255, 255, 255, .04) 1px, transparent 1px);
                 background-size: 54px 54px;
-                opacity: .32;
+                opacity: .2;
+                mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+                pointer-events: none;
             }
             .ideas-visual-message {
-                position: absolute;
-                left: 28px;
-                right: 28px;
-                top: 28px;
+                position: relative;
                 z-index: 1;
             }
             .ideas-visual-message .label {
-                color: #d6df00;
-                font-size: .72rem;
+                display: inline-flex;
+                align-items: center;
+                width: max-content;
+                padding: 4px 8px;
+                background: #00D6A6;
+                color: #0F172A;
+                font-size: .68rem;
                 font-weight: 900;
-                letter-spacing: .08em;
+                letter-spacing: .04em;
                 text-transform: uppercase;
+                line-height: 1;
             }
             .ideas-visual-message .title {
                 max-width: 430px;
-                margin-top: 12px;
+                margin-top: 18px;
                 color: #ffffff;
                 font-size: clamp(1.7rem, 2.45vw, 2.55rem);
                 line-height: 1.04;
                 font-weight: 900;
             }
-            .ideas-hero-bg-image {
-                position: absolute;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                top: 120px;
-                width: 100%;
-                height: calc(100% - 120px);
-                object-fit: cover;
-                opacity: .42;
-                z-index: 0;
-                filter: saturate(.95) contrast(1.05) brightness(.9);
+            .ideas-hero-mockup {
+                position: relative;
+                z-index: 1;
+                margin-top: 30px;
+                max-width: 460px;
             }
-            .ideas-hero-bg-fade {
-                position: absolute;
-                inset: 0;
-                z-index: 0;
-                background:
-                    linear-gradient(180deg, rgba(22, 22, 22, .18) 0%, rgba(22, 22, 22, .38) 42%, rgba(22, 22, 22, .66) 100%),
-                    linear-gradient(90deg, rgba(15, 23, 42, .36), rgba(15, 23, 42, .18), rgba(15, 23, 42, .36));
+            .ideas-hero-mockup .ideas-mockup {
+                box-shadow: 0 26px 50px rgba(0, 0, 0, .3);
+            }
+            .ideas-hero-mockup .ideas-mockup-body {
+                padding: 18px;
+                min-height: 0;
+            }
+            .ideas-hero-mockup .ideas-mockup-flow {
+                margin-bottom: 16px;
+            }
+            .ideas-hero-mockup .ideas-mockup-node {
+                padding: 10px 12px;
+                font-size: .72rem;
+            }
+            .ideas-hero-mockup .ideas-mockup-row {
+                margin-bottom: 8px;
+            }
+            .ideas-hero-mockup .ideas-mockup-row:last-child {
+                margin-bottom: 0;
             }
             .ideas-visual-card {
                 position: absolute;
@@ -405,7 +451,7 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-visual-stat {
                 padding: 16px;
-                background: rgba(25, 25, 25, .76);
+                background: rgba(15, 23, 42, .76);
                 border: 1px solid rgba(255, 255, 255, .1);
             }
             .ideas-visual-stat strong {
@@ -425,7 +471,7 @@ def register_public_pages(ui, deps: dict) -> None:
                 position: sticky;
                 top: 68px;
                 z-index: 20;
-                background: rgba(25, 25, 25, .92);
+                background: rgba(15, 23, 42, .92);
                 backdrop-filter: blur(16px);
                 border-top: 1px solid rgba(255, 255, 255, .08);
                 border-bottom: 1px solid rgba(255, 255, 255, .08);
@@ -439,9 +485,19 @@ def register_public_pages(ui, deps: dict) -> None:
                 min-height: 76px;
                 padding: 8px 18px;
             }
+            .ideas-tab-wrap .q-tab {
+                transition: color 160ms ease, background 160ms ease;
+            }
+            .ideas-tab-wrap .q-tab:hover {
+                color: rgba(255, 255, 255, .9);
+            }
             .ideas-tab-wrap .q-tab--active {
-                color: #f7ff18;
-                background: rgba(214, 223, 0, .08);
+                color: #FF8A21;
+                background: rgba(255, 138, 33, .1);
+            }
+            .ideas-tab-wrap .q-tab__indicator {
+                background: #FF8A21 !important;
+                height: 3px !important;
             }
             .ideas-tab-wrap .q-tab__icon {
                 font-size: 1.35rem;
@@ -484,8 +540,8 @@ def register_public_pages(ui, deps: dict) -> None:
                 overflow: hidden;
                 border: 1px solid rgba(255, 255, 255, .1);
                 background:
-                    linear-gradient(135deg, rgba(214, 223, 0, .12), transparent 34%),
-                    #252525;
+                    linear-gradient(135deg, rgba(0, 214, 166, .12), transparent 34%),
+                    #1e293b;
             }
             .ideas-about-visual img {
                 width: 100%;
@@ -502,7 +558,7 @@ def register_public_pages(ui, deps: dict) -> None:
                 position: absolute;
                 inset: 0;
                 pointer-events: none;
-                background: linear-gradient(180deg, rgba(25,25,25,.02), rgba(25,25,25,.34));
+                background: linear-gradient(180deg, rgba(15,23,42,.02), rgba(15,23,42,.34));
             }
             .ideas-card-grid {
                 display: grid;
@@ -512,7 +568,7 @@ def register_public_pages(ui, deps: dict) -> None:
             .ideas-dark-card {
                 min-height: 180px;
                 padding: 22px;
-                background: #303030;
+                background: #1e293b;
                 border: 1px solid rgba(255, 255, 255, .08);
             }
             .ideas-dark-card .icon {
@@ -521,7 +577,7 @@ def register_public_pages(ui, deps: dict) -> None:
                 justify-content: center;
                 width: 34px;
                 height: 34px;
-                color: #d6df00;
+                color: #00D6A6;
                 font-size: 1.65rem;
                 margin-bottom: 14px;
             }
@@ -546,7 +602,7 @@ def register_public_pages(ui, deps: dict) -> None:
             .ideas-step {
                 min-height: 210px;
                 padding: 24px;
-                background: #292929;
+                background: #16233a;
                 border-right: 1px solid rgba(255, 255, 255, .1);
             }
             .ideas-step:last-child { border-right: 0; }
@@ -557,8 +613,8 @@ def register_public_pages(ui, deps: dict) -> None:
                 width: 38px;
                 height: 38px;
                 margin-bottom: 18px;
-                background: #d6df00;
-                color: #171717;
+                background: #00D6A6;
+                color: #0F172A;
                 font-weight: 900;
             }
             .ideas-step h3 {
@@ -601,8 +657,8 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-platform-panel {
                 padding: 28px;
-                background: #303030;
-                border-left: 6px solid #d6df00;
+                background: #1e293b;
+                border-left: 6px solid #00D6A6;
             }
             .ideas-platform-panel h3 {
                 margin: 0 0 12px;
@@ -645,9 +701,9 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-saas-card:hover {
                 transform: translateY(-4px);
-                border-color: rgba(214, 223, 0, .38);
+                border-color: rgba(0, 214, 166, .4);
                 box-shadow: 0 22px 42px rgba(0, 0, 0, .22);
-                background: #343434;
+                background: #243449;
             }
             .ideas-saas-feature {
                 display: grid;
@@ -666,8 +722,8 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-saas-proof-copy {
                 padding: 28px;
-                background: #303030;
-                border-left: 6px solid #d6df00;
+                background: #1e293b;
+                border-left: 6px solid #00D6A6;
             }
             .ideas-saas-proof-copy h2 {
                 margin: 0 0 14px;
@@ -691,7 +747,7 @@ def register_public_pages(ui, deps: dict) -> None:
                 height: 100%;
                 min-height: 148px;
                 padding: 18px;
-                background: #303030;
+                background: #1e293b;
                 border: 1px solid rgba(255, 255, 255, .08);
                 box-sizing: border-box;
             }
@@ -710,15 +766,15 @@ def register_public_pages(ui, deps: dict) -> None:
             .ideas-saas-service-card {
                 position: relative;
                 cursor: pointer;
-                border-left: 6px solid #d6df00;
+                border-left: 6px solid #00D6A6;
             }
             .ideas-saas-service-card .tag {
                 display: inline-flex;
                 width: max-content;
                 margin-top: 14px;
                 padding: 6px 10px;
-                background: #d6df00;
-                color: #171717;
+                background: #00D6A6;
+                color: #0F172A;
                 font-size: .72rem;
                 font-weight: 900;
                 letter-spacing: .04em;
@@ -727,9 +783,9 @@ def register_public_pages(ui, deps: dict) -> None:
             .ideas-saas-cta {
                 margin-top: 28px;
                 padding: 38px 28px;
-                background: #303030;
+                background: #1e293b;
                 border: 1px solid rgba(255, 255, 255, .08);
-                border-left: 6px solid #d6df00;
+                border-left: 6px solid #00D6A6;
                 text-align: center;
             }
             .ideas-saas-cta h2 {
@@ -790,7 +846,7 @@ def register_public_pages(ui, deps: dict) -> None:
                 align-items: center;
                 gap: 8px;
                 padding: 9px 16px;
-                background: #262626;
+                background: #1e293b;
                 border: 1px solid rgba(255, 255, 255, .1);
                 color: rgba(255, 255, 255, .82);
                 font-size: .84rem;
@@ -799,7 +855,7 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-module-chip .material-icons {
                 font-size: 1.05rem;
-                color: #d6df00;
+                color: #00D6A6;
             }
             .ideas-module-detail {
                 display: grid;
@@ -825,7 +881,7 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-module-copy .index .material-icons {
                 font-size: 1.25rem;
-                color: #d6df00;
+                color: #00D6A6;
             }
             .ideas-module-copy h3 {
                 margin: 14px 0 12px;
@@ -860,14 +916,14 @@ def register_public_pages(ui, deps: dict) -> None:
                 width: 20px;
                 height: 20px;
                 margin-top: 1px;
-                background: rgba(214, 223, 0, .16);
-                color: #d6df00;
+                background: rgba(0, 214, 166, .16);
+                color: #00D6A6;
                 font-size: .74rem;
                 font-weight: 900;
             }
             .ideas-mockup {
                 border: 1px solid rgba(255, 255, 255, .1);
-                background: #1c1c1c;
+                background: #0d1729;
                 overflow: hidden;
             }
             .ideas-mockup-bar {
@@ -875,7 +931,7 @@ def register_public_pages(ui, deps: dict) -> None:
                 align-items: center;
                 gap: 6px;
                 padding: 11px 14px;
-                background: #242424;
+                background: #16233a;
                 border-bottom: 1px solid rgba(255, 255, 255, .08);
             }
             .ideas-mockup-bar i {
@@ -902,8 +958,8 @@ def register_public_pages(ui, deps: dict) -> None:
                 gap: 10px;
                 padding: 12px 14px;
                 margin-bottom: 9px;
-                background: #262626;
-                border-left: 3px solid var(--accent, #d6df00);
+                background: #1e293b;
+                border-left: 3px solid var(--accent, #00D6A6);
                 font-size: .82rem;
                 color: rgba(255, 255, 255, .82);
             }
@@ -934,7 +990,7 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-mockup-chart .col .bar {
                 width: 100%;
-                background: linear-gradient(180deg, var(--accent, #d6df00), rgba(214, 223, 0, .22));
+                background: linear-gradient(180deg, var(--accent, #00D6A6), rgba(0, 214, 166, .22));
             }
             .ideas-mockup-chart .col span {
                 font-size: .68rem;
@@ -949,9 +1005,9 @@ def register_public_pages(ui, deps: dict) -> None:
             }
             .ideas-mockup-node {
                 padding: 13px 16px;
-                background: #262626;
+                background: #1e293b;
                 border: 1px solid rgba(255, 255, 255, .14);
-                border-top: 3px solid var(--accent, #d6df00);
+                border-top: 3px solid var(--accent, #00D6A6);
                 font-size: .78rem;
                 color: #fff;
                 font-weight: 700;
@@ -1023,6 +1079,13 @@ def register_public_pages(ui, deps: dict) -> None:
                 }
                 .ideus-wordmark--hero {
                     --brand-font-size-primary: clamp(1.9rem, 9vw, 2.6rem) !important;
+                }
+                .ideas-public-menu {
+                    order: 3 !important;
+                    width: 100% !important;
+                    justify-content: flex-start !important;
+                    flex-wrap: wrap !important;
+                    gap: 12px 18px !important;
                 }
                 .ideas-public-actions {
                     width: 100% !important;
@@ -1099,20 +1162,20 @@ def register_public_pages(ui, deps: dict) -> None:
                     align-items: stretch;
                 }
                 .ideas-primary-action,
-                .ideas-secondary-action {
+                .ideas-secondary-action,
+                .ideas-ideus-action {
                     width: 100%;
                     justify-content: center;
                 }
                 .ideas-hero-visual {
                     min-height: 360px;
-                }
-                .ideas-visual-message {
-                    left: 18px;
-                    right: 18px;
-                    top: 18px;
+                    padding: 22px;
                 }
                 .ideas-visual-message .title {
                     font-size: clamp(1.55rem, 8vw, 2.25rem);
+                    max-width: 100%;
+                }
+                .ideas-hero-mockup {
                     max-width: 100%;
                 }
                 .ideas-visual-card {
@@ -1511,10 +1574,13 @@ def register_public_pages(ui, deps: dict) -> None:
                                 ui.html('<a class="ideas-primary-action" href="/plataforma">Ingresar a plataforma</a>')
                             else:
                                 ui.html('<a class="ideas-primary-action" href="/contacto">Solicitar asesoramiento</a>')
+                            ui.html(
+                                '<a class="ideas-ideus-action" href="/soluciones/plataforma-saas">'
+                                '<span class="material-icons" aria-hidden="true">laptop_mac</span>'
+                                '<span>Conocé la plataforma IDEUS</span></a>'
+                            )
                             ui.html('<a class="ideas-secondary-action" href="#contenido">Conocer propuesta</a>')
                     with ui.element('aside').classes('ideas-hero-visual'):
-                        ui.html('<img class="ideas-hero-bg-image" src="/assets/Data/hero_sistema_gestion_vivo.png" alt="Visual de tablero de gestion industrial" onerror="this.style.display=\'none\';">')
-                        ui.html('<div class="ideas-hero-bg-fade"></div>')
                         ui.html(
                             '''
                             <div class="ideas-visual-message">
@@ -1522,6 +1588,19 @@ def register_public_pages(ui, deps: dict) -> None:
                                 <div class="title">Diagnóstico, acción y seguimiento en un solo flujo.</div>
                             </div>
                             '''
+                        )
+                        ui.html(
+                            '<div class="ideas-hero-mockup">'
+                            + mockup_shell(
+                                'Workspace · IDEUS',
+                                mockup_flow(['Diagnóstico', 'Acción', 'Seguimiento'])
+                                + mockup_rows([
+                                    ('Auditoría interna · Planta 2', 'En curso', 'warn'),
+                                    ('NC-014 Desvío dimensional', 'Acción definida', 'warn'),
+                                    ('Cumplimiento SST', '94%', 'ok'),
+                                ])
+                            )
+                            + '</div>'
                         )
 
                 with ui.element('div').classes('ideas-tab-wrap').props('id=contenido'):
@@ -1717,15 +1796,21 @@ def register_public_pages(ui, deps: dict) -> None:
                         with ui.element('section').classes('ideas-public-inner ideas-section'):
                             with ui.element('div').classes('ideas-section-grid'):
                                 with ui.element('div'):
-                                    ui.html('<div class="ideas-kicker-dark">Plataforma Digital</div>')
+                                    ui.html('<div class="ideas-kicker-dark">Plataforma Digital · IDEUS</div>')
                                     ui.html('<h2>Una plataforma viva para cada cliente.</h2>')
                                     ui.html(
                                         '''
                                         <p class="ideas-copy">
-                                        La plataforma centraliza procesos, diagnósticos, documentos, indicadores,
-                                        riesgos, ambiente, calidad, SST y usuarios en un entorno único.
+                                        IDEUS centraliza procesos, diagnósticos, documentos, indicadores,
+                                        riesgos, ambiente, calidad, SST y usuarios en un entorno único, con
+                                        Smart Assist como IA entrenada sobre el contexto real de tu empresa.
                                         </p>
                                         '''
+                                    )
+                                    ui.html(
+                                        '<a class="ideas-ideus-action" href="/soluciones/plataforma-saas" style="margin-top:18px;">'
+                                        '<span class="material-icons" aria-hidden="true">laptop_mac</span>'
+                                        '<span>Ver la plataforma IDEUS completa</span></a>'
                                     )
                                 with ui.element('div').classes('ideas-card-grid'):
                                     card('timeline', 'Trazabilidad total', 'Cada acción, decisión y resultado queda registrado y disponible.')

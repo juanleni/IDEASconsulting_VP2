@@ -40,13 +40,16 @@ def public_shell(page_title: str):
         <meta property="og:site_name" content="IDEUS">
         <meta property="og:title" content="IDEUS | {page_title} — by IDEAS Consulting">
         <meta property="og:description" content="La plataforma de gestion inteligente desarrollada por IDEAS Consulting.">
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
-        body, .nicegui-content {{ font-family: "Poppins", "Segoe UI Variable", "Segoe UI", sans-serif; }}
+        body, .nicegui-content {{ font-family: Aptos, "Segoe UI Variable", "Segoe UI", sans-serif; }}
         </style>
         '''
+    )
+    platform_active = ' active' if page_title == 'Plataforma SaaS' else ''
+    home_link_html = (
+        '<a class="ideas-public-home-link" href="/">Inicio</a>'
+        if page_title != 'Inicio'
+        else ''
     )
     with ui.header().classes('ideas-public-topbar'):
         ui.html(
@@ -56,6 +59,14 @@ def public_shell(page_title: str):
                     <img src="/assets/logo.png" alt="Isotipo de IDEAS Consulting" />
                     {ideus_wordmark_html('topbar', on_dark=True)}
                 </div>
+                <nav class="ideas-public-menu">
+                    {home_link_html}
+                    <a class="ideas-public-menu-link{platform_active}" href="/soluciones/plataforma-saas">
+                        <span class="material-icons" aria-hidden="true">laptop_mac</span>
+                        <span>Plataforma IDEUS</span>
+                    </a>
+                    <a class="ideas-public-menu-link" href="/contacto">Contacto</a>
+                </nav>
                 <div class="ideas-public-actions">
                     <a class="ideas-whatsapp-link topbar" href="https://wa.me/541170068904" target="_blank" rel="noopener noreferrer">
                         <span class="ideas-whatsapp-icon">🟢</span>
