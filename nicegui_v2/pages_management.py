@@ -135,6 +135,9 @@ def render_management_workspace_page(
     go_to_quality_module_fn=None,
     go_to_users_module_fn=None,
     go_to_lab_module_fn=None,
+    go_to_audits_module_fn=None,
+    go_to_management_review_module_fn=None,
+    go_to_document_control_module_fn=None,
     can_access_module_fn=None,
 ) -> None:
     shell_container = shell_fn('Sistema de gestion')
@@ -222,6 +225,9 @@ def render_management_workspace_page(
                 ('Salud Ocupacional', 'health_and_safety', 'salud-ocupacional', go_to_sst_module_fn),
                 ('Calidad', 'plumbing', 'calidad', go_to_quality_module_fn),
                 ('LAB ISO 17025', 'science', 'lab-iso-17025', go_to_lab_module_fn),
+                ('Auditorías Internas', 'fact_check', 'auditorias-internas', go_to_audits_module_fn),
+                ('Revisión por la Dirección', 'reviews', 'revision-direccion', go_to_management_review_module_fn),
+                ('Gestión Documental', 'folder_managed', 'gestion-documental', go_to_document_control_module_fn),
             ]
             local_role = str(app.storage.user.get('local_user_role') or '').strip().upper()
             if local_role == 'EMPRESA_ADMIN':
@@ -236,6 +242,9 @@ def render_management_workspace_page(
                 'salud-ocupacional': 'sst',
                 'calidad': 'quality',
                 'lab-iso-17025': 'lab_17025',
+                'auditorias-internas': 'audits',
+                'revision-direccion': 'management_review',
+                'gestion-documental': 'document_control',
                 'usuarios': 'users',
             }
             module_cards = []
@@ -499,6 +508,9 @@ def register_management_page(ui, deps: dict) -> None:
     go_to_quality_module = deps['go_to_quality_module']
     go_to_users_module = deps['go_to_users_module']
     go_to_lab_module = deps.get('go_to_lab_module')
+    go_to_audits_module = deps.get('go_to_audits_module')
+    go_to_management_review_module = deps.get('go_to_management_review_module')
+    go_to_document_control_module = deps.get('go_to_document_control_module')
     can_access_module = deps.get('can_access_module')
 
     @ui.page('/sistema-gestion')
@@ -528,5 +540,8 @@ def register_management_page(ui, deps: dict) -> None:
             go_to_quality_module_fn=go_to_quality_module,
             go_to_users_module_fn=go_to_users_module,
             go_to_lab_module_fn=go_to_lab_module,
+            go_to_audits_module_fn=go_to_audits_module,
+            go_to_management_review_module_fn=go_to_management_review_module,
+            go_to_document_control_module_fn=go_to_document_control_module,
             can_access_module_fn=can_access_module,
         )

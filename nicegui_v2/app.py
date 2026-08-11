@@ -32,6 +32,8 @@ if str(THIS_DIR) not in sys.path:
 
 from database import crear_base  # noqa: E402
 from core_data import (  # noqa: E402
+    registrar_auditoria,
+    obtener_auditoria_empresa,
     actualizar_kpi,
     actualizar_dashboard_principal_kpi,
     actualizar_grupos_personalizados_kpi,
@@ -183,6 +185,62 @@ from core_data import (  # noqa: E402
     enable_company_module,
     disable_user_module,
     enable_user_module,
+    obtener_auditorias_empresa,
+    obtener_auditoria_detalle,
+    crear_auditoria_interna,
+    actualizar_auditoria_interna,
+    eliminar_auditoria_interna,
+    obtener_hallazgos_auditoria,
+    crear_hallazgo_auditoria,
+    actualizar_hallazgo_auditoria,
+    cerrar_hallazgo_auditoria,
+    eliminar_hallazgo_auditoria,
+    AREAS_AUDITORIA,
+    NORMAS_AUDITORIA,
+    ESTADOS_AUDITORIA,
+    CLASIFICACIONES_HALLAZGO,
+    ESTADOS_HALLAZGO,
+    obtener_revisiones_empresa,
+    obtener_revision_detalle,
+    crear_revision_direccion,
+    actualizar_revision_direccion,
+    eliminar_revision_direccion,
+    obtener_snapshot_revision_direccion,
+    ESTADOS_REVISION_DIRECCION,
+    obtener_documentos_controlados_empresa,
+    obtener_documento_controlado_detalle,
+    obtener_historial_documento_controlado,
+    crear_documento_controlado,
+    actualizar_documento_controlado,
+    registrar_nueva_version_documento,
+    cambiar_estado_documento_controlado,
+    eliminar_documento_controlado,
+    TIPOS_DOCUMENTO_CONTROLADO,
+    ESTADOS_DOCUMENTO_CONTROLADO,
+    obtener_sst_incidentes_empresa,
+    crear_sst_incidente,
+    actualizar_sst_incidente,
+    eliminar_sst_incidente,
+    obtener_sst_peligros_empresa,
+    crear_sst_peligro,
+    actualizar_sst_peligro,
+    eliminar_sst_peligro,
+    obtener_sst_epp_empresa,
+    crear_sst_epp,
+    actualizar_sst_epp,
+    eliminar_sst_epp,
+    obtener_sst_epp_entregas_empresa,
+    crear_sst_epp_entrega,
+    eliminar_sst_epp_entrega,
+    obtener_sst_plan_accion_empresa,
+    crear_sst_plan_accion,
+    actualizar_sst_plan_accion,
+    cerrar_sst_plan_accion,
+    eliminar_sst_plan_accion,
+    TIPOS_EVENTO_SST,
+    ESTADOS_EVENTO_SST,
+    TIPOS_PELIGRO_SST,
+    ESTADOS_PLAN_ACCION_SST,
 )
 try:
     from core_data import provisionar_acceso_empresa  # noqa: E402
@@ -281,9 +339,13 @@ from modules_sst import (  # noqa: E402
 )
 from modules_users import go_to_users_module, register_users_module  # noqa: E402
 from modules_lab import go_to_lab_module, register_lab_module  # noqa: E402
+from modules_audits import go_to_audits_module, register_audits_module  # noqa: E402
+from modules_management_review import go_to_management_review_module, register_management_review_module  # noqa: E402
+from modules_document_control import go_to_document_control_module, register_document_control_module  # noqa: E402
 from services.lab_ai_scheduler import start_lab_ai_scheduler  # noqa: E402
 from services.legal_matrix_alert_scheduler import start_legal_matrix_alert_scheduler  # noqa: E402
 from services.legal_curation_scheduler import start_legal_curation_scheduler  # noqa: E402
+from services.db_backup_scheduler import start_db_backup_scheduler  # noqa: E402
 try:
     from services.dashboard.dashboard_service import get_data_sources_for_company  # noqa: E402
 except Exception:  # pragma: no cover
@@ -333,8 +395,8 @@ app.add_static_files('/assets', str(ROOT))
 FAVICON_ICO_PATH = ROOT / 'favicon.ico'
 app.add_static_file(local_file=FAVICON_ICO_PATH, url_path='/favicon.ico')
 
-PLATFORM_USER = 'IDEAS'
-PLATFORM_PASSWORD = '2026'
+PLATFORM_USER = os.getenv('PLATFORM_USER', 'IDEAS')
+PLATFORM_PASSWORD = os.getenv('PLATFORM_PASSWORD', '2026')
 SESSION_TIMEOUT_MINUTES = int(os.getenv('IDEAS_SESSION_TIMEOUT_MINUTES', '90'))
 INSTITUTIONAL_ONLY = str(os.getenv('IDEAS_INSTITUTIONAL_ONLY', '0')).strip().lower() in {'1', 'true', 'yes', 'on'}
 
@@ -342,22 +404,32 @@ INSTITUTIONAL_ONLY = str(os.getenv('IDEAS_INSTITUTIONAL_ONLY', '0')).strip().low
 def inject_global_styles() -> None:
     ui.add_head_html(
         '''
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
         :root {
+            /* Paleta oficial de marca IDEAS Consulting / IDEUS (2026-08-10: centralizada acá,
+               antes solo el navy estaba implementado de forma consistente). */
             --ideas-navy: #0f172a;
-            --ideas-blue: #1f7ed6;
+            --ideas-blue: #2e8cff;
+            --ideas-teal: #0d9488;
+            --ideas-teal-bright: #00d6a6;
+            --ideas-orange: #ff8a21;
             --ideas-green: #0f8f61;
+            --ideas-green-bright: #7ed625;
             --ideas-line: rgba(148, 163, 184, 0.16);
             --ideas-text: #334155;
             --ideas-shadow: 0 22px 48px rgba(15, 23, 42, 0.08);
+            --ideas-font: "Poppins", "Segoe UI Variable", "Segoe UI", sans-serif;
         }
         body, .nicegui-content {
             background:
                 radial-gradient(circle at top left, rgba(15, 143, 97, 0.12), transparent 22%),
-                radial-gradient(circle at top right, rgba(31, 126, 214, 0.14), transparent 18%),
+                radial-gradient(circle at top right, rgba(46, 140, 255, 0.14), transparent 18%),
                 linear-gradient(180deg, #f6fafc 0%, #edf3f8 38%, #f7fbfd 100%);
             color: var(--ideas-text);
-            font-family: Aptos, "Segoe UI Variable", "Segoe UI", sans-serif;
+            font-family: var(--ideas-font);
         }
         .ideas-shell { width: 100%; max-width: 1520px; margin: 0 auto; padding: 8px 26px 30px 26px; }
         .ideas-card, .ideas-soft, .ideas-panel, .ideas-hero-card {
@@ -759,6 +831,9 @@ def _module_code_from_key(module_key: str | None) -> str:
         "lab_17025": "lab_17025",
         "users": "users",
         "smart_ideas_admin": "smart_ideas_admin",
+        "audits": "audits",
+        "management_review": "management_review",
+        "document_control": "document_control",
     }
     return mapping.get(key, "")
 
@@ -1095,6 +1170,55 @@ def _deny_write(message: str = 'No tienes permisos para ejecutar esta accion.') 
     ui.notify(message, type='negative')
 
 
+def _current_actor() -> tuple[str, str]:
+    actor = str(app.storage.user.get('session_user_name') or app.storage.user.get('session_user_key') or '').strip()
+    role = str(app.storage.user.get('local_user_role') or app.storage.user.get('role') or '').strip()
+    return actor, role
+
+
+def _log_write(entidad: str, empresa_id, result, detalle: str = '') -> None:
+    """Registra en audit_log el resultado de una escritura. 'result' puede ser un bool o un
+    tuple[bool, str] (los dos shapes que usan las funciones de core_data.py) -- se interpreta
+    sin asumir mas de lo necesario para no romper si algun caller devuelve otra cosa."""
+    try:
+        if isinstance(result, tuple) and result:
+            ok = bool(result[0])
+            if len(result) > 1 and not detalle:
+                detalle = str(result[1])
+        else:
+            ok = bool(result)
+        actor, role = _current_actor()
+        registrar_auditoria(
+            empresa_id,
+            actor=actor,
+            actor_role=role,
+            entidad=entidad,
+            accion='write',
+            detalle=detalle,
+            resultado='ok' if ok else 'denegado',
+        )
+    except Exception:
+        pass
+
+
+def _company_scoped(fn):
+    """Envuelve una funcion de core_data.py que acepta empresa_id=None como ultimo
+    parametro opcional. IDEAS_ADMIN pasa sin restriccion (acceso multi-empresa por diseno).
+    Cualquier otra sesion queda forzada a su propia empresa (logged_empresa_id): si no hay
+    empresa de sesion valida se usa un id imposible (-1) para que el chequeo de propiedad
+    que ya hace la funcion de datos falle de forma nativa, sin inventar un shape de retorno
+    distinto al que la funcion ya usa (bool o tuple[bool, str]). Ademas deja registro en
+    audit_log de cada intento de escritura (Fase 2, 2026-08-10)."""
+    def wrapper(*args, **kwargs):
+        empresa_id = None if _is_admin_session() else (_session_company_id() or -1)
+        if empresa_id is not None:
+            kwargs['empresa_id'] = empresa_id
+        result = fn(*args, **kwargs)
+        _log_write(fn.__name__, empresa_id, result)
+        return result
+    return wrapper
+
+
 def guarded_guardar_empresa(payload: dict):
     if not _is_admin_session():
         return False, 'No autorizado: solo IDEAS admin puede crear empresas.'
@@ -1218,6 +1342,69 @@ def guarded_eliminar_diagnostico(diagnostico_id):
     return True
 
 
+# Fase 1 (2026-08-10): las siguientes funciones de core_data.py aceptaban un id de fila
+# sin verificar que perteneciera a la empresa de la sesion (una empresa cliente podia, en
+# teoria, alterar o borrar datos de otra). Ya se les agrego el parametro empresa_id=None con
+# el chequeo de pertenencia; estos wrappers son los que realmente quedan conectados en los
+# deps dict de cada modulo, para que ese chequeo se aplique siempre que no sea IDEAS_ADMIN.
+def _log_after(entidad: str):
+    """Para los guarded_* que ya hacen su propia autorizacion interna (empresa/usuario) y
+    tienen varios puntos de retorno: en vez de instrumentar cada return, se re-envuelve la
+    funcion completa y se audita el resultado final, usando la empresa de sesion del actor
+    como contexto (no necesariamente el target exacto, pero suficiente para saber quien hizo
+    que intento y si tuvo permiso)."""
+    def decorator(fn):
+        def wrapper(*args, **kwargs):
+            result = fn(*args, **kwargs)
+            _log_write(entidad, _session_company_id(), result)
+            return result
+        return wrapper
+    return decorator
+
+
+guarded_eliminar_empresa = _log_after('empresa')(guarded_eliminar_empresa)
+guarded_crear_usuario = _log_after('usuario')(guarded_crear_usuario)
+guarded_actualizar_usuario = _log_after('usuario')(guarded_actualizar_usuario)
+guarded_eliminar_usuario = _log_after('usuario')(guarded_eliminar_usuario)
+
+guarded_actualizar_proceso_mapa = _company_scoped(actualizar_proceso_mapa)
+guarded_actualizar_kpi_meses = _company_scoped(actualizar_kpi_meses)
+guarded_actualizar_dashboard_principal_kpi = _company_scoped(actualizar_dashboard_principal_kpi)
+guarded_eliminar_matriz_riesgos = _company_scoped(eliminar_matriz_riesgos)
+guarded_actualizar_item_riesgo = _company_scoped(actualizar_item_riesgo)
+guarded_actualizar_auditoria_interna = _company_scoped(actualizar_auditoria_interna)
+guarded_eliminar_auditoria_interna = _company_scoped(eliminar_auditoria_interna)
+guarded_actualizar_hallazgo_auditoria = _company_scoped(actualizar_hallazgo_auditoria)
+guarded_cerrar_hallazgo_auditoria = _company_scoped(cerrar_hallazgo_auditoria)
+guarded_eliminar_hallazgo_auditoria = _company_scoped(eliminar_hallazgo_auditoria)
+guarded_actualizar_revision_direccion = _company_scoped(actualizar_revision_direccion)
+guarded_eliminar_revision_direccion = _company_scoped(eliminar_revision_direccion)
+guarded_actualizar_documento_controlado = _company_scoped(actualizar_documento_controlado)
+guarded_registrar_nueva_version_documento = _company_scoped(registrar_nueva_version_documento)
+guarded_cambiar_estado_documento_controlado = _company_scoped(cambiar_estado_documento_controlado)
+guarded_eliminar_documento_controlado = _company_scoped(eliminar_documento_controlado)
+guarded_actualizar_sst_incidente = _company_scoped(actualizar_sst_incidente)
+guarded_eliminar_sst_incidente = _company_scoped(eliminar_sst_incidente)
+guarded_actualizar_sst_peligro = _company_scoped(actualizar_sst_peligro)
+guarded_eliminar_sst_peligro = _company_scoped(eliminar_sst_peligro)
+guarded_actualizar_sst_epp = _company_scoped(actualizar_sst_epp)
+guarded_eliminar_sst_epp = _company_scoped(eliminar_sst_epp)
+guarded_eliminar_sst_epp_entrega = _company_scoped(eliminar_sst_epp_entrega)
+guarded_actualizar_sst_plan_accion = _company_scoped(actualizar_sst_plan_accion)
+guarded_cerrar_sst_plan_accion = _company_scoped(cerrar_sst_plan_accion)
+guarded_eliminar_sst_plan_accion = _company_scoped(eliminar_sst_plan_accion)
+guarded_actualizar_aspecto_ambiental = _company_scoped(actualizar_aspecto_ambiental)
+guarded_actualizar_requisito_legal_ambiental = _company_scoped(actualizar_requisito_legal_ambiental)
+guarded_actualizar_simulacro_ambiental = _company_scoped(actualizar_simulacro_ambiental)
+guarded_actualizar_ambiental_capacitacion = _company_scoped(actualizar_ambiental_capacitacion)
+guarded_eliminar_ambiental_capacitacion = _company_scoped(eliminar_ambiental_capacitacion)
+guarded_actualizar_problema_calidad_8d = _company_scoped(actualizar_problema_calidad_8d)
+guarded_eliminar_problema_calidad_8d = _company_scoped(eliminar_problema_calidad_8d)
+guarded_guardar_5_porque_problema_calidad = _company_scoped(guardar_5_porque_problema_calidad)
+guarded_guardar_ishikawa_problema_calidad = _company_scoped(guardar_ishikawa_problema_calidad)
+guarded_actualizar_sst_capacitacion = _company_scoped(actualizar_sst_capacitacion)
+
+
 def logout_platform() -> None:
     app.storage.user['platform_auth'] = False
     ui.navigate.to('/')
@@ -1271,40 +1458,49 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
             ('Mi Workspace', '/sistema-gestion', 'dashboard_customize'),
             ('Smart IDEAS', '/sistema-gestion/smart-ideas', 'auto_awesome'),
         ]
+        local_role_for_nav = str(app.storage.user.get('local_user_role') or '').strip().upper()
+        if local_role_for_nav == 'EMPRESA_ADMIN':
+            nav_items.append(('Usuarios', '/sistema-gestion/usuarios', 'manage_accounts'))
         drawer_title = empresa_sesion or 'Workspace cliente'
         drawer_note = 'Sistema de gestión'
         drawer_support = 'Acceso simple a tus módulos habilitados, sin información de otros clientes.'
 
-    drawer = None
-    if user_role == 'admin':
-        # value=False + show-if-above: en pantallas >=768px Quasar fuerza el
-        # drawer visible (igual que antes), en pantallas chicas arranca
-        # cerrado y se maneja con el botón hamburguesa del header — antes
-        # quedaba forzado abierto (value=True) tapando todo el contenido en
-        # el celular, sin ninguna forma de cerrarlo.
-        drawer = ui.left_drawer(value=False, bordered=False).classes('p-4').props('breakpoint=768 show-if-above')
-        with drawer:
-            with ui.column().classes('ideas-brand-card w-full'):
-                if logo:
-                    ui.image(logo).classes('w-28 mb-3')
-                ui.label('IDEAS Consulting').classes('text-slate-900 text-lg font-bold')
-                ui.label(drawer_note).classes('text-xs uppercase tracking-widest text-slate-500')
-                ui.separator().classes('my-3')
-                ui.label('Navegación').classes('text-[11px] uppercase tracking-[0.22em] text-slate-400')
+    # 2026-08-10 (Fase 3): antes este drawer solo se renderizaba para
+    # user_role == 'admin' — EMPRESA_ADMIN/EMPRESA_USER (el 90% de los
+    # usuarios reales) se quedaban sin navegación persistente, solo con el
+    # botón "atrás" del topbar. nav_items ya se calculaba para ambos roles
+    # más arriba; el bloque de render simplemente nunca se ejecutaba para
+    # ellos. Se saca el gate de rol para que el drawer se construya siempre.
+    # value=False + show-if-above: en pantallas >=768px Quasar fuerza el
+    # drawer visible, en pantallas chicas arranca cerrado y se maneja con
+    # el botón hamburguesa del header.
+    drawer = ui.left_drawer(value=False, bordered=False).classes('p-4').props('breakpoint=768 show-if-above')
+    with drawer:
+        with ui.column().classes('ideas-brand-card w-full'):
+            if logo:
+                ui.image(logo).classes('w-28 mb-3')
+            ui.label('IDEAS Consulting' if user_role == 'admin' else fix_text(drawer_title)).classes('text-slate-900 text-lg font-bold')
+            ui.label(drawer_note).classes('text-xs uppercase tracking-widest text-slate-500')
+            ui.separator().classes('my-3')
+            ui.label('Navegación').classes('text-[11px] uppercase tracking-[0.22em] text-slate-400')
 
-            def _go_to(route: str) -> None:
-                drawer.hide()  # no-op en desktop (show-if-above la fuerza visible); cierra en mobile
-                ui.navigate.to(route)
+        def _go_to(route: str) -> None:
+            drawer.hide()  # no-op en desktop (show-if-above la fuerza visible); cierra en mobile
+            ui.navigate.to(route)
 
-            for label, route, icon in nav_items:
-                ui.button(label, icon=icon, on_click=lambda r=route: _go_to(r)).props('flat align=left').classes('ideas-nav-btn')
+        for label, route, icon in nav_items:
+            ui.button(label, icon=icon, on_click=lambda r=route: _go_to(r)).props('flat align=left').classes('ideas-nav-btn')
+        if user_role == 'admin':
             with ui.column().classes('ideas-brand-card w-full mt-4'):
                 ui.label('Board-ready').classes('text-[11px] uppercase tracking-[0.18em] text-slate-400')
                 ui.label(drawer_title).classes('text-slate-900 font-semibold mt-1')
                 ui.label(drawer_support).classes('text-sm text-slate-500 mt-1')
-            ui.button('Web institucional', icon='public', on_click=lambda: _go_to('/')).props('flat align=left').classes('ideas-nav-btn mt-2')
-            if is_platform_authenticated():
-                ui.button('Salir', icon='logout', on_click=logout_platform).props('flat align=left color=negative').classes('ideas-nav-btn')
+        else:
+            with ui.column().classes('ideas-brand-card w-full mt-4'):
+                ui.label(drawer_support).classes('text-sm text-slate-500')
+        ui.button('Web institucional', icon='public', on_click=lambda: _go_to('/')).props('flat align=left').classes('ideas-nav-btn mt-2')
+        if is_platform_authenticated():
+            ui.button('Salir', icon='logout', on_click=logout_platform).props('flat align=left color=negative').classes('ideas-nav-btn')
 
     def resolve_company_name_for_assistant() -> str:
         if empresa_sesion:
@@ -2045,6 +2241,33 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                     with ui.column().classes('gap-0'):
                         ui.label('IDEUS').classes('text-slate-900 font-bold')
                         ui.label(page_title).classes('text-sm text-slate-500')
+                # 2026-08-10 (Fase 3): indicador fuerte de "empresa activa" para
+                # IDEAS_ADMIN — antes el único indicio era el selector del hub,
+                # sin contraste visual, aun con dos empresas abiertas en pestañas.
+                if user_role == 'admin':
+                    _active_company_id = app.storage.user.get('management_company_id')
+                    try:
+                        _active_company_id = int(_active_company_id) if _active_company_id else None
+                    except Exception:
+                        _active_company_id = None
+                    if _active_company_id:
+                        try:
+                            _active_company_detail = obtener_empresa_detalle(_active_company_id)
+                            _active_company_name = fix_text(str((_active_company_detail or {}).get('razon_social') or '')).strip()
+                        except Exception:
+                            _active_company_name = ''
+                        if _active_company_name:
+                            ui.html(
+                                f'''
+                                <div style="display:flex;align-items:center;gap:6px;background:var(--ideas-orange);
+                                            color:#fff;padding:5px 12px;border-radius:999px;font-weight:700;
+                                            font-size:.76rem;letter-spacing:.02em;white-space:nowrap;
+                                            box-shadow:0 4px 10px rgba(255,138,33,.35);">
+                                    <span class="material-icons" style="font-size:15px;">business_center</span>
+                                    <span>Viendo: {_active_company_name}</span>
+                                </div>
+                                '''
+                            )
             with ui.row().classes('items-center justify-center flex-1 ideas-topbar-center'):
                 ui.html(ideus_wordmark_html('topbar'))
             with ui.row().classes('items-center gap-2 flex-wrap justify-end'):
@@ -2940,12 +3163,15 @@ def smart_ideas_admin_page():
 register_public_pages(ui, {'public_shell': public_shell, 'get_banner_url': get_banner_url, 'ideus_wordmark_html': ideus_wordmark_html})
 
 if not INSTITUTIONAL_ONLY:
-    register_management_page(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'fix_text': fix_text, 'quick_card': quick_card, 'render_metrics': render_metrics, 'certifications_summary': certifications_summary, 'set_selection': set_selection, 'obtener_color_contraste': obtener_color_contraste, 'go_to_documents_library': go_to_documents_library, 'go_to_company_documents_module': go_to_company_documents_module, 'go_to_process_maps_module': go_to_process_maps_module, 'go_to_kpi_module': go_to_kpi_module, 'go_to_risks_module': go_to_risks_module, 'go_to_environment_module': go_to_environment_module, 'go_to_legal_matrix_module': go_to_legal_matrix_module, 'go_to_quality_module': go_to_quality_module, 'go_to_sst_module': go_to_sst_module, 'go_to_users_module': go_to_users_module, 'go_to_lab_module': go_to_lab_module, 'can_access_module': can_access_module_code_for_current_user})
+    register_management_page(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'fix_text': fix_text, 'quick_card': quick_card, 'render_metrics': render_metrics, 'certifications_summary': certifications_summary, 'set_selection': set_selection, 'obtener_color_contraste': obtener_color_contraste, 'go_to_documents_library': go_to_documents_library, 'go_to_company_documents_module': go_to_company_documents_module, 'go_to_process_maps_module': go_to_process_maps_module, 'go_to_kpi_module': go_to_kpi_module, 'go_to_risks_module': go_to_risks_module, 'go_to_environment_module': go_to_environment_module, 'go_to_legal_matrix_module': go_to_legal_matrix_module, 'go_to_quality_module': go_to_quality_module, 'go_to_sst_module': go_to_sst_module, 'go_to_users_module': go_to_users_module, 'go_to_lab_module': go_to_lab_module, 'go_to_audits_module': go_to_audits_module, 'go_to_management_review_module': go_to_management_review_module, 'go_to_document_control_module': go_to_document_control_module, 'can_access_module': can_access_module_code_for_current_user})
     register_documents_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'valor_afirmativo': valor_afirmativo, 'set_selection': set_selection, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'explicar_requisito_iso': explicar_requisito_iso_guarded, 'set_ai_focus_context': set_ai_focus_context})
-    register_process_maps_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'set_selection': set_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'agregar_proceso_mapa_empresa': agregar_proceso_mapa_empresa, 'actualizar_proceso_mapa': actualizar_proceso_mapa, 'eliminar_proceso_mapa': eliminar_proceso_mapa, 'generar_pdf_mapa_procesos': generar_pdf_mapa_procesos, 'set_ai_focus_context': set_ai_focus_context})
-    register_kpi_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'set_selection': set_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_kpis_empresa': obtener_kpis_empresa, 'obtener_kpi_detalle': obtener_kpi_detalle, 'obtener_grupos_kpi_empresa': obtener_grupos_kpi_empresa, 'crear_grupo_kpi_empresa': crear_grupo_kpi_empresa, 'guardar_kpi': guardar_kpi, 'actualizar_kpi_meses': actualizar_kpi_meses, 'actualizar_kpi_diario_y_periodos': actualizar_kpi_diario_y_periodos, 'agregar_kpi_empresa': agregar_kpi_empresa, 'actualizar_kpi': actualizar_kpi, 'actualizar_dashboard_principal_kpi': actualizar_dashboard_principal_kpi, 'actualizar_grupos_personalizados_kpi': actualizar_grupos_personalizados_kpi, 'eliminar_kpi': eliminar_kpi, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'generar_pdf_kpis': generar_pdf_kpis, 'go': go, 'set_ai_focus_context': set_ai_focus_context})
-    register_risks_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_matrices_riesgos_empresa': obtener_matrices_riesgos_empresa, 'obtener_matriz_riesgos_detalle': obtener_matriz_riesgos_detalle, 'obtener_items_riesgos_matriz': obtener_items_riesgos_matriz, 'crear_matriz_riesgos': crear_matriz_riesgos, 'actualizar_matriz_riesgos': actualizar_matriz_riesgos, 'eliminar_matriz_riesgos': eliminar_matriz_riesgos, 'crear_item_riesgo': crear_item_riesgo, 'actualizar_item_riesgo': actualizar_item_riesgo, 'eliminar_item_riesgo': eliminar_item_riesgo, 'set_ai_focus_context': set_ai_focus_context})
-    register_environment_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_aspectos_ambientales_empresa': obtener_aspectos_ambientales_empresa, 'crear_aspecto_ambiental': crear_aspecto_ambiental, 'actualizar_aspecto_ambiental': actualizar_aspecto_ambiental, 'eliminar_aspecto_ambiental': eliminar_aspecto_ambiental, 'obtener_requisitos_legales_ambientales_empresa': obtener_requisitos_legales_ambientales_empresa, 'crear_requisito_legal_ambiental': crear_requisito_legal_ambiental, 'actualizar_requisito_legal_ambiental': actualizar_requisito_legal_ambiental, 'eliminar_requisito_legal_ambiental': eliminar_requisito_legal_ambiental, 'obtener_simulacros_ambientales_empresa': obtener_simulacros_ambientales_empresa, 'crear_simulacro_ambiental': crear_simulacro_ambiental, 'actualizar_simulacro_ambiental': actualizar_simulacro_ambiental, 'eliminar_simulacro_ambiental': eliminar_simulacro_ambiental, 'obtener_ambiental_capacitaciones_empresa': obtener_ambiental_capacitaciones_empresa, 'crear_ambiental_capacitacion': crear_ambiental_capacitacion, 'actualizar_ambiental_capacitacion': actualizar_ambiental_capacitacion, 'eliminar_ambiental_capacitacion': eliminar_ambiental_capacitacion, 'sugerir_matriz_legal_ia': sugerir_matriz_legal_ia_guarded, 'generar_reporte_simulacro': generar_reporte_simulacro, 'set_ai_focus_context': set_ai_focus_context})
+    register_process_maps_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'set_selection': set_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'agregar_proceso_mapa_empresa': agregar_proceso_mapa_empresa, 'actualizar_proceso_mapa': guarded_actualizar_proceso_mapa, 'eliminar_proceso_mapa': eliminar_proceso_mapa, 'generar_pdf_mapa_procesos': generar_pdf_mapa_procesos, 'set_ai_focus_context': set_ai_focus_context})
+    register_kpi_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'company_options': company_options, 'current_selection': current_selection, 'set_selection': set_selection, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_kpis_empresa': obtener_kpis_empresa, 'obtener_kpi_detalle': obtener_kpi_detalle, 'obtener_grupos_kpi_empresa': obtener_grupos_kpi_empresa, 'crear_grupo_kpi_empresa': crear_grupo_kpi_empresa, 'guardar_kpi': guardar_kpi, 'actualizar_kpi_meses': guarded_actualizar_kpi_meses, 'actualizar_kpi_diario_y_periodos': actualizar_kpi_diario_y_periodos, 'agregar_kpi_empresa': agregar_kpi_empresa, 'actualizar_kpi': actualizar_kpi, 'actualizar_dashboard_principal_kpi': guarded_actualizar_dashboard_principal_kpi, 'actualizar_grupos_personalizados_kpi': actualizar_grupos_personalizados_kpi, 'eliminar_kpi': eliminar_kpi, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'generar_pdf_kpis': generar_pdf_kpis, 'go': go, 'set_ai_focus_context': set_ai_focus_context})
+    register_risks_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_matrices_riesgos_empresa': obtener_matrices_riesgos_empresa, 'obtener_matriz_riesgos_detalle': obtener_matriz_riesgos_detalle, 'obtener_items_riesgos_matriz': obtener_items_riesgos_matriz, 'crear_matriz_riesgos': crear_matriz_riesgos, 'actualizar_matriz_riesgos': actualizar_matriz_riesgos, 'eliminar_matriz_riesgos': guarded_eliminar_matriz_riesgos, 'crear_item_riesgo': crear_item_riesgo, 'actualizar_item_riesgo': guarded_actualizar_item_riesgo, 'eliminar_item_riesgo': eliminar_item_riesgo, 'set_ai_focus_context': set_ai_focus_context})
+    register_audits_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'fix_text': fix_text, 'obtener_auditorias_empresa': obtener_auditorias_empresa, 'obtener_auditoria_detalle': obtener_auditoria_detalle, 'crear_auditoria_interna': crear_auditoria_interna, 'actualizar_auditoria_interna': guarded_actualizar_auditoria_interna, 'eliminar_auditoria_interna': guarded_eliminar_auditoria_interna, 'obtener_hallazgos_auditoria': obtener_hallazgos_auditoria, 'crear_hallazgo_auditoria': crear_hallazgo_auditoria, 'actualizar_hallazgo_auditoria': guarded_actualizar_hallazgo_auditoria, 'cerrar_hallazgo_auditoria': guarded_cerrar_hallazgo_auditoria, 'eliminar_hallazgo_auditoria': guarded_eliminar_hallazgo_auditoria, 'AREAS_AUDITORIA': AREAS_AUDITORIA, 'NORMAS_AUDITORIA': NORMAS_AUDITORIA, 'ESTADOS_AUDITORIA': ESTADOS_AUDITORIA, 'CLASIFICACIONES_HALLAZGO': CLASIFICACIONES_HALLAZGO, 'ESTADOS_HALLAZGO': ESTADOS_HALLAZGO})
+    register_management_review_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'fix_text': fix_text, 'obtener_revisiones_empresa': obtener_revisiones_empresa, 'obtener_revision_detalle': obtener_revision_detalle, 'crear_revision_direccion': crear_revision_direccion, 'actualizar_revision_direccion': guarded_actualizar_revision_direccion, 'eliminar_revision_direccion': guarded_eliminar_revision_direccion, 'obtener_snapshot_revision_direccion': obtener_snapshot_revision_direccion, 'ESTADOS_REVISION_DIRECCION': ESTADOS_REVISION_DIRECCION})
+    register_document_control_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'fix_text': fix_text, 'obtener_documentos_controlados_empresa': obtener_documentos_controlados_empresa, 'obtener_documento_controlado_detalle': obtener_documento_controlado_detalle, 'obtener_historial_documento_controlado': obtener_historial_documento_controlado, 'crear_documento_controlado': crear_documento_controlado, 'actualizar_documento_controlado': guarded_actualizar_documento_controlado, 'registrar_nueva_version_documento': guarded_registrar_nueva_version_documento, 'cambiar_estado_documento_controlado': guarded_cambiar_estado_documento_controlado, 'eliminar_documento_controlado': guarded_eliminar_documento_controlado, 'TIPOS_DOCUMENTO_CONTROLADO': TIPOS_DOCUMENTO_CONTROLADO, 'ESTADOS_DOCUMENTO_CONTROLADO': ESTADOS_DOCUMENTO_CONTROLADO})
+    register_environment_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'fix_text': fix_text, 'render_metrics': render_metrics, 'quick_card': quick_card, 'certifications_summary': certifications_summary, 'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa, 'obtener_aspectos_ambientales_empresa': obtener_aspectos_ambientales_empresa, 'crear_aspecto_ambiental': crear_aspecto_ambiental, 'actualizar_aspecto_ambiental': guarded_actualizar_aspecto_ambiental, 'eliminar_aspecto_ambiental': eliminar_aspecto_ambiental, 'obtener_requisitos_legales_ambientales_empresa': obtener_requisitos_legales_ambientales_empresa, 'crear_requisito_legal_ambiental': crear_requisito_legal_ambiental, 'actualizar_requisito_legal_ambiental': guarded_actualizar_requisito_legal_ambiental, 'eliminar_requisito_legal_ambiental': eliminar_requisito_legal_ambiental, 'obtener_simulacros_ambientales_empresa': obtener_simulacros_ambientales_empresa, 'crear_simulacro_ambiental': crear_simulacro_ambiental, 'actualizar_simulacro_ambiental': guarded_actualizar_simulacro_ambiental, 'eliminar_simulacro_ambiental': eliminar_simulacro_ambiental, 'obtener_ambiental_capacitaciones_empresa': obtener_ambiental_capacitaciones_empresa, 'crear_ambiental_capacitacion': crear_ambiental_capacitacion, 'actualizar_ambiental_capacitacion': guarded_actualizar_ambiental_capacitacion, 'eliminar_ambiental_capacitacion': guarded_eliminar_ambiental_capacitacion, 'sugerir_matriz_legal_ia': sugerir_matriz_legal_ia_guarded, 'generar_reporte_simulacro': generar_reporte_simulacro, 'set_ai_focus_context': set_ai_focus_context})
     register_legal_matrix_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle})
     register_legal_curation_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'fix_text': fix_text})
     register_sst_module(ui, {
@@ -2959,10 +3185,34 @@ if not INSTITUTIONAL_ONLY:
         'obtener_mapa_procesos_empresa': obtener_mapa_procesos_empresa,
         'obtener_sst_capacitaciones_empresa': obtener_sst_capacitaciones_empresa,
         'crear_sst_capacitacion': crear_sst_capacitacion,
-        'actualizar_sst_capacitacion': actualizar_sst_capacitacion,
+        'actualizar_sst_capacitacion': guarded_actualizar_sst_capacitacion,
         'eliminar_sst_capacitacion': eliminar_sst_capacitacion,
+        'obtener_sst_incidentes_empresa': obtener_sst_incidentes_empresa,
+        'crear_sst_incidente': crear_sst_incidente,
+        'actualizar_sst_incidente': guarded_actualizar_sst_incidente,
+        'eliminar_sst_incidente': guarded_eliminar_sst_incidente,
+        'obtener_sst_peligros_empresa': obtener_sst_peligros_empresa,
+        'crear_sst_peligro': crear_sst_peligro,
+        'actualizar_sst_peligro': guarded_actualizar_sst_peligro,
+        'eliminar_sst_peligro': guarded_eliminar_sst_peligro,
+        'obtener_sst_epp_empresa': obtener_sst_epp_empresa,
+        'crear_sst_epp': crear_sst_epp,
+        'actualizar_sst_epp': guarded_actualizar_sst_epp,
+        'eliminar_sst_epp': guarded_eliminar_sst_epp,
+        'obtener_sst_epp_entregas_empresa': obtener_sst_epp_entregas_empresa,
+        'crear_sst_epp_entrega': crear_sst_epp_entrega,
+        'eliminar_sst_epp_entrega': guarded_eliminar_sst_epp_entrega,
+        'obtener_sst_plan_accion_empresa': obtener_sst_plan_accion_empresa,
+        'crear_sst_plan_accion': crear_sst_plan_accion,
+        'actualizar_sst_plan_accion': guarded_actualizar_sst_plan_accion,
+        'cerrar_sst_plan_accion': guarded_cerrar_sst_plan_accion,
+        'eliminar_sst_plan_accion': guarded_eliminar_sst_plan_accion,
+        'TIPOS_EVENTO_SST': TIPOS_EVENTO_SST,
+        'ESTADOS_EVENTO_SST': ESTADOS_EVENTO_SST,
+        'TIPOS_PELIGRO_SST': TIPOS_PELIGRO_SST,
+        'ESTADOS_PLAN_ACCION_SST': ESTADOS_PLAN_ACCION_SST,
     })
-    register_quality_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'valor_afirmativo': valor_afirmativo, 'fix_text': fix_text, 'obtener_problemas_calidad_empresa': obtener_problemas_calidad_empresa, 'obtener_problema_calidad_detalle': obtener_problema_calidad_detalle, 'crear_problema_calidad_8d': crear_problema_calidad_8d, 'actualizar_problema_calidad_8d': actualizar_problema_calidad_8d, 'eliminar_problema_calidad_8d': eliminar_problema_calidad_8d, 'obtener_5_porque_problema_calidad': obtener_5_porque_problema_calidad, 'guardar_5_porque_problema_calidad': guardar_5_porque_problema_calidad, 'obtener_ishikawa_problema_calidad': obtener_ishikawa_problema_calidad, 'guardar_ishikawa_problema_calidad': guardar_ishikawa_problema_calidad, 'obtener_acciones_8d': obtener_acciones_8d, 'guardar_accion_8d': guardar_accion_8d, 'eliminar_accion_8d': eliminar_accion_8d, 'generar_reporte_8d': generar_reporte_8d, 'generar_pdf_8d': generar_pdf_8d, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'sugerir_causas_ishikawa': sugerir_causas_ishikawa_guarded, 'set_ai_focus_context': set_ai_focus_context})
+    register_quality_module(ui, {'ensure_platform_access': ensure_platform_access, 'shell': shell, 'current_selection': current_selection, 'set_selection': set_selection, 'company_options': company_options, 'obtener_empresa_detalle': obtener_empresa_detalle, 'valor_afirmativo': valor_afirmativo, 'fix_text': fix_text, 'obtener_problemas_calidad_empresa': obtener_problemas_calidad_empresa, 'obtener_problema_calidad_detalle': obtener_problema_calidad_detalle, 'crear_problema_calidad_8d': crear_problema_calidad_8d, 'actualizar_problema_calidad_8d': guarded_actualizar_problema_calidad_8d, 'eliminar_problema_calidad_8d': guarded_eliminar_problema_calidad_8d, 'obtener_5_porque_problema_calidad': obtener_5_porque_problema_calidad, 'guardar_5_porque_problema_calidad': guarded_guardar_5_porque_problema_calidad, 'obtener_ishikawa_problema_calidad': obtener_ishikawa_problema_calidad, 'guardar_ishikawa_problema_calidad': guarded_guardar_ishikawa_problema_calidad, 'obtener_acciones_8d': obtener_acciones_8d, 'guardar_accion_8d': guardar_accion_8d, 'eliminar_accion_8d': eliminar_accion_8d, 'generar_reporte_8d': generar_reporte_8d, 'generar_pdf_8d': generar_pdf_8d, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'sugerir_causas_ishikawa': sugerir_causas_ishikawa_guarded, 'set_ai_focus_context': set_ai_focus_context})
     register_users_module(ui, {'app': app, 'ensure_platform_access': ensure_platform_access, 'shell': shell, 'fix_text': fix_text, 'obtener_usuarios': obtener_usuarios, 'crear_usuario': guarded_crear_usuario, 'actualizar_usuario': guarded_actualizar_usuario, 'eliminar_usuario': guarded_eliminar_usuario, 'obtener_empresas': obtener_empresas, 'list_modules_catalog': list_modules_catalog, 'get_available_modules_for_company': get_available_modules_for_company, 'get_enabled_modules_for_user': get_enabled_modules_for_user, 'assign_modules_to_user': assign_modules_to_user, 'guardar_legal_matrix_delete_password': guardar_legal_matrix_delete_password, 'tiene_legal_matrix_password_personalizada': tiene_legal_matrix_password_personalizada, 'obtener_legal_matrix_alert_settings': obtener_legal_matrix_alert_settings, 'guardar_legal_matrix_alert_settings': guardar_legal_matrix_alert_settings})
     register_lab_module(ui, {
         'ensure_platform_access': ensure_platform_access,
@@ -3044,6 +3294,7 @@ run_host = '0.0.0.0'
 start_lab_ai_scheduler()
 start_legal_matrix_alert_scheduler()
 start_legal_curation_scheduler()
+start_db_backup_scheduler()
 
 ui.run(
     title='IDEUS | IDEAS Consulting',
@@ -3052,7 +3303,7 @@ ui.run(
     port=run_port,
     reload=False,
     native=False,
-    storage_secret='ideas-consulting-v2',
+    storage_secret=os.getenv('NICEGUI_STORAGE_SECRET', 'ideas-consulting-v2'),
 )
 
 

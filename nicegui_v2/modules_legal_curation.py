@@ -24,7 +24,7 @@ import requests
 from bs4 import BeautifulSoup
 from nicegui import run, ui
 
-from modules_legal_matrix import _connect, _rows, _is_ideas_staff, _user_name
+from modules_legal_matrix import _connect, _rows, _insert, _log, _is_ideas_staff, _user_name
 
 # ---------------------------------------------------------------------------
 # Fuentes conocidas
@@ -98,6 +98,17 @@ def _ensure_curation_tables() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_normas_raw_fuente ON normas_raw(fuente_id);
             CREATE INDEX IF NOT EXISTS idx_normas_raw_revision ON normas_raw(revision);
+            CREATE TABLE IF NOT EXISTS norma_empresa_publicacion (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                norma_id INTEGER NOT NULL REFERENCES normas_raw(id),
+                empresa_id INTEGER NOT NULL,
+                requirement_id INTEGER,
+                publicado_por TEXT,
+                publicado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(norma_id, empresa_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_norma_empresa_pub_norma ON norma_empresa_publicacion(norma_id);
+            CREATE INDEX IF NOT EXISTS idx_norma_empresa_pub_empresa ON norma_empresa_publicacion(empresa_id);
         ''')
         for nombre, tipo, url, frecuencia in FUENTES_SEED:
             conn.execute(
@@ -485,6 +496,116 @@ def rechazar_norma(norma_id: int) -> None:
         )
 
 
+# ---------------------------------------------------------------------------
+# Publicación a empresas (Fase 2, 2026-08-10)
+#
+# Gap que quedaba abierto: "aprobar" una norma en normas_raw no decidía a qué
+# empresa(s) se publicaba -- quedaba 100% en manos de que alguien la cargara a
+# mano en la Matriz Legal de cada cliente, sin ningún registro de qué normas
+# aprobadas todavía no llegaron a ningún cliente. Esto cierra ese circuito:
+# aprobar -> elegir empresas -> se crea el requisito en la Matriz Legal de cada
+# una y queda trazado en norma_empresa_publicacion + normas_raw.publicado_a_empresa.
+# ---------------------------------------------------------------------------
+
+_AMBITO_POR_TEMA = {
+    'ambiente': 'Medio Ambiente',
+    'sst': 'Seguridad e Higiene',
+    'ambos': 'Medio Ambiente / SST',
+}
+
+
+def obtener_norma_raw(norma_id: int) -> dict | None:
+    _ensure_curation_tables()
+    rows = _rows('SELECT * FROM normas_raw WHERE id = ?', (norma_id,))
+    return rows[0] if rows else None
+
+
+def obtener_empresas_publicadas_norma(norma_id: int) -> list[dict]:
+    _ensure_curation_tables()
+    return _rows(
+        'SELECT * FROM norma_empresa_publicacion WHERE norma_id = ? ORDER BY publicado_en DESC',
+        (norma_id,),
+    )
+
+
+def normas_aprobadas_sin_publicar(limit: int = 200) -> list[dict]:
+    """Normas ya aprobadas por el staff que todavia no se publicaron a NINGUNA empresa.
+    Es la pieza que faltaba para poder responder 'que aprobamos que nadie recibio todavia'."""
+    _ensure_curation_tables()
+    return _rows(
+        '''
+        SELECT nr.*, ls.nombre_fuente FROM normas_raw nr
+        JOIN legal_sources_watch ls ON ls.id = nr.fuente_id
+        WHERE nr.revision = 'aprobada' AND nr.publicado_a_empresa = 0
+        ORDER BY nr.fecha_aprobacion DESC
+        LIMIT ?
+        ''',
+        (limit,),
+    )
+
+
+def publicar_norma_a_empresas(norma_id: int, empresa_ids: list[int]) -> tuple[bool, str]:
+    """Publica una norma aprobada a una o mas empresas: crea el requisito legal
+    correspondiente en la Matriz Legal de cada una (estado 'Pendiente', para que el
+    cliente lo revise) y deja trazabilidad de que empresas ya lo recibieron."""
+    _ensure_curation_tables()
+    norma = obtener_norma_raw(norma_id)
+    if not norma:
+        return False, 'La norma no existe.'
+    if norma.get('revision') != 'aprobada':
+        return False, 'Solo se pueden publicar normas ya aprobadas.'
+    empresa_ids = sorted({int(e) for e in (empresa_ids or []) if e})
+    if not empresa_ids:
+        return False, 'Elegi al menos una empresa.'
+
+    ya_publicadas = {int(p['empresa_id']) for p in obtener_empresas_publicadas_norma(norma_id)}
+    pendientes = [e for e in empresa_ids if e not in ya_publicadas]
+    if not pendientes:
+        return False, 'Esta norma ya fue publicada a todas las empresas seleccionadas.'
+
+    ambito = _AMBITO_POR_TEMA.get(str(norma.get('tema') or ''), 'Medio Ambiente')
+    actor = _user_name()
+    creados = 0
+    for empresa_id in pendientes:
+        requirement_id = _insert('legal_requirements', {
+            'empresa_id': empresa_id,
+            'ambito': ambito,
+            'jurisdiccion': norma.get('jurisdiccion') or norma.get('provincia') or 'Nacional',
+            'organismo': norma.get('organismo_emisor') or '',
+            'tipo_norma': norma.get('tipo_norma') or 'Ley',
+            'numero': norma.get('numero') or '',
+            'titulo': norma.get('titulo') or f"Norma {norma.get('numero') or norma_id}",
+            'obligacion': norma.get('resumen') or '',
+            'estado': 'Pendiente',
+            'criticidad': 'Media',
+            'fecha_publicacion': norma.get('fecha_publicacion') or '',
+            'observaciones': f"Publicada automaticamente desde curacion normativa (norma_raw id={norma_id}) por {actor}.",
+        })
+        with _connect() as conn:
+            conn.execute(
+                'INSERT OR IGNORE INTO norma_empresa_publicacion (norma_id, empresa_id, requirement_id, publicado_por) '
+                'VALUES (?, ?, ?, ?)',
+                (norma_id, empresa_id, requirement_id, actor),
+            )
+        _log(empresa_id, 'ALTA', 'requisito legal (curacion normativa)', requirement_id, str(norma.get('titulo') or ''))
+        creados += 1
+
+    with _connect() as conn:
+        conn.execute('UPDATE normas_raw SET publicado_a_empresa = 1 WHERE id = ?', (norma_id,))
+
+    try:
+        from core_data import registrar_auditoria
+        registrar_auditoria(
+            None, actor=actor, actor_role='IDEAS_ADMIN', entidad='publicar_norma_a_empresas',
+            entidad_id=norma_id, accion='write', resultado='ok',
+            detalle=f'{creados} empresa(s): {pendientes}',
+        )
+    except Exception:
+        pass
+
+    return True, f'Norma publicada a {creados} empresa(s).'
+
+
 def go_to_legal_curation_module(_empresa_id: int | None = None, _set_selection_fn=None) -> None:
     ui.navigate.to('/sistema-gestion/curacion-normativa')
 
@@ -718,7 +839,44 @@ def register_legal_curation_module(ui, deps: dict) -> None:
                                 tabla_normas.refresh()
                                 ui.notify('Norma aprobada', type='positive')
 
+                            def _abrir_publicar(norma_id=norma['id']) -> None:
+                                from core_data import obtener_empresas
+
+                                empresas = list(obtener_empresas())
+                                ya_publicadas = {int(p['empresa_id']) for p in obtener_empresas_publicadas_norma(norma_id)}
+                                with ui.dialog() as pub_dialog, ui.card().classes('w-full max-w-md'):
+                                    ui.label('Publicar a empresas').classes('text-base font-semibold')
+                                    ui.label(
+                                        'Crea el requisito legal (estado Pendiente) en la Matriz Legal de cada '
+                                        'empresa elegida. Las que ya la recibieron aparecen tildadas y deshabilitadas.'
+                                    ).classes('text-xs text-gray-500')
+                                    checks: dict[int, object] = {}
+                                    with ui.column().classes('w-full gap-1 max-h-64 overflow-auto'):
+                                        for empresa_id, nombre in empresas:
+                                            ya = int(empresa_id) in ya_publicadas
+                                            checks[int(empresa_id)] = ui.checkbox(
+                                                f"{nombre}{' (ya publicada)' if ya else ''}", value=ya,
+                                            ).props('disable' if ya else '')
+                                    with ui.row().classes('w-full justify-end gap-2 mt-2'):
+                                        ui.button('Cancelar', on_click=pub_dialog.close).props('flat no-caps')
+
+                                        def _confirmar_publicar() -> None:
+                                            seleccionadas = [eid for eid, chk in checks.items() if chk.value and eid not in ya_publicadas]
+                                            ok, msg = publicar_norma_a_empresas(norma_id, seleccionadas)
+                                            ui.notify(msg, type='positive' if ok else 'warning')
+                                            if ok:
+                                                pub_dialog.close()
+                                                detail_dialog.close()
+                                                tabla_normas.refresh()
+
+                                        ui.button('Publicar', icon='send', on_click=_confirmar_publicar).props('unelevated no-caps').style(
+                                            'background:#0E3A53;'
+                                        )
+                                pub_dialog.open()
+
                             ui.button('Rechazar', icon='close', on_click=_rechazar).props('flat no-caps color=negative')
+                            if norma.get('revision') == 'aprobada':
+                                ui.button('Publicar a empresas', icon='send', on_click=_abrir_publicar).props('unelevated no-caps color=primary')
                             ui.button('Aprobar', icon='check', on_click=_aprobar).props('unelevated no-caps').style(
                                 'background:#0E3A53;'
                             )
