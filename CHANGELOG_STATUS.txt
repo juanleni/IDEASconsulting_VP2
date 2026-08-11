@@ -9,6 +9,65 @@ Formato sugerido de uso
 - Pendientes
 
 ==================================================
+2026-08-10
+Modulo / area
+Robustecimiento integral (Fases 0 a 4: seguridad, aislamiento multi-tenant, gaps funcionales QHSE, marca/UX, deuda tecnica)
+
+Que se cambio
+Fase 0 (seguridad urgente):
+- Credenciales y secretos hardcodeados movidos a variables de entorno (render.yaml, .env).
+- ideas.db sacado del tracking de git.
+
+Fase 1 (aislamiento multi-tenant y red de seguridad):
+- Filtrado por empresa_id corregido en todas las funciones de escritura criticas de core_data.py (antes, algunas permitian editar/borrar datos de otra empresa).
+- DB_PATH configurable por variable de entorno (IDEAS_DB_PATH).
+- Rate limiting / bloqueo de intentos fallidos en el login.
+- CI basico con GitHub Actions (corre la suite de tests en cada push).
+- Base para backup automatizado y disco persistente en Render (bloque de disco documentado y listo, comentado hasta pasar a un plan pago).
+
+Fase 2 (gaps funcionales QHSE):
+- Tabla de auditoria generica (quien hizo que, en toda la plataforma).
+- Mapeo normativa-cliente en el panel de curacion legal (antes "aprobar" una norma no definia a que empresa se publicaba).
+- Modulo nuevo: Auditorias Internas (auditorias.internas, con hallazgos, clasificacion, cierre).
+- Modulo nuevo: Revision por la Direccion (ISO 9.3.2/9.3.3, con snapshot automatico de auditorias, hallazgos, 8D, riesgos, KPIs y legal-ambiental).
+- Modulo nuevo: Gestion Documental real (repositorio con versiones, estados, lista maestra exportable) -- separado del modulo de referencia normativa existente.
+- SST completado: incidentes/accidentes, matriz de peligros, EPP y entregas, plan de accion.
+
+Fase 3 (marca y experiencia):
+- Paleta de marca oficial completa en CSS (navy, teal, blue, orange, green) y tipografia Poppins de punta a punta: plataforma, sitio publico, iframe Matriz Legal, PDFs (con embebido de fuente verificado), app mobile.
+- Rebrand a IDEUS (by IDEAS Consulting) extendido a Matriz Legal, PDFs y app mobile.
+- Bug corregido: el menu de navegacion lateral nunca se mostraba para EMPRESA_ADMIN/EMPRESA_USER (codigo muerto que lo bloqueaba solo para ese rol).
+- Indicadores de carga (spinner/boton deshabilitado) en login, 3 exportaciones de PDF e importacion de Excel, que antes no daban ningun feedback visual durante la espera.
+- Indicador de "empresa activa" para IDEAS_ADMIN cuando navega dentro del workspace de un cliente.
+- Logos demo con marcas de terceros (Pepsi, Adidas, Coca-Cola) identificados y confirmados sin uso real en ninguna empresa -- pendiente de borrado manual (ver Pendientes).
+
+Fase 4 (deuda tecnica y arquitectura):
+- requirements.txt podado: streamlit, streamlit-aggrid, pyinstaller y fpdf2 (exclusivos del prototipo Streamlit sin uso en produccion) movidos a requirements-legacy-portable.txt; PyMuPDF eliminado por no tener ningun uso real en el codigo.
+- Piloto de extraccion de capa de servicios: modules_legal_matrix.py dividido en legal_matrix_service.py (datos/logica de negocio, sin NiceGUI) y modules_legal_matrix.py (solo UI/rutas HTTP), sin cambiar ninguna funcionalidad ni romper los imports existentes (app.py, modules_legal_curation.py, mobile_legal_matrix/data.py, scheduler de alertas). Patron pensado para replicar en el resto de los modulos.
+- ADR-001-arquitectura-app-prototipo.md: documento de decision sobre el prototipo app/ (FastAPI + Postgres). Recomendacion: pausarlo por ahora (no arranca en un entorno limpio, sin tests, no conectado a Render, sin razon de negocio documentada para Postgres hoy) y aplicar el patron de capa de servicios directamente sobre nicegui_v2/. Queda pendiente de confirmacion, no es una decision ya tomada.
+
+Impacto funcional
+- La plataforma ya no tiene fugas de datos entre empresas en las funciones de escritura auditadas, tiene proteccion basica contra fuerza bruta en el login, y corre tests automaticamente en cada push.
+- Cubre gaps reales de un sistema de gestion ISO 9001/14001/45001: revision por la direccion, auditorias internas y gestion documental ahora existen como modulos reales, no solo como referencia.
+- Identidad de marca (IDEUS) consistente en toda la plataforma, PDFs y app mobile, no solo en un lugar.
+- Primer paso concreto (y verificado con tests reales) hacia reducir el monolito de nicegui_v2/, sin necesidad de terminar el prototipo app/ para lograrlo.
+
+Como se verifico
+- Suite completa de pytest (63 tests) pasando despues de cada tanda de cambios.
+- Tests de aislamiento cross-tenant ejecutados a mano contra una copia de la base real para las funciones de escritura nuevas y corregidas.
+- Boot real de la app principal y de la app mobile (import completo, sin errores) despues de cada cambio grande.
+- Generacion real de un PDF 8D con inspeccion de las fuentes embebidas (pypdf) para confirmar que Poppins realmente quedo incluido, no solo referenciado en el CSS.
+- Barrido de py_compile sobre los 92 archivos .py de nicegui_v2/ y mobile_legal_matrix/ al cierre de la Fase 4: sin errores de sintaxis.
+
+Pendientes
+- Pushear estos commits a GitHub y hacer Manual Deploy en Render (autoDeploy esta desactivado) -- no se pudo hacer el commit en si por un lock de git en esta maquina (.git/index.lock), asi que todo este trabajo esta hecho pero sin commitear.
+- Borrar manualmente los archivos de logos demo con marcas de terceros y los PDF de prueba generados durante la verificacion (permisos de la carpeta no permitieron borrarlos desde esta sesion).
+- Definir si ideas.db suelto en nicegui_v2/ (sin trackear) se borra.
+- Confirmar o corregir la recomendacion del ADR-001 sobre el prototipo app/.
+- Decidir si se sube el plan de Render a uno pago para activar disco persistente + backup real (hoy la mitigacion esta lista pero comentada).
+- Replicar el patron de extraccion de capa de servicios (piloto en Matriz Legal) en los modulos con mas deuda tecnica del resto de nicegui_v2/.
+
+==================================================
 2026-04-20
 Modulo / area
 Calidad / 8D / Paquete NotebookLM
