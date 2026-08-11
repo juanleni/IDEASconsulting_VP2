@@ -1,14 +1,16 @@
-streamlit==1.56.0
+# Fase 4 (2026-08-10): requirements.txt podado para reflejar solo lo que usan
+# los dos servicios que Render realmente builds/corre (ver render.yaml:
+# nicegui_v2/app.py y mobile_legal_matrix/app.py). streamlit, streamlit-aggrid
+# y pyinstaller (exclusivos del prototipo IDEASapp.py, sin tocar desde abril
+# 2026 y no usado en producción) se movieron a requirements-legacy-portable.txt
+# para no pagar su tiempo de build/instalación acá. Ver ese archivo para
+# instalarlos si hace falta seguir trabajando sobre ese prototipo.
 pandas==2.3.3
 plotly==6.6.0
-fpdf2==2.8.7
 Pillow==12.2.0
 openpyxl>=3.1.0
-pyinstaller>=6.0
-streamlit-aggrid>=1.2.1
 nicegui>=2.0
 pypdf>=5.0.0
-PyMuPDF>=1.24.0
 openai>=1.30.0
 weasyprint>=68.0
 fastapi>=0.115.0

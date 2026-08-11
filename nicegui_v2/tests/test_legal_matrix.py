@@ -16,11 +16,16 @@ import openpyxl
 import pytest
 
 import modules_legal_matrix as mlm
+import legal_matrix_service as lms
 
 
 @pytest.fixture(autouse=True)
 def scratch_db(tmp_path, monkeypatch):
-    monkeypatch.setattr(mlm, 'DB_PATH', str(tmp_path / 'test.db'))
+    # DB_PATH y _connect() viven en legal_matrix_service.py desde la extracción de
+    # capa de servicios (Fase 4) — parchear mlm.DB_PATH ya no alcanza, porque
+    # mlm._connect (re-exportado) sigue leyendo el DB_PATH del módulo donde fue
+    # *definido* (legal_matrix_service), no el de modules_legal_matrix.
+    monkeypatch.setattr(lms, 'DB_PATH', str(tmp_path / 'test.db'))
     mlm._ensure_tables()
 
 

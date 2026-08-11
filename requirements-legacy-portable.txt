@@ -1,0 +1,24 @@
+# Dependencias exclusivas de IDEASapp.py / portable/IDEAS_Portable/IDEASapp.py
+# (prototipo Streamlit anterior a nicegui_v2, sin tocar desde abril 2026 y
+# NO usado por ninguno de los dos servicios de Render — ver render.yaml,
+# que instala requirements.txt e inicia nicegui_v2/app.py y
+# mobile_legal_matrix/app.py; IDEASapp.py no aparece en ningún build/start
+# command). Separado el 2026-08-10 (Fase 4) para que requirements.txt refleje
+# solo lo que la plataforma en producción realmente necesita, y el build de
+# Render no instale ni compile estas librerías (streamlit-aggrid en particular
+# agrega tiempo de build sin usarse).
+#
+# Instalar solo si vas a seguir trabajando sobre el prototipo Streamlit o
+# generar el ejecutable portable con PyInstaller:
+#   pip install -r requirements.txt -r requirements-legacy-portable.txt
+
+streamlit==1.56.0
+streamlit-aggrid>=1.2.1
+pyinstaller>=6.0
+fpdf2==2.8.7
+
+# PyMuPDF (import fitz) no aparece usado en ningún .py de nicegui_v2/,
+# mobile_legal_matrix/, app/ ni IDEASapp.py al momento de esta poda (grep
+# completo, 2026-08-10). Se saca por completo de requirements.txt en vez de
+# ponerla acá porque no se pudo confirmar a qué frente pertenece; si algo la
+# necesita, un `pip install PyMuPDF` la vuelve a agregar sin drama.

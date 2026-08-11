@@ -12,12 +12,15 @@ from datetime import date, timedelta
 import pytest
 
 import modules_legal_matrix as mlm
+import legal_matrix_service as lms
 import services.legal_matrix_alert_scheduler as scheduler
 
 
 @pytest.fixture(autouse=True)
 def scratch_db(tmp_path, monkeypatch):
-    monkeypatch.setattr(mlm, 'DB_PATH', str(tmp_path / 'test.db'))
+    # Ver comentario equivalente en test_legal_matrix.py: DB_PATH vive en
+    # legal_matrix_service.py desde la extracción de capa de servicios (Fase 4).
+    monkeypatch.setattr(lms, 'DB_PATH', str(tmp_path / 'test.db'))
     mlm._ensure_tables()
 
 
