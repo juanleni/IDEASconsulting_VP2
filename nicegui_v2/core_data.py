@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-DB_PATH = "ideas.db"
+DB_PATH = os.getenv("IDEAS_DB_PATH", "ideas.db")
 EXCEL_PATH = "Data/diagnostico.xlsx"
 BACKUP_DIR = "backups"
 
@@ -29,6 +29,9 @@ MODULE_CATALOG = [
     {"code": "sst", "name": "Salud Ocupacional", "category": "ehs", "icon": "health_and_safety", "route": "/sistema-gestion/salud-ocupacional"},
     {"code": "quality", "name": "Calidad", "category": "quality", "icon": "plumbing", "route": "/sistema-gestion/calidad"},
     {"code": "lab_17025", "name": "LAB ISO 17025", "category": "lab", "icon": "science", "route": "/sistema-gestion/lab-iso-17025"},
+    {"code": "audits", "name": "Auditorías Internas", "category": "core", "icon": "fact_check", "route": "/sistema-gestion/auditorias-internas"},
+    {"code": "management_review", "name": "Revisión por la Dirección", "category": "core", "icon": "reviews", "route": "/sistema-gestion/revision-direccion"},
+    {"code": "document_control", "name": "Gestión Documental", "category": "core", "icon": "folder_managed", "route": "/sistema-gestion/gestion-documental"},
     {"code": "users", "name": "Administración Usuarios", "category": "core", "icon": "manage_accounts", "route": "/sistema-gestion/usuarios"},
     {"code": "smart_ideas_admin", "name": "Smart IdeAs Admin", "category": "admin", "icon": "tune", "route": "/sistema-gestion/smart-ideas-admin"},
 ]
@@ -365,6 +368,85 @@ def _audit_module_access(
     )
     conn.commit()
     conn.close()
+
+
+def _ensure_audit_log_table() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER,
+            actor TEXT DEFAULT '',
+            actor_role TEXT DEFAULT '',
+            entidad TEXT NOT NULL,
+            entidad_id INTEGER,
+            accion TEXT NOT NULL,
+            detalle TEXT DEFAULT '',
+            resultado TEXT DEFAULT 'ok',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    c.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_empresa ON audit_log(empresa_id, id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_entidad ON audit_log(entidad, entidad_id)")
+    conn.commit()
+    conn.close()
+
+
+def registrar_auditoria(
+    empresa_id,
+    actor: str = "",
+    actor_role: str = "",
+    entidad: str = "",
+    entidad_id=None,
+    accion: str = "",
+    detalle: str = "",
+    resultado: str = "ok",
+) -> None:
+    """Log transversal de 'quien hizo que': pensado para cubrir a la vez trazabilidad de
+    gestion (ISO 9001/14001/45001) y logging de seguridad (ISO 27001 A.12.4). Nunca debe
+    romper la operacion real que esta auditando -- cualquier error queda silenciado."""
+    try:
+        _ensure_audit_log_table()
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute(
+            """
+            INSERT INTO audit_log (empresa_id, actor, actor_role, entidad, entidad_id, accion, detalle, resultado)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(empresa_id) if empresa_id else None,
+                str(actor or "")[:120],
+                str(actor_role or "")[:40],
+                str(entidad or "")[:80],
+                int(entidad_id) if entidad_id not in (None, "") else None,
+                str(accion or "")[:40],
+                str(detalle or "")[:2000],
+                str(resultado or "ok")[:20],
+            ),
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
+def obtener_auditoria_empresa(empresa_id: int, limit: int = 200) -> list[dict]:
+    # Sin cache a proposito: un log de auditoria desactualizado no sirve para trazabilidad.
+    _ensure_audit_log_table()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute(
+        "SELECT * FROM audit_log WHERE empresa_id = ? ORDER BY id DESC LIMIT ?",
+        (int(empresa_id), int(limit)),
+    )
+    rows = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return rows
 
 
 def _bootstrap_company_modules(company_id: int) -> None:
@@ -1338,14 +1420,20 @@ def actualizar_diagnostico(diagnostico_id, empresa_id, score, nivel, conclusion,
     return diagnostico_id, fecha_existente, False
 
 
-def eliminar_diagnostico(diagnostico_id):
+def eliminar_diagnostico(diagnostico_id, empresa_id=None):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM diagnosticos WHERE id = ? AND empresa_id = ?", (diagnostico_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False
     c.execute("DELETE FROM respuestas WHERE diagnostico_id = ?", (diagnostico_id,))
     c.execute("DELETE FROM diagnosticos WHERE id = ?", (diagnostico_id,))
     conn.commit()
     conn.close()
     _clear_caches()
+    return True
 
 
 def eliminar_empresa(empresa_id):
@@ -1480,10 +1568,16 @@ def actualizar_proceso_mapa(
     documentos,
     indicadores,
     recursos,
+    empresa_id=None,
 ):
     ultima_revision = datetime.datetime.now().strftime("%d.%m.%Y")
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM mapa_procesos WHERE id = ? AND empresa_id = ?", (proceso_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False
     c.execute(
         """
         UPDATE mapa_procesos
@@ -1511,6 +1605,7 @@ def actualizar_proceso_mapa(
     conn.commit()
     conn.close()
     _clear_caches()
+    return True
 
 
 def eliminar_proceso_mapa(proceso_id):
@@ -1883,14 +1978,17 @@ def guardar_kpi(
     return True, "KPI guardado correctamente.", kpi_id
 
 
-def actualizar_kpi_meses(kpi_id, meses_dict, ytd_manual_val=None, comentarios_desvio=""):
+def actualizar_kpi_meses(kpi_id, meses_dict, ytd_manual_val=None, comentarios_desvio="", empresa_id=None):
     meses_dict = meses_dict or {}
     month_values = [_to_optional_float(meses_dict.get(month)) for month in KPI_MONTH_FIELDS]
     fecha_actualizacion = _kpi_now_str()
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT id FROM kpis WHERE id = ?", (int(kpi_id),))
+    if empresa_id is not None:
+        c.execute("SELECT id FROM kpis WHERE id = ? AND empresa_id = ?", (int(kpi_id), int(empresa_id)))
+    else:
+        c.execute("SELECT id FROM kpis WHERE id = ?", (int(kpi_id),))
     if not c.fetchone():
         conn.close()
         return False, "Ese KPI no existe."
@@ -2040,10 +2138,13 @@ def crear_grupo_kpi_empresa(empresa_id, nombre_grupo):
     return True, "Grupo creado correctamente."
 
 
-def actualizar_dashboard_principal_kpi(kpi_id, dashboard_principal):
+def actualizar_dashboard_principal_kpi(kpi_id, dashboard_principal, empresa_id=None):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT id FROM kpis WHERE id = ?", (int(kpi_id),))
+    if empresa_id is not None:
+        c.execute("SELECT id FROM kpis WHERE id = ? AND empresa_id = ?", (int(kpi_id), int(empresa_id)))
+    else:
+        c.execute("SELECT id FROM kpis WHERE id = ?", (int(kpi_id),))
     if not c.fetchone():
         conn.close()
         return False, "Ese KPI no existe."
@@ -2482,14 +2583,20 @@ def actualizar_matriz_riesgos(matriz_id, proceso_nombre):
     return True, "Matriz actualizada correctamente."
 
 
-def eliminar_matriz_riesgos(matriz_id):
+def eliminar_matriz_riesgos(matriz_id, empresa_id=None):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM matrices_riesgos WHERE id = ? AND empresa_id = ?", (matriz_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False
     c.execute("DELETE FROM items_riesgos WHERE matriz_id = ?", (matriz_id,))
     c.execute("DELETE FROM matrices_riesgos WHERE id = ?", (matriz_id,))
     conn.commit()
     conn.close()
     _clear_caches()
+    return True
 
 
 def crear_item_riesgo(
@@ -2567,6 +2674,7 @@ def actualizar_item_riesgo(
     fecha_accion="",
     responsable="",
     eficaz=False,
+    empresa_id=None,
 ):
     descripcion_limpia = str(descripcion).strip()
     if not descripcion_limpia:
@@ -2574,7 +2682,17 @@ def actualizar_item_riesgo(
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT matriz_id FROM items_riesgos WHERE id = ?", (item_id,))
+    if empresa_id is not None:
+        c.execute(
+            """
+            SELECT ir.matriz_id FROM items_riesgos ir
+            JOIN matrices_riesgos mr ON mr.id = ir.matriz_id
+            WHERE ir.id = ? AND mr.empresa_id = ?
+            """,
+            (item_id, int(empresa_id)),
+        )
+    else:
+        c.execute("SELECT matriz_id FROM items_riesgos WHERE id = ?", (item_id,))
     row = c.fetchone()
     if not row:
         conn.close()
@@ -2895,6 +3013,7 @@ def actualizar_aspecto_ambiental(
     fecha_realizacion="",
     cumplimiento="",
     registro="",
+    empresa_id=None,
 ):
     proceso = str(proceso_nombre).strip()
     actividad_limpia = str(actividad).strip()
@@ -2906,6 +3025,11 @@ def actualizar_aspecto_ambiental(
     es_significativo = 1 if significancia_val else 0
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM aspectos_ambientales WHERE id = ? AND empresa_id = ?", (aspecto_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El aspecto ambiental no existe."
     c.execute(
         """
         UPDATE aspectos_ambientales
@@ -3121,6 +3245,7 @@ def actualizar_requisito_legal_ambiental(
     estado_cumplimiento,
     fecha_vencimiento="",
     responsable="",
+    empresa_id=None,
 ):
     norma = str(norma_legal).strip()
     jurisdiccion_text = str(jurisdiccion or "Nacional").strip().title()
@@ -3134,7 +3259,11 @@ def actualizar_requisito_legal_ambiental(
     if not row:
         conn.close()
         return False, "No se encontro el requisito legal a actualizar."
-    empresa_id = int(row[0])
+    row_empresa_id = int(row[0])
+    if empresa_id is not None and int(empresa_id) != row_empresa_id:
+        conn.close()
+        return False, "No se encontro el requisito legal a actualizar."
+    empresa_id = row_empresa_id
     duplicate = _find_legal_duplicate(c, empresa_id, jurisdiccion_text, norma, exclude_id=requisito_id)
     if duplicate:
         conn.close()
@@ -3303,6 +3432,7 @@ def actualizar_simulacro_ambiental(
     respuesta_eficaz=False,
     conclusiones_mejora="",
     archivos_path="",
+    empresa_id=None,
 ):
     escenario_limpio = str(escenario).strip()
     if not escenario_limpio:
@@ -3310,6 +3440,11 @@ def actualizar_simulacro_ambiental(
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM simulacros_ambientales WHERE id = ? AND empresa_id = ?", (simulacro_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El simulacro no existe."
     c.execute(
         """
         UPDATE simulacros_ambientales
@@ -3622,6 +3757,7 @@ def actualizar_problema_calidad_8d(
     d8_closure_details="",
     estado="Abierto",
     archivos_path="",
+    empresa_id=None,
 ):
     titulo_limpio = str(titulo).strip()
     if not titulo_limpio:
@@ -3629,6 +3765,11 @@ def actualizar_problema_calidad_8d(
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM calidad_problemas_8d WHERE id = ? AND empresa_id = ?", (problema_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El analisis 8D no existe."
     c.execute(
         """
         UPDATE calidad_problemas_8d
@@ -3693,9 +3834,14 @@ def actualizar_problema_calidad_8d(
     return True, "Analisis 8D actualizado correctamente."
 
 
-def eliminar_problema_calidad_8d(problema_id):
+def eliminar_problema_calidad_8d(problema_id, empresa_id=None):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM calidad_problemas_8d WHERE id = ? AND empresa_id = ?", (problema_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False
     c.execute("DELETE FROM calidad_5_porque WHERE problema_id = ?", (problema_id,))
     c.execute("DELETE FROM calidad_ishikawa WHERE problema_id = ?", (problema_id,))
     c.execute("DELETE FROM calidad_8d_acciones WHERE problema_id = ?", (problema_id,))
@@ -3833,9 +3979,15 @@ def guardar_5_porque_problema_calidad(
     det_p4="",
     det_p5="",
     det_causa_raiz="",
+    empresa_id=None,
 ):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM calidad_problemas_8d WHERE id = ? AND empresa_id = ?", (problema_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El analisis 8D no existe."
     c.execute("SELECT id FROM calidad_5_porque WHERE problema_id = ? ORDER BY id DESC LIMIT 1", (problema_id,))
     row = c.fetchone()
     values = (
@@ -3963,13 +4115,19 @@ def guardar_5_porque_problema_calidad(
     return True, "Analisis de 5 porques guardado correctamente."
 
 
-def eliminar_5_porque_problema_calidad(problema_id):
+def eliminar_5_porque_problema_calidad(problema_id, empresa_id=None):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM calidad_problemas_8d WHERE id = ? AND empresa_id = ?", (problema_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False
     c.execute("DELETE FROM calidad_5_porque WHERE problema_id = ?", (problema_id,))
     conn.commit()
     conn.close()
     _clear_caches()
+    return True
 
 
 @lru_cache(maxsize=256)
@@ -4025,9 +4183,15 @@ def guardar_ishikawa_problema_calidad(
     medicion="",
     medio_ambiente="",
     factores_retenidos="",
+    empresa_id=None,
 ):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM calidad_problemas_8d WHERE id = ? AND empresa_id = ?", (problema_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El analisis 8D no existe."
     c.execute("SELECT id FROM calidad_ishikawa WHERE problema_id = ? ORDER BY id DESC LIMIT 1", (problema_id,))
     row = c.fetchone()
     values = (
@@ -4080,13 +4244,19 @@ def guardar_ishikawa_problema_calidad(
     return True, "Diagrama de Ishikawa guardado correctamente."
 
 
-def eliminar_ishikawa_problema_calidad(problema_id):
+def eliminar_ishikawa_problema_calidad(problema_id, empresa_id=None):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM calidad_problemas_8d WHERE id = ? AND empresa_id = ?", (problema_id, int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False
     c.execute("DELETE FROM calidad_ishikawa WHERE problema_id = ?", (problema_id,))
     conn.commit()
     conn.close()
     _clear_caches()
+    return True
 
 
 @lru_cache(maxsize=512)
@@ -4636,7 +4806,7 @@ def crear_usuario(username, password, rol, empresa_id=None, permisos="ALL"):
         conn.close()
 
 
-def actualizar_usuario(usuario_id, rol, empresa_id=None, permisos="ALL", username=None, password=None):
+def actualizar_usuario(usuario_id, rol, empresa_id=None, permisos="ALL", username=None, password=None, actor_empresa_id=None):
     rol_clean = str(rol).strip() or "EMPRESA_USER"
     permisos_clean = "ALL" if rol_clean in {"IDEAS_ADMIN", "EMPRESA_ADMIN"} else str(permisos).strip() or ""
     empresa_id_clean = int(empresa_id) if empresa_id not in (None, "", 0, "0") else None
@@ -4652,6 +4822,17 @@ def actualizar_usuario(usuario_id, rol, empresa_id=None, permisos="ALL", usernam
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if actor_empresa_id is not None:
+        # actor_empresa_id acota a un EMPRESA_ADMIN: solo puede editar usuarios que hoy
+        # pertenecen a su propia empresa, y no puede reasignarlos a otra empresa ni a IDEAS_ADMIN.
+        c.execute("SELECT empresa_id FROM usuarios WHERE id = ?", (int(usuario_id),))
+        row = c.fetchone()
+        if not row or row[0] != int(actor_empresa_id):
+            conn.close()
+            return False, "No tenes permiso para editar este usuario."
+        if rol_clean == "IDEAS_ADMIN" or (empresa_id_clean and empresa_id_clean != int(actor_empresa_id)):
+            conn.close()
+            return False, "No tenes permiso para asignar ese rol o empresa."
     try:
         fields = ["rol = ?", "empresa_id = ?", "permisos = ?"]
         params = [rol_clean, empresa_id_clean, permisos_clean or "ALL"]
@@ -4679,9 +4860,15 @@ def actualizar_usuario(usuario_id, rol, empresa_id=None, permisos="ALL", usernam
         conn.close()
 
 
-def eliminar_usuario(usuario_id):
+def eliminar_usuario(usuario_id, actor_empresa_id=None):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if actor_empresa_id is not None:
+        c.execute("SELECT empresa_id FROM usuarios WHERE id = ?", (int(usuario_id),))
+        row = c.fetchone()
+        if not row or row[0] != int(actor_empresa_id):
+            conn.close()
+            return False, "No tenes permiso para eliminar este usuario."
     c.execute("DELETE FROM usuarios WHERE id = ?", (int(usuario_id),))
     conn.commit()
     conn.close()
@@ -4867,10 +5054,21 @@ def _generic_lab_insert(table: str, fields: dict) -> int:
     return new_id
 
 
-def _generic_lab_update(table: str, row_id: int, fields: dict) -> tuple[bool, str]:
+def _empresa_id_for_table_row(table: str, row_id: int) -> int:
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(f"SELECT empresa_id FROM {table} WHERE id = ?", (int(row_id),))
+    row = c.fetchone()
+    conn.close()
+    return int(row[0]) if row and row[0] else 0
+
+
+def _generic_lab_update(table: str, row_id: int, fields: dict, empresa_id=None) -> tuple[bool, str]:
     keys = [key for key in fields.keys() if key != "id"]
     if not keys:
         return False, "No hay campos para actualizar."
+    if empresa_id is not None and _empresa_id_for_table_row(table, row_id) != int(empresa_id):
+        return False, "El registro no existe."
     vals = tuple(fields[key] for key in keys) + (int(row_id),)
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -4881,16 +5079,9 @@ def _generic_lab_update(table: str, row_id: int, fields: dict) -> tuple[bool, st
     return True, "Registro actualizado."
 
 
-def _empresa_id_for_table_row(table: str, row_id: int) -> int:
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute(f"SELECT empresa_id FROM {table} WHERE id = ?", (int(row_id),))
-    row = c.fetchone()
-    conn.close()
-    return int(row[0]) if row and row[0] else 0
-
-
-def _generic_lab_delete(table: str, row_id: int) -> tuple[bool, str]:
+def _generic_lab_delete(table: str, row_id: int, empresa_id=None) -> tuple[bool, str]:
+    if empresa_id is not None and _empresa_id_for_table_row(table, row_id) != int(empresa_id):
+        return False, "El registro no existe."
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(f"DELETE FROM {table} WHERE id = ?", (int(row_id),))
@@ -4949,16 +5140,16 @@ def crear_lab_equipo(empresa_id: int, payload: dict) -> tuple[bool, str, int | N
     return True, "Equipo creado.", new_id
 
 
-def actualizar_lab_equipo(equipo_id: int, payload: dict) -> tuple[bool, str]:
-    ok, msg = _generic_lab_update("lab_equipos", equipo_id, {**payload, "actualizado_en": _now_iso()})
+def actualizar_lab_equipo(equipo_id: int, payload: dict, caller_empresa_id=None) -> tuple[bool, str]:
+    ok, msg = _generic_lab_update("lab_equipos", equipo_id, {**payload, "actualizado_en": _now_iso()}, empresa_id=caller_empresa_id)
     empresa_id = _empresa_id_for_table_row("lab_equipos", int(equipo_id))
     if ok and empresa_id:
         _trigger_lab_event_checks(int(empresa_id), "equipo", int(equipo_id), actor=str(payload.get("creado_por") or "evento"))
     return ok, msg
 
 
-def eliminar_lab_equipo(equipo_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_equipos", equipo_id)
+def eliminar_lab_equipo(equipo_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_equipos", equipo_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -4996,16 +5187,16 @@ def crear_lab_calibracion(empresa_id: int, payload: dict) -> tuple[bool, str, in
     return True, "Evento de calibracion guardado.", new_id
 
 
-def actualizar_lab_calibracion(evento_id: int, payload: dict) -> tuple[bool, str]:
-    ok, msg = _generic_lab_update("lab_calibraciones", evento_id, {**payload, "actualizado_en": _now_iso()})
+def actualizar_lab_calibracion(evento_id: int, payload: dict, caller_empresa_id=None) -> tuple[bool, str]:
+    ok, msg = _generic_lab_update("lab_calibraciones", evento_id, {**payload, "actualizado_en": _now_iso()}, empresa_id=caller_empresa_id)
     empresa_id = _empresa_id_for_table_row("lab_calibraciones", int(evento_id))
     if ok and empresa_id:
         _trigger_lab_event_checks(int(empresa_id), "calibracion", int(evento_id), actor=str(payload.get("creado_por") or "evento"))
     return ok, msg
 
 
-def eliminar_lab_calibracion(evento_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_calibraciones", evento_id)
+def eliminar_lab_calibracion(evento_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_calibraciones", evento_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -5047,16 +5238,16 @@ def crear_lab_metodo(empresa_id: int, payload: dict) -> tuple[bool, str, int | N
     return True, "Metodo creado.", new_id
 
 
-def actualizar_lab_metodo(metodo_id: int, payload: dict) -> tuple[bool, str]:
-    ok, msg = _generic_lab_update("lab_metodos", metodo_id, {**payload, "actualizado_en": _now_iso()})
+def actualizar_lab_metodo(metodo_id: int, payload: dict, caller_empresa_id=None) -> tuple[bool, str]:
+    ok, msg = _generic_lab_update("lab_metodos", metodo_id, {**payload, "actualizado_en": _now_iso()}, empresa_id=caller_empresa_id)
     empresa_id = _empresa_id_for_table_row("lab_metodos", int(metodo_id))
     if ok and empresa_id:
         _trigger_lab_event_checks(int(empresa_id), "metodo", int(metodo_id), actor=str(payload.get("creado_por") or "evento"))
     return ok, msg
 
 
-def eliminar_lab_metodo(metodo_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_metodos", metodo_id)
+def eliminar_lab_metodo(metodo_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_metodos", metodo_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -5101,16 +5292,16 @@ def crear_lab_muestra(empresa_id: int, payload: dict) -> tuple[bool, str, int | 
     return True, "Muestra creada.", new_id
 
 
-def actualizar_lab_muestra(muestra_id: int, payload: dict) -> tuple[bool, str]:
-    ok, msg = _generic_lab_update("lab_muestras", muestra_id, {**payload, "actualizado_en": _now_iso()})
+def actualizar_lab_muestra(muestra_id: int, payload: dict, caller_empresa_id=None) -> tuple[bool, str]:
+    ok, msg = _generic_lab_update("lab_muestras", muestra_id, {**payload, "actualizado_en": _now_iso()}, empresa_id=caller_empresa_id)
     empresa_id = _empresa_id_for_table_row("lab_muestras", int(muestra_id))
     if ok and empresa_id:
         _trigger_lab_event_checks(int(empresa_id), "muestra", int(muestra_id), actor=str(payload.get("creado_por") or "evento"))
     return ok, msg
 
 
-def eliminar_lab_muestra(muestra_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_muestras", muestra_id)
+def eliminar_lab_muestra(muestra_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_muestras", muestra_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -5141,16 +5332,16 @@ def crear_lab_competencia(empresa_id: int, payload: dict) -> tuple[bool, str, in
     return True, "Competencia guardada.", new_id
 
 
-def actualizar_lab_competencia(comp_id: int, payload: dict) -> tuple[bool, str]:
-    ok, msg = _generic_lab_update("lab_competencias", comp_id, {**payload, "actualizado_en": _now_iso()})
+def actualizar_lab_competencia(comp_id: int, payload: dict, caller_empresa_id=None) -> tuple[bool, str]:
+    ok, msg = _generic_lab_update("lab_competencias", comp_id, {**payload, "actualizado_en": _now_iso()}, empresa_id=caller_empresa_id)
     empresa_id = _empresa_id_for_table_row("lab_competencias", int(comp_id))
     if ok and empresa_id:
         _trigger_lab_event_checks(int(empresa_id), "competencia", int(comp_id), actor=str(payload.get("creado_por") or "evento"))
     return ok, msg
 
 
-def eliminar_lab_competencia(comp_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_competencias", comp_id)
+def eliminar_lab_competencia(comp_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_competencias", comp_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -5186,8 +5377,8 @@ def crear_lab_incertidumbre_componente(empresa_id: int, payload: dict) -> tuple[
     return True, "Componente de incertidumbre guardado.", new_id
 
 
-def eliminar_lab_incertidumbre_componente(comp_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_incertidumbre_componentes", comp_id)
+def eliminar_lab_incertidumbre_componente(comp_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_incertidumbre_componentes", comp_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -5223,8 +5414,8 @@ def crear_lab_control_calidad(empresa_id: int, payload: dict) -> tuple[bool, str
     return True, "Control de calidad guardado.", new_id
 
 
-def eliminar_lab_control_calidad(control_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_control_calidad", control_id)
+def eliminar_lab_control_calidad(control_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_control_calidad", control_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -5262,16 +5453,16 @@ def crear_lab_informe(empresa_id: int, payload: dict) -> tuple[bool, str, int | 
     return True, "Informe LAB creado.", new_id
 
 
-def actualizar_lab_informe(informe_id: int, payload: dict) -> tuple[bool, str]:
-    ok, msg = _generic_lab_update("lab_informes", informe_id, {**payload, "actualizado_en": _now_iso()})
+def actualizar_lab_informe(informe_id: int, payload: dict, caller_empresa_id=None) -> tuple[bool, str]:
+    ok, msg = _generic_lab_update("lab_informes", informe_id, {**payload, "actualizado_en": _now_iso()}, empresa_id=caller_empresa_id)
     empresa_id = _empresa_id_for_table_row("lab_informes", int(informe_id))
     if ok and empresa_id:
         _trigger_lab_event_checks(int(empresa_id), "informe", int(informe_id), actor=str(payload.get("creado_por") or "evento"))
     return ok, msg
 
 
-def eliminar_lab_informe(informe_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_informes", informe_id)
+def eliminar_lab_informe(informe_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_informes", informe_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -5303,8 +5494,8 @@ def crear_lab_auditoria(empresa_id: int, payload: dict) -> tuple[bool, str, int 
     return True, "Auditoria LAB guardada.", new_id
 
 
-def eliminar_lab_auditoria(auditoria_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_auditorias", auditoria_id)
+def eliminar_lab_auditoria(auditoria_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_auditorias", auditoria_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -5341,8 +5532,8 @@ def crear_lab_riesgo(empresa_id: int, payload: dict) -> tuple[bool, str, int | N
     return True, "Riesgo LAB creado.", new_id
 
 
-def eliminar_lab_riesgo(riesgo_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_riesgos", riesgo_id)
+def eliminar_lab_riesgo(riesgo_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_riesgos", riesgo_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -5379,8 +5570,8 @@ def crear_lab_accion(empresa_id: int, payload: dict) -> tuple[bool, str, int | N
     return True, "Accion correctiva LAB creada.", new_id
 
 
-def eliminar_lab_accion(accion_id: int) -> tuple[bool, str]:
-    return _generic_lab_delete("lab_acciones_correctivas", accion_id)
+def eliminar_lab_accion(accion_id: int, caller_empresa_id=None) -> tuple[bool, str]:
+    return _generic_lab_delete("lab_acciones_correctivas", accion_id, empresa_id=caller_empresa_id)
 
 
 @lru_cache(maxsize=256)
@@ -5930,9 +6121,14 @@ def crear_sst_capacitacion(empresa_id: int, payload: dict) -> tuple[bool, str, i
     return True, "Capacitacion creada.", int(new_id or 0)
 
 
-def actualizar_sst_capacitacion(capacitacion_id: int, payload: dict) -> tuple[bool, str]:
+def actualizar_sst_capacitacion(capacitacion_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_capacitaciones WHERE id = ? AND empresa_id = ?", (int(capacitacion_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La capacitacion no existe."
     c.execute(
         """
         UPDATE sst_capacitaciones
@@ -6065,9 +6261,14 @@ def crear_ambiental_capacitacion(empresa_id: int, payload: dict) -> tuple[bool, 
     return True, "Capacitacion creada.", int(new_id or 0)
 
 
-def actualizar_ambiental_capacitacion(capacitacion_id: int, payload: dict) -> tuple[bool, str]:
+def actualizar_ambiental_capacitacion(capacitacion_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM ambiental_capacitaciones WHERE id = ? AND empresa_id = ?", (int(capacitacion_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La capacitacion no existe."
     c.execute(
         """
         UPDATE ambiental_capacitaciones
@@ -6114,11 +6315,1348 @@ def actualizar_ambiental_capacitacion(capacitacion_id: int, payload: dict) -> tu
     return True, "Capacitacion actualizada."
 
 
-def eliminar_ambiental_capacitacion(capacitacion_id: int) -> tuple[bool, str]:
+def eliminar_ambiental_capacitacion(capacitacion_id: int, empresa_id=None) -> tuple[bool, str]:
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM ambiental_capacitaciones WHERE id = ? AND empresa_id = ?", (int(capacitacion_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La capacitacion no existe."
     c.execute("DELETE FROM ambiental_capacitaciones WHERE id = ?", (int(capacitacion_id),))
     conn.commit()
     conn.close()
     _clear_caches()
     return True, "Capacitacion eliminada."
+
+
+# ===========================================================================
+# Auditorías Internas (Fase 2, 2026-08-10)
+#
+# Gap critico identificado en el diagnostico: no existia ningun modulo de
+# auditorias internas para Calidad/Ambiente/SST (solo Laboratorio tenia un
+# checklist propio y aislado, lab_auditorias). Sin esto un cliente que dependa
+# solo de IDEUS no puede sostener la clausula 9.2 de ISO 9001/14001/45001en
+# una auditoria externa. Generaliza el mismo patron (programa, hallazgos con
+# clasificacion, plan de accion, cierre) para que sirva a cualquier area.
+# ===========================================================================
+
+AREAS_AUDITORIA = ["Calidad", "Ambiente", "SST", "Integrado / Multisistema", "Legal"]
+NORMAS_AUDITORIA = ["ISO 9001", "ISO 14001", "ISO 45001", "IATF 16949", "ISO 27001", "Otra / Interna"]
+ESTADOS_AUDITORIA = ["Programada", "En curso", "Cerrada"]
+CLASIFICACIONES_HALLAZGO = ["No conformidad mayor", "No conformidad menor", "Observación", "Oportunidad de mejora"]
+ESTADOS_HALLAZGO = ["Abierto", "En tratamiento", "Cerrado"]
+
+
+def _ensure_audits_tables() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS auditorias_internas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            area TEXT DEFAULT 'Calidad',
+            norma TEXT DEFAULT 'ISO 9001',
+            titulo TEXT DEFAULT '',
+            alcance TEXT DEFAULT '',
+            auditor TEXT DEFAULT '',
+            fecha_programada TEXT DEFAULT '',
+            fecha_realizada TEXT DEFAULT '',
+            estado TEXT DEFAULT 'Programada',
+            conclusion TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS auditoria_hallazgos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            auditoria_id INTEGER NOT NULL REFERENCES auditorias_internas(id),
+            empresa_id INTEGER NOT NULL,
+            clausula TEXT DEFAULT '',
+            descripcion TEXT NOT NULL,
+            clasificacion TEXT DEFAULT 'Observación',
+            accion_correctiva TEXT DEFAULT '',
+            responsable TEXT DEFAULT '',
+            fecha_limite TEXT DEFAULT '',
+            estado TEXT DEFAULT 'Abierto',
+            evidencia_cierre TEXT DEFAULT '',
+            fecha_cierre TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_auditorias_empresa ON auditorias_internas(empresa_id);
+        CREATE INDEX IF NOT EXISTS idx_hallazgos_auditoria ON auditoria_hallazgos(auditoria_id);
+        CREATE INDEX IF NOT EXISTS idx_hallazgos_empresa ON auditoria_hallazgos(empresa_id);
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+def crear_auditoria_interna(empresa_id: int, payload: dict) -> tuple[bool, str, int | None]:
+    _ensure_audits_tables()
+    titulo = str(payload.get("titulo") or "").strip()
+    if not titulo:
+        return False, "El titulo de la auditoria no puede estar vacio.", None
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        """
+        INSERT INTO auditorias_internas
+            (empresa_id, area, norma, titulo, alcance, auditor, fecha_programada, fecha_realizada, estado, conclusion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(empresa_id),
+            str(payload.get("area") or "Calidad"),
+            str(payload.get("norma") or "ISO 9001"),
+            titulo,
+            str(payload.get("alcance") or "").strip(),
+            str(payload.get("auditor") or "").strip(),
+            str(payload.get("fecha_programada") or "").strip(),
+            str(payload.get("fecha_realizada") or "").strip(),
+            str(payload.get("estado") or "Programada"),
+            str(payload.get("conclusion") or "").strip(),
+        ),
+    )
+    new_id = int(c.lastrowid)
+    conn.commit()
+    conn.close()
+    return True, "Auditoria creada.", new_id
+
+
+def obtener_auditorias_empresa(empresa_id: int) -> list[dict]:
+    _ensure_audits_tables()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM auditorias_internas WHERE empresa_id = ? ORDER BY fecha_programada DESC, id DESC", (int(empresa_id),))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+
+def obtener_auditoria_detalle(auditoria_id: int) -> dict | None:
+    _ensure_audits_tables()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM auditorias_internas WHERE id = ?", (int(auditoria_id),))
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def actualizar_auditoria_interna(auditoria_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
+    _ensure_audits_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM auditorias_internas WHERE id = ? AND empresa_id = ?", (int(auditoria_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La auditoria no existe."
+    c.execute(
+        """
+        UPDATE auditorias_internas
+        SET area = ?, norma = ?, titulo = ?, alcance = ?, auditor = ?, fecha_programada = ?,
+            fecha_realizada = ?, estado = ?, conclusion = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (
+            str(payload.get("area") or "Calidad"),
+            str(payload.get("norma") or "ISO 9001"),
+            str(payload.get("titulo") or "").strip(),
+            str(payload.get("alcance") or "").strip(),
+            str(payload.get("auditor") or "").strip(),
+            str(payload.get("fecha_programada") or "").strip(),
+            str(payload.get("fecha_realizada") or "").strip(),
+            str(payload.get("estado") or "Programada"),
+            str(payload.get("conclusion") or "").strip(),
+            int(auditoria_id),
+        ),
+    )
+    conn.commit()
+    conn.close()
+    return True, "Auditoria actualizada."
+
+
+def eliminar_auditoria_interna(auditoria_id: int, empresa_id=None) -> tuple[bool, str]:
+    _ensure_audits_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM auditorias_internas WHERE id = ? AND empresa_id = ?", (int(auditoria_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La auditoria no existe."
+    c.execute("DELETE FROM auditoria_hallazgos WHERE auditoria_id = ?", (int(auditoria_id),))
+    c.execute("DELETE FROM auditorias_internas WHERE id = ?", (int(auditoria_id),))
+    conn.commit()
+    conn.close()
+    return True, "Auditoria eliminada."
+
+
+def crear_hallazgo_auditoria(auditoria_id: int, empresa_id: int, payload: dict) -> tuple[bool, str, int | None]:
+    _ensure_audits_tables()
+    descripcion = str(payload.get("descripcion") or "").strip()
+    if not descripcion:
+        return False, "La descripcion del hallazgo no puede estar vacia.", None
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT id FROM auditorias_internas WHERE id = ? AND empresa_id = ?", (int(auditoria_id), int(empresa_id)))
+    if not c.fetchone():
+        conn.close()
+        return False, "La auditoria no existe para esta empresa.", None
+    c.execute(
+        """
+        INSERT INTO auditoria_hallazgos
+            (auditoria_id, empresa_id, clausula, descripcion, clasificacion, accion_correctiva, responsable, fecha_limite, estado)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(auditoria_id),
+            int(empresa_id),
+            str(payload.get("clausula") or "").strip(),
+            descripcion,
+            str(payload.get("clasificacion") or "Observación"),
+            str(payload.get("accion_correctiva") or "").strip(),
+            str(payload.get("responsable") or "").strip(),
+            str(payload.get("fecha_limite") or "").strip(),
+            str(payload.get("estado") or "Abierto"),
+        ),
+    )
+    new_id = int(c.lastrowid)
+    conn.commit()
+    conn.close()
+    return True, "Hallazgo registrado.", new_id
+
+
+def obtener_hallazgos_auditoria(auditoria_id: int) -> list[dict]:
+    _ensure_audits_tables()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM auditoria_hallazgos WHERE auditoria_id = ? ORDER BY id DESC", (int(auditoria_id),))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+
+def obtener_hallazgos_abiertos_empresa(empresa_id: int) -> list[dict]:
+    """Hallazgos sin cerrar de cualquier auditoria de la empresa -- util para un panel
+    de seguimiento y para insumo de Revision por la Direccion."""
+    _ensure_audits_tables()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute(
+        "SELECT * FROM auditoria_hallazgos WHERE empresa_id = ? AND estado != 'Cerrado' ORDER BY fecha_limite ASC, id DESC",
+        (int(empresa_id),),
+    )
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+
+def actualizar_hallazgo_auditoria(hallazgo_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
+    _ensure_audits_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM auditoria_hallazgos WHERE id = ? AND empresa_id = ?", (int(hallazgo_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El hallazgo no existe."
+    c.execute(
+        """
+        UPDATE auditoria_hallazgos
+        SET clausula = ?, descripcion = ?, clasificacion = ?, accion_correctiva = ?,
+            responsable = ?, fecha_limite = ?, estado = ?
+        WHERE id = ?
+        """,
+        (
+            str(payload.get("clausula") or "").strip(),
+            str(payload.get("descripcion") or "").strip(),
+            str(payload.get("clasificacion") or "Observación"),
+            str(payload.get("accion_correctiva") or "").strip(),
+            str(payload.get("responsable") or "").strip(),
+            str(payload.get("fecha_limite") or "").strip(),
+            str(payload.get("estado") or "Abierto"),
+            int(hallazgo_id),
+        ),
+    )
+    conn.commit()
+    conn.close()
+    return True, "Hallazgo actualizado."
+
+
+def cerrar_hallazgo_auditoria(hallazgo_id: int, evidencia_cierre: str = "", empresa_id=None) -> tuple[bool, str]:
+    _ensure_audits_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM auditoria_hallazgos WHERE id = ? AND empresa_id = ?", (int(hallazgo_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El hallazgo no existe."
+    c.execute(
+        "UPDATE auditoria_hallazgos SET estado = 'Cerrado', evidencia_cierre = ?, fecha_cierre = ? WHERE id = ?",
+        (str(evidencia_cierre or "").strip(), datetime.datetime.now().strftime("%Y-%m-%d"), int(hallazgo_id)),
+    )
+    conn.commit()
+    conn.close()
+    return True, "Hallazgo cerrado."
+
+
+def eliminar_hallazgo_auditoria(hallazgo_id: int, empresa_id=None) -> tuple[bool, str]:
+    _ensure_audits_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM auditoria_hallazgos WHERE id = ? AND empresa_id = ?", (int(hallazgo_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El hallazgo no existe."
+    c.execute("DELETE FROM auditoria_hallazgos WHERE id = ?", (int(hallazgo_id),))
+    conn.commit()
+    conn.close()
+    return True, "Hallazgo eliminado."
+
+
+# ---------------------------------------------------------------------------
+# Fase 2 (2026-08-10): Revisión por la Dirección — acta liviana de cl. 9.3
+# (ISO 9001 / 14001 / 45001). Un "acta" por reunión, con las entradas que
+# exige la norma (9.3.2) y las salidas / decisiones (9.3.3). El snapshot
+# automático evita que la reunión dependa de que alguien copie datos a mano
+# desde Auditorías, Calidad/8D, Riesgos y KPIs.
+# ---------------------------------------------------------------------------
+
+ESTADOS_REVISION_DIRECCION = ["Borrador", "Cerrada"]
+
+
+def _ensure_management_review_tables() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS revisiones_direccion (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            fecha TEXT,
+            periodo_analizado TEXT,
+            participantes TEXT,
+            estado_acciones_previas TEXT,
+            cambios_contexto TEXT,
+            resultados_auditorias TEXT,
+            no_conformidades_acciones_correctivas TEXT,
+            resultados_seguimiento_kpis TEXT,
+            cumplimiento_legal TEXT,
+            riesgos_oportunidades TEXT,
+            adecuacion_recursos TEXT,
+            retroalimentacion_partes_interesadas TEXT,
+            decisiones_mejora TEXT,
+            decisiones_recursos TEXT,
+            decisiones_cambios_sgi TEXT,
+            objetivos_nuevos TEXT,
+            conclusion_general TEXT,
+            estado TEXT DEFAULT 'Borrador',
+            created_at TEXT,
+            updated_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_revisiones_direccion_empresa ON revisiones_direccion(empresa_id);
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+def crear_revision_direccion(empresa_id: int, payload: dict) -> tuple[bool, str, int | None]:
+    _ensure_management_review_tables()
+    titulo_periodo = str(payload.get("periodo_analizado") or "").strip()
+    if not titulo_periodo:
+        return False, "Indicá el período analizado (ej: Q3 2026).", None
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute(
+        """
+        INSERT INTO revisiones_direccion (
+            empresa_id, fecha, periodo_analizado, participantes,
+            estado_acciones_previas, cambios_contexto, resultados_auditorias,
+            no_conformidades_acciones_correctivas, resultados_seguimiento_kpis,
+            cumplimiento_legal, riesgos_oportunidades, adecuacion_recursos,
+            retroalimentacion_partes_interesadas, decisiones_mejora,
+            decisiones_recursos, decisiones_cambios_sgi, objetivos_nuevos,
+            conclusion_general, estado, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(empresa_id),
+            str(payload.get("fecha") or "").strip(),
+            titulo_periodo,
+            str(payload.get("participantes") or "").strip(),
+            str(payload.get("estado_acciones_previas") or "").strip(),
+            str(payload.get("cambios_contexto") or "").strip(),
+            str(payload.get("resultados_auditorias") or "").strip(),
+            str(payload.get("no_conformidades_acciones_correctivas") or "").strip(),
+            str(payload.get("resultados_seguimiento_kpis") or "").strip(),
+            str(payload.get("cumplimiento_legal") or "").strip(),
+            str(payload.get("riesgos_oportunidades") or "").strip(),
+            str(payload.get("adecuacion_recursos") or "").strip(),
+            str(payload.get("retroalimentacion_partes_interesadas") or "").strip(),
+            str(payload.get("decisiones_mejora") or "").strip(),
+            str(payload.get("decisiones_recursos") or "").strip(),
+            str(payload.get("decisiones_cambios_sgi") or "").strip(),
+            str(payload.get("objetivos_nuevos") or "").strip(),
+            str(payload.get("conclusion_general") or "").strip(),
+            str(payload.get("estado") or "Borrador").strip() or "Borrador",
+            now,
+            now,
+        ),
+    )
+    new_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return True, "Revisión por la dirección creada.", int(new_id)
+
+
+_REVISION_FIELDS = [
+    "fecha", "periodo_analizado", "participantes",
+    "estado_acciones_previas", "cambios_contexto", "resultados_auditorias",
+    "no_conformidades_acciones_correctivas", "resultados_seguimiento_kpis",
+    "cumplimiento_legal", "riesgos_oportunidades", "adecuacion_recursos",
+    "retroalimentacion_partes_interesadas", "decisiones_mejora",
+    "decisiones_recursos", "decisiones_cambios_sgi", "objetivos_nuevos",
+    "conclusion_general", "estado",
+]
+
+
+def obtener_revisiones_empresa(empresa_id: int) -> list[dict]:
+    _ensure_management_review_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        """
+        SELECT id, empresa_id, fecha, periodo_analizado, participantes, estado, created_at, updated_at
+        FROM revisiones_direccion
+        WHERE empresa_id = ?
+        ORDER BY COALESCE(fecha, created_at) DESC, id DESC
+        """,
+        (int(empresa_id),),
+    )
+    rows = c.fetchall()
+    conn.close()
+    keys = ["id", "empresa_id", "fecha", "periodo_analizado", "participantes", "estado", "created_at", "updated_at"]
+    return [dict(zip(keys, row)) for row in rows]
+
+
+def obtener_revision_detalle(revision_id: int) -> dict | None:
+    _ensure_management_review_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT * FROM revisiones_direccion WHERE id = ?", (int(revision_id),))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return None
+    keys = [d[0] for d in c.description]
+    conn.close()
+    return dict(zip(keys, row))
+
+
+def actualizar_revision_direccion(revision_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
+    _ensure_management_review_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM revisiones_direccion WHERE id = ? AND empresa_id = ?", (int(revision_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La revisión no existe."
+    set_clause = ", ".join(f"{field} = ?" for field in _REVISION_FIELDS)
+    values = [str(payload.get(field) or "").strip() for field in _REVISION_FIELDS]
+    values.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    values.append(int(revision_id))
+    c.execute(f"UPDATE revisiones_direccion SET {set_clause}, updated_at = ? WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+    return True, "Revisión actualizada."
+
+
+def eliminar_revision_direccion(revision_id: int, empresa_id=None) -> tuple[bool, str]:
+    _ensure_management_review_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM revisiones_direccion WHERE id = ? AND empresa_id = ?", (int(revision_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La revisión no existe."
+    c.execute("DELETE FROM revisiones_direccion WHERE id = ?", (int(revision_id),))
+    conn.commit()
+    conn.close()
+    return True, "Revisión eliminada."
+
+
+def obtener_snapshot_revision_direccion(empresa_id: int) -> dict:
+    """Resumen de entradas objetivas para armar el acta sin copiar datos a mano."""
+    _ensure_audits_tables()
+    _ensure_management_review_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    snapshot = {}
+    try:
+        c.execute("SELECT COUNT(1) FROM auditorias_internas WHERE empresa_id = ?", (int(empresa_id),))
+        snapshot["auditorias_total"] = int(c.fetchone()[0] or 0)
+        c.execute(
+            "SELECT COUNT(1) FROM auditoria_hallazgos WHERE empresa_id = ? AND estado != 'Cerrado'",
+            (int(empresa_id),),
+        )
+        snapshot["hallazgos_abiertos"] = int(c.fetchone()[0] or 0)
+    except sqlite3.Error:
+        snapshot["auditorias_total"] = 0
+        snapshot["hallazgos_abiertos"] = 0
+    try:
+        c.execute("SELECT COUNT(1) FROM calidad_problemas_8d WHERE empresa_id = ?", (int(empresa_id),))
+        snapshot["ocho_d_total"] = int(c.fetchone()[0] or 0)
+        c.execute(
+            "SELECT COUNT(1) FROM calidad_problemas_8d WHERE empresa_id = ? AND COALESCE(estado, '') != 'Cerrado'",
+            (int(empresa_id),),
+        )
+        snapshot["ocho_d_abiertos"] = int(c.fetchone()[0] or 0)
+    except sqlite3.Error:
+        snapshot["ocho_d_total"] = 0
+        snapshot["ocho_d_abiertos"] = 0
+    try:
+        c.execute("SELECT COUNT(1) FROM matrices_riesgos WHERE empresa_id = ?", (int(empresa_id),))
+        snapshot["matrices_riesgos"] = int(c.fetchone()[0] or 0)
+    except sqlite3.Error:
+        snapshot["matrices_riesgos"] = 0
+    try:
+        c.execute("SELECT COUNT(1) FROM kpis WHERE empresa_id = ?", (int(empresa_id),))
+        snapshot["kpis_total"] = int(c.fetchone()[0] or 0)
+    except sqlite3.Error:
+        snapshot["kpis_total"] = 0
+    try:
+        c.execute(
+            "SELECT COUNT(1) FROM matriz_legal_ambiental WHERE empresa_id = ? AND lower(COALESCE(estado_cumplimiento, '')) IN ('no cumple', 'en proceso')",
+            (int(empresa_id),),
+        )
+        snapshot["legal_ambiental_pendiente"] = int(c.fetchone()[0] or 0)
+    except sqlite3.Error:
+        snapshot["legal_ambiental_pendiente"] = 0
+    conn.close()
+    return snapshot
+
+
+# ---------------------------------------------------------------------------
+# Fase 2 (2026-08-10): Gestión Documental — repositorio de documentos
+# controlados por empresa (código, versión, estado, aprobador, historial de
+# versiones). Separado a propósito de modules_documents.py, que es la
+# biblioteca de referencia (qué documentos exige cada norma) y no un
+# repositorio real de documentos de la empresa.
+# ---------------------------------------------------------------------------
+
+TIPOS_DOCUMENTO_CONTROLADO = ["Política", "Procedimiento", "Instructivo de trabajo", "Formulario/Registro", "Manual", "Plan", "Otro"]
+ESTADOS_DOCUMENTO_CONTROLADO = ["Vigente", "En revisión", "Obsoleto"]
+
+
+def _ensure_document_control_tables() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS documentos_controlados (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            codigo TEXT,
+            titulo TEXT,
+            tipo TEXT,
+            proceso_area TEXT,
+            version_actual TEXT,
+            estado TEXT DEFAULT 'Vigente',
+            fecha_emision TEXT,
+            fecha_vigencia TEXT,
+            elaborado_por TEXT,
+            revisado_por TEXT,
+            aprobador TEXT,
+            archivo_path TEXT,
+            archivo_nombre TEXT,
+            notas TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS documentos_controlados_historial (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            documento_id INTEGER NOT NULL,
+            empresa_id INTEGER NOT NULL,
+            version TEXT,
+            estado TEXT,
+            archivo_path TEXT,
+            archivo_nombre TEXT,
+            cambios TEXT,
+            actor TEXT,
+            fecha TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_documentos_controlados_empresa ON documentos_controlados(empresa_id);
+        CREATE INDEX IF NOT EXISTS idx_documentos_controlados_historial_doc ON documentos_controlados_historial(documento_id);
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+def crear_documento_controlado(empresa_id: int, payload: dict) -> tuple[bool, str, int | None]:
+    _ensure_document_control_tables()
+    titulo = str(payload.get("titulo") or "").strip()
+    if not titulo:
+        return False, "El documento necesita un título.", None
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    version_inicial = str(payload.get("version_actual") or "1").strip() or "1"
+    c.execute(
+        """
+        INSERT INTO documentos_controlados (
+            empresa_id, codigo, titulo, tipo, proceso_area, version_actual, estado,
+            fecha_emision, fecha_vigencia, elaborado_por, revisado_por, aprobador,
+            archivo_path, archivo_nombre, notas, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(empresa_id),
+            str(payload.get("codigo") or "").strip(),
+            titulo,
+            str(payload.get("tipo") or "Procedimiento").strip(),
+            str(payload.get("proceso_area") or "").strip(),
+            version_inicial,
+            str(payload.get("estado") or "Vigente").strip() or "Vigente",
+            str(payload.get("fecha_emision") or "").strip(),
+            str(payload.get("fecha_vigencia") or "").strip(),
+            str(payload.get("elaborado_por") or "").strip(),
+            str(payload.get("revisado_por") or "").strip(),
+            str(payload.get("aprobador") or "").strip(),
+            str(payload.get("archivo_path") or "").strip(),
+            str(payload.get("archivo_nombre") or "").strip(),
+            str(payload.get("notas") or "").strip(),
+            now,
+            now,
+        ),
+    )
+    new_id = c.lastrowid
+    c.execute(
+        """
+        INSERT INTO documentos_controlados_historial (
+            documento_id, empresa_id, version, estado, archivo_path, archivo_nombre, cambios, actor, fecha
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(new_id), int(empresa_id), version_inicial, str(payload.get("estado") or "Vigente").strip() or "Vigente",
+            str(payload.get("archivo_path") or "").strip(), str(payload.get("archivo_nombre") or "").strip(),
+            "Alta inicial del documento.", str(payload.get("actor") or "").strip(), now,
+        ),
+    )
+    conn.commit()
+    conn.close()
+    return True, "Documento controlado creado.", int(new_id)
+
+
+def obtener_documentos_controlados_empresa(empresa_id: int, estado_filtro: str = "") -> list[dict]:
+    _ensure_document_control_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    query = """
+        SELECT id, empresa_id, codigo, titulo, tipo, proceso_area, version_actual, estado,
+               fecha_emision, fecha_vigencia, aprobador, archivo_nombre, updated_at
+        FROM documentos_controlados
+        WHERE empresa_id = ?
+    """
+    params: list = [int(empresa_id)]
+    if estado_filtro:
+        query += " AND estado = ?"
+        params.append(estado_filtro)
+    query += " ORDER BY titulo"
+    c.execute(query, params)
+    rows = c.fetchall()
+    conn.close()
+    keys = [
+        "id", "empresa_id", "codigo", "titulo", "tipo", "proceso_area", "version_actual", "estado",
+        "fecha_emision", "fecha_vigencia", "aprobador", "archivo_nombre", "updated_at",
+    ]
+    return [dict(zip(keys, row)) for row in rows]
+
+
+def obtener_documento_controlado_detalle(documento_id: int) -> dict | None:
+    _ensure_document_control_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT * FROM documentos_controlados WHERE id = ?", (int(documento_id),))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return None
+    keys = [d[0] for d in c.description]
+    conn.close()
+    return dict(zip(keys, row))
+
+
+def obtener_historial_documento_controlado(documento_id: int) -> list[dict]:
+    _ensure_document_control_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        """
+        SELECT id, documento_id, empresa_id, version, estado, archivo_path, archivo_nombre, cambios, actor, fecha
+        FROM documentos_controlados_historial
+        WHERE documento_id = ?
+        ORDER BY id DESC
+        """,
+        (int(documento_id),),
+    )
+    rows = c.fetchall()
+    conn.close()
+    keys = ["id", "documento_id", "empresa_id", "version", "estado", "archivo_path", "archivo_nombre", "cambios", "actor", "fecha"]
+    return [dict(zip(keys, row)) for row in rows]
+
+
+_DOCUMENTO_METADATA_FIELDS = [
+    "codigo", "titulo", "tipo", "proceso_area", "fecha_emision", "fecha_vigencia",
+    "elaborado_por", "revisado_por", "aprobador", "notas",
+]
+
+
+def actualizar_documento_controlado(documento_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
+    """Edita metadatos del documento (no cambia versión ni archivo)."""
+    _ensure_document_control_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM documentos_controlados WHERE id = ? AND empresa_id = ?", (int(documento_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El documento no existe."
+    set_clause = ", ".join(f"{field} = ?" for field in _DOCUMENTO_METADATA_FIELDS)
+    values = [str(payload.get(field) or "").strip() for field in _DOCUMENTO_METADATA_FIELDS]
+    values.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    values.append(int(documento_id))
+    c.execute(f"UPDATE documentos_controlados SET {set_clause}, updated_at = ? WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+    return True, "Documento actualizado."
+
+
+def registrar_nueva_version_documento(documento_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
+    """Sube una nueva versión: reemplaza archivo/version vigente y deja rastro en el historial."""
+    _ensure_document_control_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM documentos_controlados WHERE id = ? AND empresa_id = ?", (int(documento_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El documento no existe."
+    c.execute("SELECT empresa_id FROM documentos_controlados WHERE id = ?", (int(documento_id),))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return False, "El documento no existe."
+    doc_empresa_id = int(row[0])
+    nueva_version = str(payload.get("version") or "").strip()
+    if not nueva_version:
+        conn.close()
+        return False, "Indicá el número de versión nueva."
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    nuevo_estado = str(payload.get("estado") or "Vigente").strip() or "Vigente"
+    c.execute(
+        """
+        UPDATE documentos_controlados
+        SET version_actual = ?, estado = ?, archivo_path = ?, archivo_nombre = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            nueva_version, nuevo_estado,
+            str(payload.get("archivo_path") or "").strip(), str(payload.get("archivo_nombre") or "").strip(),
+            now, int(documento_id),
+        ),
+    )
+    c.execute(
+        """
+        INSERT INTO documentos_controlados_historial (
+            documento_id, empresa_id, version, estado, archivo_path, archivo_nombre, cambios, actor, fecha
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(documento_id), doc_empresa_id, nueva_version, nuevo_estado,
+            str(payload.get("archivo_path") or "").strip(), str(payload.get("archivo_nombre") or "").strip(),
+            str(payload.get("cambios") or "").strip() or "Nueva versión cargada.",
+            str(payload.get("actor") or "").strip(), now,
+        ),
+    )
+    conn.commit()
+    conn.close()
+    return True, "Nueva versión registrada."
+
+
+def cambiar_estado_documento_controlado(documento_id: int, nuevo_estado: str, empresa_id=None, actor: str = "") -> tuple[bool, str]:
+    _ensure_document_control_tables()
+    if nuevo_estado not in ESTADOS_DOCUMENTO_CONTROLADO:
+        return False, "Estado inválido."
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM documentos_controlados WHERE id = ? AND empresa_id = ?", (int(documento_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El documento no existe."
+    c.execute("SELECT empresa_id, version_actual, archivo_path, archivo_nombre FROM documentos_controlados WHERE id = ?", (int(documento_id),))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return False, "El documento no existe."
+    doc_empresa_id, version_actual, archivo_path, archivo_nombre = row
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("UPDATE documentos_controlados SET estado = ?, updated_at = ? WHERE id = ?", (nuevo_estado, now, int(documento_id)))
+    c.execute(
+        """
+        INSERT INTO documentos_controlados_historial (
+            documento_id, empresa_id, version, estado, archivo_path, archivo_nombre, cambios, actor, fecha
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (int(documento_id), int(doc_empresa_id), version_actual, nuevo_estado, archivo_path, archivo_nombre, f"Cambio de estado a {nuevo_estado}.", actor, now),
+    )
+    conn.commit()
+    conn.close()
+    return True, f"Estado actualizado a {nuevo_estado}."
+
+
+def eliminar_documento_controlado(documento_id: int, empresa_id=None) -> tuple[bool, str]:
+    _ensure_document_control_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM documentos_controlados WHERE id = ? AND empresa_id = ?", (int(documento_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El documento no existe."
+    c.execute("DELETE FROM documentos_controlados_historial WHERE documento_id = ?", (int(documento_id),))
+    c.execute("DELETE FROM documentos_controlados WHERE id = ?", (int(documento_id),))
+    conn.commit()
+    conn.close()
+    return True, "Documento eliminado."
+
+
+# ---------------------------------------------------------------------------
+# Fase 2 (2026-08-10): Completar SST — incidentes/accidentes con
+# investigación de causa, matriz de peligros, EPP (listado + entregas) y
+# plan de acción SST. Reemplaza los placeholders "Submódulo en preparación"
+# de esos 4 bloques del panel SST.
+# ---------------------------------------------------------------------------
+
+TIPOS_EVENTO_SST = ["Cuasi accidente", "Incidente", "Accidente leve", "Accidente con días perdidos", "Enfermedad profesional"]
+ESTADOS_EVENTO_SST = ["Abierto", "En investigación", "Cerrado"]
+TIPOS_PELIGRO_SST = ["Físico", "Químico", "Biológico", "Ergonómico", "Psicosocial", "Mecánico", "Eléctrico", "Locativo"]
+ESTADOS_PLAN_ACCION_SST = ["Pendiente", "En curso", "Cumplido", "Vencido"]
+
+
+def _ensure_sst_extended_tables() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS sst_incidentes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            fecha TEXT,
+            tipo TEXT,
+            lugar TEXT,
+            descripcion TEXT,
+            personas_involucradas TEXT,
+            lesion_tipo TEXT,
+            dias_perdidos INTEGER DEFAULT 0,
+            causa_inmediata TEXT,
+            causa_raiz TEXT,
+            investigador TEXT,
+            acciones_correctivas TEXT,
+            estado TEXT DEFAULT 'Abierto',
+            fecha_cierre TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS sst_peligros (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            proceso_area TEXT,
+            peligro TEXT,
+            tipo_peligro TEXT,
+            probabilidad INTEGER DEFAULT 1,
+            severidad INTEGER DEFAULT 1,
+            nivel_riesgo INTEGER DEFAULT 1,
+            medidas_control TEXT,
+            responsable TEXT,
+            fecha_revision TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS sst_epp (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            nombre TEXT,
+            puesto_aplicable TEXT,
+            norma_certificacion TEXT,
+            fecha_vencimiento_certificacion TEXT,
+            stock INTEGER DEFAULT 0,
+            proveedor TEXT,
+            notas TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS sst_epp_entregas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            epp_id INTEGER,
+            empleado TEXT,
+            fecha_entrega TEXT,
+            cantidad INTEGER DEFAULT 1,
+            firma_recibido TEXT,
+            observaciones TEXT,
+            created_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS sst_plan_accion (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            origen TEXT,
+            descripcion TEXT,
+            responsable TEXT,
+            fecha_limite TEXT,
+            estado TEXT DEFAULT 'Pendiente',
+            fecha_cumplimiento TEXT,
+            evidencia TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_sst_incidentes_empresa ON sst_incidentes(empresa_id);
+        CREATE INDEX IF NOT EXISTS idx_sst_peligros_empresa ON sst_peligros(empresa_id);
+        CREATE INDEX IF NOT EXISTS idx_sst_epp_empresa ON sst_epp(empresa_id);
+        CREATE INDEX IF NOT EXISTS idx_sst_epp_entregas_empresa ON sst_epp_entregas(empresa_id);
+        CREATE INDEX IF NOT EXISTS idx_sst_plan_accion_empresa ON sst_plan_accion(empresa_id);
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+# --- Incidentes / Accidentes -------------------------------------------------
+
+def crear_sst_incidente(empresa_id: int, payload: dict) -> tuple[bool, str, int | None]:
+    _ensure_sst_extended_tables()
+    if not str(payload.get("descripcion") or "").strip():
+        return False, "Describí qué pasó.", None
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute(
+        """
+        INSERT INTO sst_incidentes (
+            empresa_id, fecha, tipo, lugar, descripcion, personas_involucradas, lesion_tipo,
+            dias_perdidos, causa_inmediata, causa_raiz, investigador, acciones_correctivas,
+            estado, fecha_cierre, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(empresa_id), str(payload.get("fecha") or "").strip(), str(payload.get("tipo") or TIPOS_EVENTO_SST[0]).strip(),
+            str(payload.get("lugar") or "").strip(), str(payload.get("descripcion") or "").strip(),
+            str(payload.get("personas_involucradas") or "").strip(), str(payload.get("lesion_tipo") or "").strip(),
+            int(payload.get("dias_perdidos") or 0), str(payload.get("causa_inmediata") or "").strip(),
+            str(payload.get("causa_raiz") or "").strip(), str(payload.get("investigador") or "").strip(),
+            str(payload.get("acciones_correctivas") or "").strip(), str(payload.get("estado") or "Abierto").strip() or "Abierto",
+            str(payload.get("fecha_cierre") or "").strip(), now, now,
+        ),
+    )
+    new_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return True, "Evento SST registrado.", int(new_id)
+
+
+def obtener_sst_incidentes_empresa(empresa_id: int) -> list[dict]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT * FROM sst_incidentes WHERE empresa_id = ? ORDER BY COALESCE(fecha, created_at) DESC, id DESC", (int(empresa_id),))
+    rows = c.fetchall()
+    keys = [d[0] for d in c.description]
+    conn.close()
+    return [dict(zip(keys, row)) for row in rows]
+
+
+_SST_INCIDENTE_FIELDS = [
+    "fecha", "tipo", "lugar", "descripcion", "personas_involucradas", "lesion_tipo",
+    "causa_inmediata", "causa_raiz", "investigador", "acciones_correctivas", "estado", "fecha_cierre",
+]
+
+
+def actualizar_sst_incidente(incidente_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_incidentes WHERE id = ? AND empresa_id = ?", (int(incidente_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El evento no existe."
+    set_clause = ", ".join(f"{f} = ?" for f in _SST_INCIDENTE_FIELDS)
+    values = [str(payload.get(f) or "").strip() for f in _SST_INCIDENTE_FIELDS]
+    values.append(int(payload.get("dias_perdidos") or 0))
+    values.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    values.append(int(incidente_id))
+    c.execute(f"UPDATE sst_incidentes SET {set_clause}, dias_perdidos = ?, updated_at = ? WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+    return True, "Evento actualizado."
+
+
+def eliminar_sst_incidente(incidente_id: int, empresa_id=None) -> tuple[bool, str]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_incidentes WHERE id = ? AND empresa_id = ?", (int(incidente_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El evento no existe."
+    c.execute("DELETE FROM sst_incidentes WHERE id = ?", (int(incidente_id),))
+    conn.commit()
+    conn.close()
+    return True, "Evento eliminado."
+
+
+# --- Matriz de peligros -------------------------------------------------------
+
+def crear_sst_peligro(empresa_id: int, payload: dict) -> tuple[bool, str, int | None]:
+    _ensure_sst_extended_tables()
+    if not str(payload.get("peligro") or "").strip():
+        return False, "Indicá el peligro identificado.", None
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    prob = max(1, min(5, int(payload.get("probabilidad") or 1)))
+    sev = max(1, min(5, int(payload.get("severidad") or 1)))
+    c.execute(
+        """
+        INSERT INTO sst_peligros (
+            empresa_id, proceso_area, peligro, tipo_peligro, probabilidad, severidad, nivel_riesgo,
+            medidas_control, responsable, fecha_revision, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(empresa_id), str(payload.get("proceso_area") or "").strip(), str(payload.get("peligro") or "").strip(),
+            str(payload.get("tipo_peligro") or TIPOS_PELIGRO_SST[0]).strip(), prob, sev, prob * sev,
+            str(payload.get("medidas_control") or "").strip(), str(payload.get("responsable") or "").strip(),
+            str(payload.get("fecha_revision") or "").strip(), now, now,
+        ),
+    )
+    new_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return True, "Peligro registrado en la matriz.", int(new_id)
+
+
+def obtener_sst_peligros_empresa(empresa_id: int) -> list[dict]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT * FROM sst_peligros WHERE empresa_id = ? ORDER BY nivel_riesgo DESC, id DESC", (int(empresa_id),))
+    rows = c.fetchall()
+    keys = [d[0] for d in c.description]
+    conn.close()
+    return [dict(zip(keys, row)) for row in rows]
+
+
+def actualizar_sst_peligro(peligro_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_peligros WHERE id = ? AND empresa_id = ?", (int(peligro_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El peligro no existe."
+    prob = max(1, min(5, int(payload.get("probabilidad") or 1)))
+    sev = max(1, min(5, int(payload.get("severidad") or 1)))
+    c.execute(
+        """
+        UPDATE sst_peligros SET proceso_area = ?, peligro = ?, tipo_peligro = ?, probabilidad = ?, severidad = ?,
+            nivel_riesgo = ?, medidas_control = ?, responsable = ?, fecha_revision = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            str(payload.get("proceso_area") or "").strip(), str(payload.get("peligro") or "").strip(),
+            str(payload.get("tipo_peligro") or TIPOS_PELIGRO_SST[0]).strip(), prob, sev, prob * sev,
+            str(payload.get("medidas_control") or "").strip(), str(payload.get("responsable") or "").strip(),
+            str(payload.get("fecha_revision") or "").strip(), datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            int(peligro_id),
+        ),
+    )
+    conn.commit()
+    conn.close()
+    return True, "Peligro actualizado."
+
+
+def eliminar_sst_peligro(peligro_id: int, empresa_id=None) -> tuple[bool, str]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_peligros WHERE id = ? AND empresa_id = ?", (int(peligro_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El peligro no existe."
+    c.execute("DELETE FROM sst_peligros WHERE id = ?", (int(peligro_id),))
+    conn.commit()
+    conn.close()
+    return True, "Peligro eliminado."
+
+
+# --- EPP: catálogo y entregas -------------------------------------------------
+
+def crear_sst_epp(empresa_id: int, payload: dict) -> tuple[bool, str, int | None]:
+    _ensure_sst_extended_tables()
+    if not str(payload.get("nombre") or "").strip():
+        return False, "Indicá el nombre del EPP.", None
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute(
+        """
+        INSERT INTO sst_epp (
+            empresa_id, nombre, puesto_aplicable, norma_certificacion, fecha_vencimiento_certificacion,
+            stock, proveedor, notas, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(empresa_id), str(payload.get("nombre") or "").strip(), str(payload.get("puesto_aplicable") or "").strip(),
+            str(payload.get("norma_certificacion") or "").strip(), str(payload.get("fecha_vencimiento_certificacion") or "").strip(),
+            int(payload.get("stock") or 0), str(payload.get("proveedor") or "").strip(), str(payload.get("notas") or "").strip(),
+            now, now,
+        ),
+    )
+    new_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return True, "EPP agregado al catálogo.", int(new_id)
+
+
+def obtener_sst_epp_empresa(empresa_id: int) -> list[dict]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT * FROM sst_epp WHERE empresa_id = ? ORDER BY nombre", (int(empresa_id),))
+    rows = c.fetchall()
+    keys = [d[0] for d in c.description]
+    conn.close()
+    return [dict(zip(keys, row)) for row in rows]
+
+
+def actualizar_sst_epp(epp_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_epp WHERE id = ? AND empresa_id = ?", (int(epp_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El EPP no existe."
+    c.execute(
+        """
+        UPDATE sst_epp SET nombre = ?, puesto_aplicable = ?, norma_certificacion = ?,
+            fecha_vencimiento_certificacion = ?, stock = ?, proveedor = ?, notas = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            str(payload.get("nombre") or "").strip(), str(payload.get("puesto_aplicable") or "").strip(),
+            str(payload.get("norma_certificacion") or "").strip(), str(payload.get("fecha_vencimiento_certificacion") or "").strip(),
+            int(payload.get("stock") or 0), str(payload.get("proveedor") or "").strip(), str(payload.get("notas") or "").strip(),
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), int(epp_id),
+        ),
+    )
+    conn.commit()
+    conn.close()
+    return True, "EPP actualizado."
+
+
+def eliminar_sst_epp(epp_id: int, empresa_id=None) -> tuple[bool, str]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_epp WHERE id = ? AND empresa_id = ?", (int(epp_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "El EPP no existe."
+    c.execute("DELETE FROM sst_epp WHERE id = ?", (int(epp_id),))
+    conn.commit()
+    conn.close()
+    return True, "EPP eliminado."
+
+
+def crear_sst_epp_entrega(empresa_id: int, payload: dict) -> tuple[bool, str, int | None]:
+    """Registro liviano equivalente al Formulario 299 (constancia de entrega de EPP)."""
+    _ensure_sst_extended_tables()
+    if not str(payload.get("empleado") or "").strip():
+        return False, "Indicá a quién se le entregó el EPP.", None
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    epp_id_raw = payload.get("epp_id")
+    try:
+        epp_id_val = int(epp_id_raw) if epp_id_raw else None
+    except Exception:
+        epp_id_val = None
+    c.execute(
+        """
+        INSERT INTO sst_epp_entregas (empresa_id, epp_id, empleado, fecha_entrega, cantidad, firma_recibido, observaciones, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(empresa_id), epp_id_val, str(payload.get("empleado") or "").strip(), str(payload.get("fecha_entrega") or "").strip(),
+            int(payload.get("cantidad") or 1), str(payload.get("firma_recibido") or "").strip(), str(payload.get("observaciones") or "").strip(), now,
+        ),
+    )
+    new_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return True, "Entrega de EPP registrada.", int(new_id)
+
+
+def obtener_sst_epp_entregas_empresa(empresa_id: int) -> list[dict]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        """
+        SELECT e.id, e.empresa_id, e.epp_id, COALESCE(p.nombre, '') AS epp_nombre, e.empleado,
+               e.fecha_entrega, e.cantidad, e.firma_recibido, e.observaciones, e.created_at
+        FROM sst_epp_entregas e
+        LEFT JOIN sst_epp p ON p.id = e.epp_id
+        WHERE e.empresa_id = ?
+        ORDER BY COALESCE(e.fecha_entrega, e.created_at) DESC, e.id DESC
+        """,
+        (int(empresa_id),),
+    )
+    rows = c.fetchall()
+    keys = ["id", "empresa_id", "epp_id", "epp_nombre", "empleado", "fecha_entrega", "cantidad", "firma_recibido", "observaciones", "created_at"]
+    conn.close()
+    return [dict(zip(keys, row)) for row in rows]
+
+
+def eliminar_sst_epp_entrega(entrega_id: int, empresa_id=None) -> tuple[bool, str]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_epp_entregas WHERE id = ? AND empresa_id = ?", (int(entrega_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La entrega no existe."
+    c.execute("DELETE FROM sst_epp_entregas WHERE id = ?", (int(entrega_id),))
+    conn.commit()
+    conn.close()
+    return True, "Entrega eliminada."
+
+
+# --- Plan de acción SST -------------------------------------------------------
+
+def crear_sst_plan_accion(empresa_id: int, payload: dict) -> tuple[bool, str, int | None]:
+    _ensure_sst_extended_tables()
+    if not str(payload.get("descripcion") or "").strip():
+        return False, "Describí la acción a realizar.", None
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute(
+        """
+        INSERT INTO sst_plan_accion (empresa_id, origen, descripcion, responsable, fecha_limite, estado, fecha_cumplimiento, evidencia, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(empresa_id), str(payload.get("origen") or "Otro").strip(), str(payload.get("descripcion") or "").strip(),
+            str(payload.get("responsable") or "").strip(), str(payload.get("fecha_limite") or "").strip(),
+            str(payload.get("estado") or "Pendiente").strip() or "Pendiente", str(payload.get("fecha_cumplimiento") or "").strip(),
+            str(payload.get("evidencia") or "").strip(), now, now,
+        ),
+    )
+    new_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return True, "Acción SST registrada.", int(new_id)
+
+
+def obtener_sst_plan_accion_empresa(empresa_id: int) -> list[dict]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT * FROM sst_plan_accion WHERE empresa_id = ? ORDER BY COALESCE(fecha_limite, '9999-99-99'), id DESC", (int(empresa_id),))
+    rows = c.fetchall()
+    keys = [d[0] for d in c.description]
+    conn.close()
+    return [dict(zip(keys, row)) for row in rows]
+
+
+def actualizar_sst_plan_accion(accion_id: int, payload: dict, empresa_id=None) -> tuple[bool, str]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_plan_accion WHERE id = ? AND empresa_id = ?", (int(accion_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La acción no existe."
+    c.execute(
+        """
+        UPDATE sst_plan_accion SET origen = ?, descripcion = ?, responsable = ?, fecha_limite = ?, estado = ?,
+            fecha_cumplimiento = ?, evidencia = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            str(payload.get("origen") or "Otro").strip(), str(payload.get("descripcion") or "").strip(),
+            str(payload.get("responsable") or "").strip(), str(payload.get("fecha_limite") or "").strip(),
+            str(payload.get("estado") or "Pendiente").strip() or "Pendiente", str(payload.get("fecha_cumplimiento") or "").strip(),
+            str(payload.get("evidencia") or "").strip(), datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), int(accion_id),
+        ),
+    )
+    conn.commit()
+    conn.close()
+    return True, "Acción actualizada."
+
+
+def cerrar_sst_plan_accion(accion_id: int, evidencia: str = "", empresa_id=None) -> tuple[bool, str]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_plan_accion WHERE id = ? AND empresa_id = ?", (int(accion_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La acción no existe."
+    c.execute(
+        "UPDATE sst_plan_accion SET estado = 'Cumplido', evidencia = ?, fecha_cumplimiento = ?, updated_at = ? WHERE id = ?",
+        (str(evidencia or "").strip(), datetime.datetime.now().strftime("%Y-%m-%d"), datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), int(accion_id)),
+    )
+    conn.commit()
+    conn.close()
+    return True, "Acción cerrada."
+
+
+def eliminar_sst_plan_accion(accion_id: int, empresa_id=None) -> tuple[bool, str]:
+    _ensure_sst_extended_tables()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    if empresa_id is not None:
+        c.execute("SELECT id FROM sst_plan_accion WHERE id = ? AND empresa_id = ?", (int(accion_id), int(empresa_id)))
+        if not c.fetchone():
+            conn.close()
+            return False, "La acción no existe."
+    c.execute("DELETE FROM sst_plan_accion WHERE id = ?", (int(accion_id),))
+    conn.commit()
+    conn.close()
+    return True, "Acción eliminada."

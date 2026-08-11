@@ -1,4 +1,5 @@
 from __future__ import annotations
+import time
 from datetime import datetime
 
 import httpx
@@ -8,6 +9,40 @@ from ideas_utils import ideus_wordmark_html
 
 
 AUTH_API_BASE_URL = 'http://127.0.0.1:8000/api'
+
+# Fase 1 (2026-08-10): rate limiting basico de login por usuario, en memoria del proceso.
+# No sustituye un rate limit por IP a nivel infraestructura, pero frena fuerza bruta contra
+# un usuario conocido (p.ej. el admin de /plataforma) sin requerir nada externo.
+_LOGIN_MAX_INTENTOS = 5
+_LOGIN_VENTANA_SEG = 15 * 60
+_LOGIN_BLOQUEO_SEG = 15 * 60
+_login_failures: dict[str, list[float]] = {}
+
+
+def _login_key(username: str) -> str:
+    return (username or '').strip().lower()
+
+
+def _login_locked(username: str) -> int:
+    """Devuelve segundos restantes de bloqueo (0 si no esta bloqueado)."""
+    key = _login_key(username)
+    attempts = _login_failures.get(key) or []
+    now = time.time()
+    attempts = [t for t in attempts if now - t < _LOGIN_VENTANA_SEG]
+    _login_failures[key] = attempts
+    if len(attempts) < _LOGIN_MAX_INTENTOS:
+        return 0
+    remaining = _LOGIN_BLOQUEO_SEG - (now - attempts[-1])
+    return max(0, int(remaining))
+
+
+def _login_register_failure(username: str) -> None:
+    key = _login_key(username)
+    _login_failures.setdefault(key, []).append(time.time())
+
+
+def _login_register_success(username: str) -> None:
+    _login_failures.pop(_login_key(username), None)
 
 
 def register_platform_pages(ui, app, deps: dict) -> None:
@@ -183,10 +218,23 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                 password = ui.input('Contrasena', password=True, password_toggle_button=True).classes('w-full').props('outlined')
 
                 async def do_login() -> None:
+                    login_button.props('loading disable')
+                    try:
+                        await _do_login_body()
+                    finally:
+                        login_button.props(remove='loading disable')
+
+                async def _do_login_body() -> None:
                     user = (usuario.value or '').strip()
                     pwd = (password.value or '').strip()
                     if not user or not pwd:
                         ui.notify('Ingresa usuario y contrasena.', type='warning')
+                        return
+
+                    bloqueo_seg = _login_locked(user)
+                    if bloqueo_seg > 0:
+                        minutos = max(1, bloqueo_seg // 60)
+                        ui.notify(f'Demasiados intentos fallidos. Intenta de nuevo en {minutos} minuto(s).', type='negative')
                         return
 
                     set_selection = deps.get('set_selection')
@@ -196,6 +244,10 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                         local_user_match = verificar_usuario(user, pwd)
                         if not local_user_match and '@' in user:
                             local_user_match = verificar_usuario(user.split('@', 1)[0], pwd)
+                    if not isinstance(local_user_match, dict):
+                        _login_register_failure(user)
+                    else:
+                        _login_register_success(user)
 
                     def login_local() -> bool:
                         if not isinstance(local_user_match, dict):
@@ -280,6 +332,7 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                         ui.notify('No se pudo iniciar sesion.', type='negative')
                         return
 
+                    _login_register_success(user)
                     empresa_id = session_payload.get('empresa_id')
                     try:
                         empresa_id_int = int(empresa_id) if empresa_id else None
@@ -335,7 +388,7 @@ def register_platform_pages(ui, app, deps: dict) -> None:
 
                 with ui.row().classes('w-full justify-between items-center mt-2'):
                     ui.button('Volver al sitio', icon='public', on_click=lambda: ui.navigate.to('/')).props('flat')
-                    ui.button('Ingresar', icon='login', on_click=do_login).props('unelevated color=primary')
+                    login_button = ui.button('Ingresar', icon='login', on_click=do_login).props('unelevated color=primary')
                 with ui.row().classes('w-full justify-end'):
                     ui.link('¿Olvidaste tu contraseña?', '/olvide-password').classes('text-sm text-slate-500 hover:text-primary')
 

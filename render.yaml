@@ -6,6 +6,31 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python nicegui_v2/app.py
     autoDeploy: false
+    envVars:
+      - key: NICEGUI_STORAGE_SECRET
+        generateValue: true
+      - key: NICEGUI_STORAGE_SECRET_PUBLIC
+        generateValue: true
+      - key: PLATFORM_USER
+        sync: false
+      - key: PLATFORM_PASSWORD
+        sync: false
+      - key: LEGAL_MATRIX_DEFAULT_DELETE_PASSWORD
+        sync: false
+      - key: IDEAS_DB_PATH
+        sync: false
+    # Fase 1 (2026-08-10): "plan: free" de Render NO soporta discos persistentes -- por eso
+    # este bloque queda comentado en vez de activo (un "disk:" en un servicio free puede
+    # romper el sync del Blueprint). Mitigacion real de la perdida de datos en cada redeploy:
+    # 1) subir este servicio a un plan pago (Starter o superior),
+    # 2) descomentar el bloque de abajo,
+    # 3) setear IDEAS_DB_PATH=/var/data/ideas.db (arriba, sync:false) para que apunte al disco,
+    # 4) copiar el ideas.db actual a esa ruta una vez en el primer deploy con disco.
+    # Esto es solo un parche mientras se decide la migracion a Postgres (ver carpeta app/).
+    # disk:
+    #   name: ideas-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
 
   - type: web
     name: ideas-mobile-legal-matrix

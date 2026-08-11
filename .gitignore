@@ -19,6 +19,11 @@ direct_stderr.txt
 .env
 API KEY.txt
 
+# Database (contiene datos de clientes -- nunca versionar)
+ideas.db
+nicegui_v2/ideas.db
+*.db-journal
+
 # Build / runtime artifacts
 dist/
 backups/

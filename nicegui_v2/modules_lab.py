@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from io import BytesIO
@@ -612,7 +613,7 @@ def register_lab_module(ui, deps: dict) -> None:
                                     ui.button("Guardar", icon="save", on_click=save_equipo).props("unelevated color=primary")
                             dialog.open()
 
-                        def import_equipos_excel(event) -> None:
+                        async def import_equipos_excel(event) -> None:
                             payload = _read_upload_payload(event)
                             if not payload:
                                 ui.notify("No se pudo leer el archivo Excel.", type="negative")
@@ -625,6 +626,10 @@ def register_lab_module(ui, deps: dict) -> None:
                             if df.empty:
                                 ui.notify("El Excel está vacío.", type="warning")
                                 return
+                            progreso = ui.notification(
+                                "Importando equipos desde Excel...", spinner=True, type="ongoing", timeout=None,
+                            )
+                            await asyncio.sleep(0)  # deja que el spinner se pinte antes del trabajo pesado
                             normalized = {str(col).strip().lower(): col for col in df.columns}
                             def col(name: str) -> str:
                                 return normalized.get(name, "")
@@ -654,10 +659,11 @@ def register_lab_module(ui, deps: dict) -> None:
                                 )
                                 if ok:
                                     created += 1
+                            progreso.dismiss()
                             refresh_equipos()
                             ui.notify(f"Importación completada: {created} equipos cargados.", type="positive")
 
-                        equipos_table.on("del", lambda e: (eliminar_lab_equipo(int(e.args)), refresh_equipos(), ui.notify("Equipo eliminado.", type="warning")))
+                        equipos_table.on("del", lambda e: (eliminar_lab_equipo(int(e.args), caller_empresa_id=empresa_id), refresh_equipos(), ui.notify("Equipo eliminado.", type="warning")))
                         refresh_equipos()
 
                 render_simple_crud(
@@ -672,7 +678,7 @@ def register_lab_module(ui, deps: dict) -> None:
                     ],
                     rows_fn=obtener_lab_calibraciones_empresa,
                     create_fn=crear_lab_calibracion,
-                    delete_fn=eliminar_lab_calibracion,
+                    delete_fn=lambda rid: eliminar_lab_calibracion(rid, caller_empresa_id=empresa_id),
                     form_fields=[
                         ("equipo_id", "ID Equipo", "text"),
                         ("tipo", "Tipo (calibración/verificación/...)", "text"),
@@ -787,7 +793,7 @@ def register_lab_module(ui, deps: dict) -> None:
                                     ui.button("Guardar", icon="save", on_click=save_metodo).props("unelevated color=primary")
                             dialog.open()
 
-                        metodos_table.on("del", lambda e: (eliminar_lab_metodo(int(e.args)), refresh_metodos(), ui.notify("Método eliminado.", type="warning")))
+                        metodos_table.on("del", lambda e: (eliminar_lab_metodo(int(e.args), caller_empresa_id=empresa_id), refresh_metodos(), ui.notify("Método eliminado.", type="warning")))
                         refresh_metodos()
 
                 render_simple_crud(
@@ -802,7 +808,7 @@ def register_lab_module(ui, deps: dict) -> None:
                     ],
                     rows_fn=obtener_lab_muestras_empresa,
                     create_fn=crear_lab_muestra,
-                    delete_fn=eliminar_lab_muestra,
+                    delete_fn=lambda rid: eliminar_lab_muestra(rid, caller_empresa_id=empresa_id),
                     form_fields=[
                         ("codigo_unico", "Código único", "text"),
                         ("cliente", "Cliente", "text"),
@@ -827,7 +833,7 @@ def register_lab_module(ui, deps: dict) -> None:
                     ],
                     rows_fn=obtener_lab_competencias_empresa,
                     create_fn=crear_lab_competencia,
-                    delete_fn=eliminar_lab_competencia,
+                    delete_fn=lambda rid: eliminar_lab_competencia(rid, caller_empresa_id=empresa_id),
                     form_fields=[
                         ("persona", "Persona", "text"),
                         ("rol", "Rol", "text"),
@@ -912,7 +918,7 @@ def register_lab_module(ui, deps: dict) -> None:
                                     ui.button("Guardar", icon="save", on_click=save_comp).props("unelevated color=primary")
                             dialog.open()
 
-                        comp_table.on("del", lambda e: (eliminar_lab_incertidumbre_componente(int(e.args)), refresh_components(), ui.notify("Componente eliminado.", type="warning")))
+                        comp_table.on("del", lambda e: (eliminar_lab_incertidumbre_componente(int(e.args), caller_empresa_id=empresa_id), refresh_components(), ui.notify("Componente eliminado.", type="warning")))
                         ui.button("Nuevo componente", icon="add", on_click=open_component_form).props("outline color=primary").classes("mt-3")
                         refresh_components()
 
@@ -928,7 +934,7 @@ def register_lab_module(ui, deps: dict) -> None:
                     ],
                     rows_fn=obtener_lab_control_calidad_empresa,
                     create_fn=crear_lab_control_calidad,
-                    delete_fn=eliminar_lab_control_calidad,
+                    delete_fn=lambda rid: eliminar_lab_control_calidad(rid, caller_empresa_id=empresa_id),
                     form_fields=[
                         ("metodo", "Método", "text"),
                         ("equipo", "Equipo", "text"),
@@ -953,7 +959,7 @@ def register_lab_module(ui, deps: dict) -> None:
                     ],
                     rows_fn=obtener_lab_informes_empresa,
                     create_fn=crear_lab_informe,
-                    delete_fn=eliminar_lab_informe,
+                    delete_fn=lambda rid: eliminar_lab_informe(rid, caller_empresa_id=empresa_id),
                     form_fields=[
                         ("numero_informe", "Número informe", "text"),
                         ("cliente", "Cliente", "text"),
@@ -980,7 +986,7 @@ def register_lab_module(ui, deps: dict) -> None:
                     ],
                     rows_fn=obtener_lab_auditorias_empresa,
                     create_fn=crear_lab_auditoria,
-                    delete_fn=eliminar_lab_auditoria,
+                    delete_fn=lambda rid: eliminar_lab_auditoria(rid, caller_empresa_id=empresa_id),
                     form_fields=[
                         ("clausula", "Cláusula (4/5/6/7/8)", "text"),
                         ("pregunta", "Pregunta", "textarea"),
@@ -1006,7 +1012,7 @@ def register_lab_module(ui, deps: dict) -> None:
                     ],
                     rows_fn=obtener_lab_riesgos_empresa,
                     create_fn=crear_lab_riesgo,
-                    delete_fn=eliminar_lab_riesgo,
+                    delete_fn=lambda rid: eliminar_lab_riesgo(rid, caller_empresa_id=empresa_id),
                     form_fields=[
                         ("proceso", "Proceso", "text"),
                         ("riesgo", "Riesgo", "textarea"),
@@ -1032,7 +1038,7 @@ def register_lab_module(ui, deps: dict) -> None:
                     ],
                     rows_fn=obtener_lab_acciones_empresa,
                     create_fn=crear_lab_accion,
-                    delete_fn=eliminar_lab_accion,
+                    delete_fn=lambda rid: eliminar_lab_accion(rid, caller_empresa_id=empresa_id),
                     form_fields=[
                         ("origen", "Origen", "text"),
                         ("descripcion", "Descripción", "textarea"),

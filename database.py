@@ -8,9 +8,10 @@ def _columna_existe(cursor, tabla, columna):
 
 
 def crear_base():
+    import os
     import sqlite3
 
-    conn = sqlite3.connect("ideas.db")
+    conn = sqlite3.connect(os.getenv("IDEAS_DB_PATH", "ideas.db"))
     c = conn.cursor()
 
     c.execute("""
