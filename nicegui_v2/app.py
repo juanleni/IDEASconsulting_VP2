@@ -460,6 +460,12 @@ def inject_global_styles() -> None:
         .ideas-topbar-brand .brand-title { color:var(--ideas-navy); font-weight:800; line-height:1; }
         .ideas-topbar-brand .brand-subtitle { color:#64748b; font-size:.82rem; margin-top:.18rem; }
         .ideas-topbar-brand .ideus-topbar-mark { width:auto; height:42px; object-fit:contain; }
+        .ideas-topbar-brand .ideus-wordmark { margin-left:.15rem; }
+        .ideas-topbar-pagetitle {
+            color:#64748b; font-size:.82rem; margin-left:.7rem; padding-left:.7rem;
+            border-left:1px solid var(--ideas-line); white-space:nowrap;
+        }
+        @media (max-width: 640px) { .ideas-topbar-pagetitle { display:none; } }
         @media (max-width: 520px) { .ideas-topbar-brand .ideus-topbar-mark { height:34px; } }
 
         /* 2026-08-14: splash de marca post-login (~3s, una sola vez). Fondo
@@ -475,9 +481,9 @@ def inject_global_styles() -> None:
             transition: opacity .5s ease, visibility .5s ease;
         }
         .ideus-splash.ideus-splash--hide { opacity: 0; visibility: hidden; pointer-events: none; }
-        .ideus-splash-inner { position: relative; width: 220px; height: 220px; display:flex; align-items:center; justify-content:center; }
+        .ideus-splash-inner { position: relative; width: 260px; height: 260px; display:flex; align-items:center; justify-content:center; }
         .ideus-splash-logo {
-            position: relative; z-index: 1; width: 148px; height: auto;
+            position: relative; z-index: 1; width: 130px; height: auto;
             animation: ideus-splash-pop .6s cubic-bezier(.34,1.56,.64,1);
         }
         .ideus-splash-spinner {
@@ -2286,11 +2292,18 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                     ).props('flat round dense').classes('text-slate-600')
                 ideus_icon = get_ideus_icon_url()
                 if ideus_icon:
+                    # 2026-08-14: el icono solo (sin texto) es a proposito -- el
+                    # lockup completo del logo es vertical, no entra legible en
+                    # una barra horizontal angosta. El nombre "IDEUS / by IDEAS
+                    # Consulting" se agrega como texto real al lado (mismo
+                    # componente que ya se usa en las tarjetas de login), no
+                    # como parte de la imagen -- se ve nitido a cualquier tamaño.
                     ui.html(
                         f'''
                         <div class="ideas-topbar-brand">
                             <img src="{ideus_icon}" alt="IDEUS" class="ideus-topbar-mark" />
-                            <div class="brand-subtitle">{page_title}</div>
+                            {ideus_wordmark_html('topbar')}
+                            <span class="ideas-topbar-pagetitle">{page_title}</span>
                         </div>
                         '''
                     )
