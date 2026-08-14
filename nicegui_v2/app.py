@@ -459,6 +459,38 @@ def inject_global_styles() -> None:
         .ideas-topbar-brand img { width:36px; height:36px; object-fit:contain; }
         .ideas-topbar-brand .brand-title { color:var(--ideas-navy); font-weight:800; line-height:1; }
         .ideas-topbar-brand .brand-subtitle { color:#64748b; font-size:.82rem; margin-top:.18rem; }
+        .ideas-topbar-brand .ideus-topbar-mark { width:auto; height:42px; object-fit:contain; }
+        @media (max-width: 520px) { .ideas-topbar-brand .ideus-topbar-mark { height:34px; } }
+
+        /* 2026-08-14: splash de marca post-login (~3s, una sola vez). Fondo
+           blanco solido a proposito -- es el mismo fondo del logo original
+           (PNG sin transparencia), asi que no queda ningun recuadro visible
+           alrededor. El anillo usa los 6 colores reales de los rayos del
+           logo (muestreados del archivo fuente), no una paleta generica. */
+        .ideus-splash {
+            position: fixed; inset: 0; z-index: 99999;
+            background: #ffffff;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 1; visibility: visible;
+            transition: opacity .5s ease, visibility .5s ease;
+        }
+        .ideus-splash.ideus-splash--hide { opacity: 0; visibility: hidden; pointer-events: none; }
+        .ideus-splash-inner { position: relative; width: 220px; height: 220px; display:flex; align-items:center; justify-content:center; }
+        .ideus-splash-logo {
+            position: relative; z-index: 1; width: 148px; height: auto;
+            animation: ideus-splash-pop .6s cubic-bezier(.34,1.56,.64,1);
+        }
+        .ideus-splash-spinner {
+            position: absolute; inset: 0; border-radius: 50%;
+            background: conic-gradient(from 0deg,
+                #de4593, #8a58b2, #0495d7, #80b53a, #f5be1f, #e65e33, #de4593);
+            -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+                    mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+            animation: ideus-splash-spin 1.1s linear infinite;
+        }
+        @keyframes ideus-splash-spin { to { transform: rotate(360deg); } }
+        @keyframes ideus-splash-pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
         .ideus-wordmark {
             --brand-font-size-primary: 1.05rem;
             --brand-color: var(--ideas-navy);
@@ -758,6 +790,19 @@ def get_logo_url() -> str:
 
 def get_banner_url() -> str:
     return '/assets/ideas_home_banner.png' if (ROOT / 'ideas_home_banner.png').exists() else ''
+
+
+# 2026-08-14: logo real de IDEUS (provisto por Juan), reemplaza el isotipo
+# viejo de IDEAS + texto "IDEUS - Sistema de gestion" en el topbar. Se guardan
+# dos recortes del mismo archivo original: el icono solo (para el topbar,
+# donde el lockup completo -- vertical, con texto -- no entra bien en una
+# barra horizontal) y el lockup completo con texto (para el splash de login).
+def get_ideus_icon_url() -> str:
+    return '/assets/ideus_logo_icon.png' if (ROOT / 'ideus_logo_icon.png').exists() else ''
+
+
+def get_ideus_logo_full_url() -> str:
+    return '/assets/ideus_logo_full.png' if (ROOT / 'ideus_logo_full.png').exists() else ''
 
 
 def is_platform_authenticated() -> bool:
@@ -1476,10 +1521,18 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
     # botón "atrás" del topbar. nav_items ya se calculaba para ambos roles
     # más arriba; el bloque de render simplemente nunca se ejecutaba para
     # ellos. Se saca el gate de rol para que el drawer se construya siempre.
-    # value=False + show-if-above: en pantallas >=768px Quasar fuerza el
-    # drawer visible, en pantallas chicas arranca cerrado y se maneja con
-    # el botón hamburguesa del header.
-    drawer = ui.left_drawer(value=False, bordered=False).classes('p-4').props('breakpoint=768 show-if-above')
+    #
+    # 2026-08-14: el `show-if-above` de ese momento tenía un efecto colateral
+    # no buscado -- fuerza el drawer SIEMPRE visible en pantallas >=768px sin
+    # importar `value` ni el botón hamburguesa, así que en desktop el toggle
+    # no hacía nada (el usuario no podía colapsarlo para ganar ancho de
+    # pantalla completo). Se saca `show-if-above` para que el toggle funcione
+    # de verdad en cualquier tamaño de pantalla, y el estado abierto/cerrado
+    # se persiste por usuario (`sidebar_open` en app.storage.user) para que
+    # no se resetee a cada navegación entre páginas.
+    _sidebar_open_default = bool(app.storage.user.get('sidebar_open', True))
+    drawer = ui.left_drawer(value=_sidebar_open_default, bordered=False).classes('p-4 ideas-drawer').props('breakpoint=768')
+    drawer.on_value_change(lambda e: app.storage.user.__setitem__('sidebar_open', bool(e.value)))
     with drawer:
         with ui.column().classes('ideas-brand-card w-full'):
             if logo:
@@ -2231,7 +2284,17 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                         icon='arrow_back',
                         on_click=lambda route=back_route: ui.navigate.to(route),
                     ).props('flat round dense').classes('text-slate-600')
-                if logo:
+                ideus_icon = get_ideus_icon_url()
+                if ideus_icon:
+                    ui.html(
+                        f'''
+                        <div class="ideas-topbar-brand">
+                            <img src="{ideus_icon}" alt="IDEUS" class="ideus-topbar-mark" />
+                            <div class="brand-subtitle">{page_title}</div>
+                        </div>
+                        '''
+                    )
+                elif logo:
                     ui.html(
                         f'''
                         <div class="ideas-topbar-brand">
@@ -2273,8 +2336,6 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                                 </div>
                                 '''
                             )
-            with ui.row().classes('items-center justify-center flex-1 ideas-topbar-center'):
-                ui.html(ideus_wordmark_html('topbar'))
             with ui.row().classes('items-center gap-2 flex-wrap justify-end'):
                 smart_button = ui.button(assistant_name, icon='auto_awesome', on_click=_toggle_drawer).props('flat dense').classes('text-blue-700 font-bold')
                 if not ai_enabled_session:
@@ -2284,6 +2345,37 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                 ui.button('Web institucional', icon='public', on_click=lambda: ui.navigate.to('/')).props('flat dense')
                 if is_platform_authenticated():
                     ui.button('Salir', icon='logout', on_click=logout_platform).props('flat dense color=negative')
+
+    # 2026-08-14: splash de marca de ~3s justo despues de loguearse (una sola
+    # vez, no en cada navegacion): pages_platform.py deja `show_splash=True`
+    # en la sesion cuando el login es exitoso; shell() lo consume (pop) la
+    # primera vez que renderiza una pagina protegida despues de eso. Todo el
+    # timing es client-side (setTimeout), sin depender de un roundtrip al
+    # servidor para el fade-out.
+    if app.storage.user.pop('show_splash', False):
+        _ideus_logo_full = get_ideus_logo_full_url()
+        if _ideus_logo_full:
+            # ui.html() rejects <script> tags outright (ValueError) -- add_body_html
+            # is the documented way to inject raw, one-shot markup+script into the
+            # page body. shared=False (default) keeps this scoped to this render.
+            ui.add_body_html(
+                f'''
+                <div id="ideus-splash" class="ideus-splash">
+                    <div class="ideus-splash-inner">
+                        <div class="ideus-splash-spinner"></div>
+                        <img src="{_ideus_logo_full}" alt="IDEUS" class="ideus-splash-logo" />
+                    </div>
+                </div>
+                <script>
+                setTimeout(function () {{
+                    var el = document.getElementById('ideus-splash');
+                    if (!el) return;
+                    el.classList.add('ideus-splash--hide');
+                    setTimeout(function () {{ el.remove(); }}, 600);
+                }}, 3000);
+                </script>
+                '''
+            )
     return ui.column().classes('ideas-shell')
 
 

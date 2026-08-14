@@ -252,6 +252,10 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                     def login_local() -> bool:
                         if not isinstance(local_user_match, dict):
                             return False
+                        # 2026-08-14: dispara el splash de marca (~3s) que consume
+                        # shell() una sola vez, en la primera pagina que se renderiza
+                        # despues de un login exitoso -- no en cada navegacion.
+                        app.storage.user['show_splash'] = True
                         local_role = str(local_user_match.get('rol') or '').strip().upper()
                         local_company_id = local_user_match.get('empresa_id')
                         try:
@@ -333,6 +337,7 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                         return
 
                     _login_register_success(user)
+                    app.storage.user['show_splash'] = True
                     empresa_id = session_payload.get('empresa_id')
                     try:
                         empresa_id_int = int(empresa_id) if empresa_id else None
