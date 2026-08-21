@@ -303,7 +303,7 @@ def register_risks_module(ui, deps: dict) -> None:
         if not ensure_platform_access():
             return
 
-        shell_container = shell('Riesgos y oportunidades', back_route='/sistema-gestion', module_key='risks')
+        shell_container = shell('Riesgos', back_route='/sistema-gestion', module_key='risks')
         company_map = company_options()
         query_empresa_id = empresa_id_from_query_for_admin()
         selected_company_id = query_empresa_id or app.storage.user.get('management_company_id') or current_selection()[0]

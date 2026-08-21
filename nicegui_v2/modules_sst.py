@@ -76,7 +76,7 @@ def register_sst_module(ui, deps: dict) -> None:
 
         with shell_container:
             ui.label("Salud ocupacional").classes("ideas-kicker")
-            ui.label("Modulo SST por empresa").classes("text-3xl font-bold text-slate-900")
+            ui.label("Modulo Salud Ocupacional por empresa").classes("text-3xl font-bold text-slate-900")
             ui.label("Estructura basada en Panel SST, con navegación por tabs.").classes("ideas-subtitle mb-3")
 
             if not company_map:
