@@ -903,6 +903,18 @@ def _can_access_module_by_assignment(module_key: str | None) -> bool:
     role = str(app.storage.user.get("role") or "").strip().lower()
     if role != "empresa":
         return False
+    # 2026-08-14: "users" (Gestion de Usuarios y Accesos) no es un modulo
+    # opcional como KPIs/Calidad -- es la pantalla desde donde un
+    # EMPRESA_ADMIN administra los accesos de SU PROPIA empresa, incluido el
+    # toggle granular por-usuario que esta misma funcion consulta mas abajo.
+    # Dejarlo sujeto a ese mismo toggle crea un lockout sin salida: si el
+    # propio admin queda con "users" deshabilitado (bootstrap viejo, o un
+    # click sin querer en su propia edicion), nadie en esa empresa puede
+    # volver a entrar a arreglarlo -- solo un IDEAS_ADMIN tocando la base a
+    # mano. modules_users.py ya exige local_user_role == 'EMPRESA_ADMIN'
+    # para esta pagina, asi que ese gate alcanza.
+    if module_code == "users" and str(app.storage.user.get("local_user_role") or "").strip().upper() == "EMPRESA_ADMIN":
+        return True
     company_id = current_company_id_for_ai()
     if not company_id:
         return False

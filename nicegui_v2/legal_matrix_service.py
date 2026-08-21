@@ -104,6 +104,33 @@ def _ensure_tables() -> None:
             conn.execute('ALTER TABLE legal_matrix_settings ADD COLUMN alertas_email_dias_anticipacion INTEGER DEFAULT 30')
         if 'alertas_email_ultimo_envio' not in cols:
             conn.execute('ALTER TABLE legal_matrix_settings ADD COLUMN alertas_email_ultimo_envio TEXT')
+        if 'delete_all_password_hash' not in cols:
+            # 2026-08-14: esta tabla existia desde antes con una columna vieja
+            # `delete_all_password` (contraseña en texto plano) de un esquema
+            # anterior al de esta capa de servicios. `CREATE TABLE IF NOT EXISTS`
+            # no altera una tabla ya existente, asi que sin este ALTER cualquier
+            # base creada con el esquema viejo rompe con
+            # "no such column: delete_all_password_hash" en cuanto se consulta
+            # esta tabla (reportado desde Usuarios, que llama
+            # tiene_legal_matrix_password_personalizada en cada render).
+            conn.execute('ALTER TABLE legal_matrix_settings ADD COLUMN delete_all_password_hash TEXT')
+            if 'delete_all_password' in cols:
+                legacy_rows = conn.execute(
+                    "SELECT empresa_id, delete_all_password FROM legal_matrix_settings "
+                    "WHERE delete_all_password IS NOT NULL AND delete_all_password != ''"
+                ).fetchall()
+                for legacy_row in legacy_rows:
+                    plano = str(legacy_row['delete_all_password'])
+                    # Si nunca la personalizaron, la columna vieja solo tiene el
+                    # default de siempre -- no hace falta migrar nada, el
+                    # fallback a DEFAULT_DELETE_ALL_PASSWORD ya cubre ese caso.
+                    if plano and plano != DEFAULT_DELETE_ALL_PASSWORD:
+                        conn.execute(
+                            'UPDATE legal_matrix_settings SET delete_all_password_hash = ? WHERE empresa_id = ?',
+                            (_hash_password(plano), legacy_row['empresa_id']),
+                        )
+                # No dejar la contraseña vieja en texto plano dando vueltas.
+                conn.execute("UPDATE legal_matrix_settings SET delete_all_password = NULL")
 
 
 DEFAULT_DELETE_ALL_PASSWORD = os.getenv('LEGAL_MATRIX_DEFAULT_DELETE_PASSWORD', 'IDEAS')

@@ -508,7 +508,7 @@ def register_process_maps_module(ui, deps: dict) -> None:
                         ui.label('Procesos del mapa').classes('ideas-section-title mt-4')
                         ui.label('Haz clic en cada tarjeta para entrar al proceso y completar su tortuga.').classes('ideas-section-note')
                         if existing_rows:
-                            grouped_rows = {'EstratÃ©gicos': [], 'Operativos': [], 'Soporte': [], 'Personalizados': []}
+                            grouped_rows = {'Estratégicos': [], 'Operativos': [], 'Soporte': [], 'Personalizados': []}
                             for row in existing_rows:
                                 grouped_rows[_process_category(row)].append(row)
 
@@ -532,7 +532,7 @@ def register_process_maps_module(ui, deps: dict) -> None:
                             f'''<div class="ideas-grid-3" style="margin-top:18px;">
                             <div class="ideas-quick-card"><div class="label">Empresa activa</div><div class="value">{company_name}</div><div class="detail">Mapa de procesos especifico de la empresa seleccionada.</div></div>
                             <div class="ideas-quick-card"><div class="label">Procesos en landscape</div><div class="value">{len(existing_rows)}</div><div class="detail">Cada proceso se visualiza como tarjeta y se edita de forma puntual.</div></div>
-                            <div class="ideas-quick-card"><div class="label">Certificaciones</div><div class="value">{certifications_summary(selected_company)}</div><div class="detail">Referencia util para orientar el mapa y la profundidad del diseÃ±o.</div></div>
+                            <div class="ideas-quick-card"><div class="label">Certificaciones</div><div class="value">{certifications_summary(selected_company)}</div><div class="detail">Referencia util para orientar el mapa y la profundidad del diseño.</div></div>
                             </div>'''
                         )
                 return
