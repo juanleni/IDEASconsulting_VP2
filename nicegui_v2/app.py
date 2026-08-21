@@ -7,6 +7,7 @@ import sys
 import asyncio
 import html
 import json
+import logging
 import re
 import tempfile
 import datetime as dt
@@ -3422,6 +3423,34 @@ if not INSTITUTIONAL_ONLY:
     })
     register_platform_pages(ui, app, {'public_shell': public_shell, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'get_banner_url': get_banner_url, 'get_logo_url': get_logo_url, 'quick_card': quick_card, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'obtener_alertas_globales': obtener_alertas_globales, 'verificar_usuario': verificar_usuario, 'verificar_login_empresa': verificar_login_empresa, 'guardar_token_empresa': guardar_token_empresa, 'verificar_token_empresa': verificar_token_empresa, 'actualizar_password_empresa': actualizar_password_empresa, 'provisionar_acceso_empresa': provisionar_acceso_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'set_selection': set_selection, 'PLATFORM_USER': PLATFORM_USER, 'PLATFORM_PASSWORD': PLATFORM_PASSWORD, 'ideus_wordmark_html': ideus_wordmark_html})
     register_diagnostic_pages(ui, app, {'pd': pd, 'go': go, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'guardar_empresa': guarded_guardar_empresa, 'actualizar_empresa': guarded_actualizar_empresa, 'eliminar_empresa': guarded_eliminar_empresa, 'guardar_fuente_empresa': guarded_guardar_fuente_empresa, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'eliminar_fuente': guarded_eliminar_fuente, 'guardar_token_empresa': guardar_token_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'go_to_management_workspace': go_to_management_workspace, 'set_selection': set_selection, 'leer_diagnostico_excel': leer_diagnostico_excel, 'grouped_questions': grouped_questions, 'load_criteria': load_criteria, 'company_options': company_options, 'current_selection': current_selection, 'diagnosis_record': diagnosis_record, 'diagnosis_response_dicts': diagnosis_response_dicts, 'split_evidence_values': split_evidence_values, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'actualizar_diagnostico': guarded_actualizar_diagnostico, 'guardar_diagnostico': guarded_guardar_diagnostico, 'obtener_nivel': obtener_nivel, 'obtener_conclusion': obtener_conclusion, 'diagnosis_rows': diagnosis_rows, 'diagnosis_badge_style': diagnosis_badge_style, 'diagnosis_options': diagnosis_options, 'build_eje_scores': build_eje_scores, 'build_plan': build_plan, 'short_axis_label': short_axis_label, 'obtener_mensaje_direccion': obtener_mensaje_direccion, 'quick_card': quick_card, 'obtener_prioridad_recomendada': obtener_prioridad_recomendada, 'start_edit': start_edit, 'render_metrics': render_metrics, 'eliminar_diagnostico': guarded_eliminar_diagnostico, 'generar_pdf_ejecutivo_v2': generar_pdf_ejecutivo_v2, 'get_available_modules_for_company': get_available_modules_for_company, 'assign_modules_to_company': assign_modules_to_company, 'sync_user_modules_after_company_change': sync_user_modules_after_company_change})
+# 2026-08-14: manejador global de errores (audit finding #3) -- por default
+# NiceGUI muestra al cliente el nombre y mensaje crudos de cualquier excepcion
+# no manejada en un @ui.page (asi se vieron los bugs #1 y #2 de este mismo
+# audit: "OperationalError: no such column: ..." / "KeyError: '...'"
+# directamente en pantalla). Reemplaza el exception_handler(Exception) que
+# registra nicegui/error.py por uno propio: loguea la excepcion completa del
+# lado del servidor y le muestra al usuario una pantalla generica de marca,
+# sin ningun detalle interno (nombre de columna, clave de diccionario, etc.).
+_server_error_logger = logging.getLogger('ideus.server_error')
+
+
+@app.exception_handler(Exception)
+async def _ideus_500_handler(request, exception: Exception):
+    from nicegui.client import Client
+    from nicegui.page import page as _nicegui_index_page
+    if not request.scope.get('nicegui_page_path'):
+        raise exception  # no es una pagina NiceGUI (ej. un asset) -- comportamiento default de FastAPI
+    _server_error_logger.exception('Error no manejado en %s', request.url.path, exc_info=exception)
+    with Client(_nicegui_index_page(''), request=request) as client:
+        with ui.column().style('width: 100%; padding: 5rem 0; align-items: center; gap: .5rem; text-align: center;'):
+            ui.html(ideus_wordmark_html('login')).classes('mb-4')
+            ui.icon('error_outline', size='4rem').classes('text-red-400')
+            ui.label('Algo salio mal de nuestro lado').classes('text-2xl font-bold text-slate-900')
+            ui.label('Ya quedo registrado y el equipo de IDEAS lo va a revisar. Proba de nuevo en un momento.').classes('text-slate-500 max-w-md')
+            ui.button('Volver al inicio', icon='home', on_click=lambda: ui.navigate.to('/')).props('unelevated color=primary').classes('mt-4')
+    return client.build_response(request, 500)
+
+
 render_port = os.getenv('PORT')
 run_port = int(render_port) if render_port else 8502
 run_host = '0.0.0.0'
