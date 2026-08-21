@@ -257,7 +257,11 @@ def render_management_workspace_page(
             with ui.row().classes('w-full items-center justify-between mt-6'):
                 ui.label('Módulos Operativos').classes('ideas-section-title')
                 ui.label('Vista compacta: despliega solo el modulo que necesites.').classes('ideas-section-note')
-            with ui.tabs().classes('w-full mt-3 ideas-panel p-2 rounded-[24px]') as ops_tabs:
+            # mobile-arrows: por default Quasar dibuja las flechas de scroll pero las
+            # deja sin funcion en dispositivos con touch (espera swipe en su lugar) --
+            # eso es lo que reporto la auditoria como "flecha que no responde al click"
+            # (audit finding #6). Forzamos que las flechas sean clickeables siempre.
+            with ui.tabs().props('mobile-arrows').classes('w-full mt-3 ideas-panel p-2 rounded-[24px]') as ops_tabs:
                 module_tabs = {}
                 for title, icon, _route, _action_fn in module_cards:
                     module_tabs[title] = ui.tab(title, icon=icon).props('no-caps').classes('text-slate-700')
