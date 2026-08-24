@@ -257,15 +257,6 @@ def render_management_workspace_page(
             with ui.row().classes('w-full items-center justify-between mt-6'):
                 ui.label('Módulos Operativos').classes('ideas-section-title')
                 ui.label('Vista compacta: despliega solo el modulo que necesites.').classes('ideas-section-note')
-            # mobile-arrows: por default Quasar dibuja las flechas de scroll pero las
-            # deja sin funcion en dispositivos con touch (espera swipe en su lugar) --
-            # eso es lo que reporto la auditoria como "flecha que no responde al click"
-            # (audit finding #6). Forzamos que las flechas sean clickeables siempre.
-            with ui.tabs().props('mobile-arrows').classes('w-full mt-3 ideas-panel p-2 rounded-[24px]') as ops_tabs:
-                module_tabs = {}
-                for title, icon, _route, _action_fn in module_cards:
-                    module_tabs[title] = ui.tab(title, icon=icon).props('no-caps').classes('text-slate-700')
-
             def _open_operational_module(title: str) -> None:
                 for item_title, _item_icon, route, action_fn in module_cards:
                     if item_title != title:
@@ -276,8 +267,21 @@ def render_management_workspace_page(
                         ui.navigate.to(f'/sistema-gestion/{route}')
                     return
 
-            for title, tab_obj in module_tabs.items():
-                tab_obj.on('click', lambda _e, tab_title=title: _open_operational_module(tab_title))
+            # 2026-08-21: la fila de modulos usaba ui.tabs() (Quasar q-tabs), cuyas
+            # flechas de scroll dependen de un mousedown sostenido para moverse --
+            # un click/tap instantaneo (lo mas comun en trackpad) no hacia nada
+            # (audit finding #6). Reemplazada por una fila con overflow-x nativo:
+            # scrollea con swipe, trackpad de dos dedos, shift+rueda o arrastrando,
+            # sin depender del timing interno de Quasar. Estos modulos no estan en
+            # el sidebar, asi que esta fila es la unica puerta de entrada a varios
+            # de ellos (Calidad, LAB ISO 17025, Auditorias Internas, Revision por
+            # la Direccion, Gestion Documental) -- tiene que poder scrollear si o si.
+            with ui.row().classes('w-full mt-3 ideas-panel p-2 rounded-[24px] ideas-ops-scroll flex-nowrap gap-1'):
+                for title, icon, _route, _action_fn in module_cards:
+                    with ui.column().classes('ideas-ops-chip items-center justify-center gap-1 px-3 py-2') \
+                            .on('click', lambda _e, t=title: _open_operational_module(t)):
+                        ui.icon(icon, size='22px').classes('text-slate-700')
+                        ui.label(title).classes('text-sm text-slate-700 whitespace-nowrap')
 
             if False:
                 ui.add_css(

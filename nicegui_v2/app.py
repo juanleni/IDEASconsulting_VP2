@@ -533,6 +533,9 @@ def inject_global_styles() -> None:
         .ideas-score-item .badge { width:36px; height:36px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; background:rgba(31,126,214,.10); color:#1f7ed6; font-weight:800; }
         .ideas-section-title { font-size:1.08rem; font-weight:500; color:#1e293b; letter-spacing:0; }
         .ideas-section-note { color:#6b7c91; line-height:1.55; margin-top:5px; font-size:.9rem; font-weight:400; }
+        .ideas-ops-scroll { overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scrollbar-width:thin; }
+        .ideas-ops-chip { border-radius:14px; cursor:pointer; user-select:none; transition:background-color .15s ease; flex-shrink:0; }
+        .ideas-ops-chip:hover { background-color:rgba(15,23,42,.05); }
         .ideas-workspace-banner { padding:20px 22px; border-radius:18px; background:linear-gradient(135deg, #0f172a 0%, #12314d 52%, #0f8f61 100%); color:#f8fbff; box-shadow:0 16px 30px rgba(15,23,42,.14); }
         .ideas-workspace-banner .eyebrow { color:rgba(255,255,255,.72); font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; font-weight:800; }
         .ideas-workspace-banner .headline { margin-top:8px; font-size:1.5rem; font-weight:600; line-height:1.06; letter-spacing:-.01em; }
