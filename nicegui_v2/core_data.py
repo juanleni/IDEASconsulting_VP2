@@ -449,6 +449,25 @@ def obtener_auditoria_empresa(empresa_id: int, limit: int = 200) -> list[dict]:
     return rows
 
 
+def obtener_ultima_restauracion_backup() -> dict | None:
+    """Ultimo restore de backup registrado en audit_log (accion='RESTORE',
+    entidad='backup') -- empresa_id NULL porque es una operacion de toda la
+    plataforma, no de un tenant. Usado para mostrar "ultimo restore: quien,
+    cuando, que archivo" junto al control de restore (audit finding #1,
+    consola Super Admin, 2026-08-24)."""
+    _ensure_audit_log_table()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute(
+        "SELECT * FROM audit_log WHERE entidad = 'backup' AND accion = 'RESTORE' "
+        "ORDER BY id DESC LIMIT 1"
+    )
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 def _bootstrap_company_modules(company_id: int) -> None:
     _ensure_module_access_tables()
     conn = sqlite3.connect(DB_PATH)
@@ -4454,9 +4473,21 @@ def can_user_access_module(user_id: int, company_id: int, module_code: str) -> b
     _ensure_module_access_tables()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    # 2026-08-24 (encontrado investigando audit finding #4, consola Super
+    # Admin): esto tenia COALESCE(um.enabled, 0) en el SELECT -- con un LEFT
+    # JOIN, "modules" siempre aporta una fila (cualquier codigo de modulo
+    # valido matchea), asi que la query NUNCA devuelve None: sin fila en
+    # user_modules, el COALESCE ya la convertia en 0 antes de que Python
+    # llegara a mirarla. El fallback de aca abajo (permisos == 'ALL' cuando
+    # no hay asignacion explicita por-usuario) quedaba como codigo muerto,
+    # inalcanzable -- cualquier usuario SIN fila en user_modules para un
+    # modulo (tipico de una cuenta nueva, antes de tocar los switches en el
+    # dialogo de Usuarios) veia ese modulo como deshabilitado sin importar
+    # que sus permisos dijeran 'ALL'. Sacar el COALESCE deja pasar el NULL
+    # real cuando no hay match, para que el chequeo de abajo si se ejecute.
     c.execute(
         """
-        SELECT COALESCE(um.enabled, 0)
+        SELECT um.enabled
         FROM modules m
         LEFT JOIN user_modules um
           ON um.module_id = m.id
@@ -4468,7 +4499,7 @@ def can_user_access_module(user_id: int, company_id: int, module_code: str) -> b
         (int(company_id), int(user_id), str(module_code or "")),
     )
     row = c.fetchone()
-    if row is None:
+    if row is None or row[0] is None:
         c.execute(
             """
             SELECT COALESCE(permisos, 'ALL')

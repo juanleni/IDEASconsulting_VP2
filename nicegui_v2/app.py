@@ -35,6 +35,7 @@ from database import crear_base  # noqa: E402
 from core_data import (  # noqa: E402
     registrar_auditoria,
     obtener_auditoria_empresa,
+    obtener_ultima_restauracion_backup,
     actualizar_kpi,
     actualizar_dashboard_principal_kpi,
     actualizar_grupos_personalizados_kpi,
@@ -910,21 +911,28 @@ def _can_access_module_by_assignment(module_key: str | None) -> bool:
     role = str(app.storage.user.get("role") or "").strip().lower()
     if role != "empresa":
         return False
-    # 2026-08-14: "users" (Gestion de Usuarios y Accesos) no es un modulo
-    # opcional como KPIs/Calidad -- es la pantalla desde donde un
-    # EMPRESA_ADMIN administra los accesos de SU PROPIA empresa, incluido el
-    # toggle granular por-usuario que esta misma funcion consulta mas abajo.
-    # Dejarlo sujeto a ese mismo toggle crea un lockout sin salida: si el
-    # propio admin queda con "users" deshabilitado (bootstrap viejo, o un
-    # click sin querer en su propia edicion), nadie en esa empresa puede
-    # volver a entrar a arreglarlo -- solo un IDEAS_ADMIN tocando la base a
-    # mano. modules_users.py ya exige local_user_role == 'EMPRESA_ADMIN'
-    # para esta pagina, asi que ese gate alcanza.
-    if module_code == "users" and str(app.storage.user.get("local_user_role") or "").strip().upper() == "EMPRESA_ADMIN":
-        return True
     company_id = current_company_id_for_ai()
     if not company_id:
         return False
+    # 2026-08-14, generalizado 2026-08-24 (audit finding #4, consola Super
+    # Admin -- "LAB ISO 17025" no aparecia para un EMPRESA_ADMIN con
+    # permisos 'Todos los modulos"): el toggle granular por-usuario en
+    # user_modules esta pensado para restringir cuentas EMPRESA_USER, no al
+    # propio EMPRESA_ADMIN de la empresa. Al principio esto solo se corrigio
+    # para "users" (ver commit 530e656) porque ese caso puntual generaba un
+    # lockout sin salida, pero el mismo problema de fondo aplica a
+    # cualquier modulo: una fila vieja/incorrecta en user_modules (bootstrap
+    # previo a este sistema granular, o un click sin querer) puede dejar a
+    # un admin sin ver un modulo que su propia empresa SI tiene habilitado,
+    # sin ninguna forma de arreglarlo el mismo. Un EMPRESA_ADMIN es siempre
+    # el super-usuario de su empresa: si la empresa tiene el modulo
+    # habilitado (company_modules), el admin lo ve -- el toggle por-usuario
+    # solo se aplica a EMPRESA_USER de ahi en mas.
+    if str(app.storage.user.get("local_user_role") or "").strip().upper() == "EMPRESA_ADMIN":
+        try:
+            return can_company_access_module(int(company_id), module_code)
+        except Exception:
+            return False
     try:
         local_user_id = app.storage.user.get("local_user_id")
         local_user_id = int(local_user_id) if local_user_id else None
@@ -939,25 +947,15 @@ def _can_access_module_by_assignment(module_key: str | None) -> bool:
 
 
 def can_access_module_code_for_current_user(module_code: str) -> bool:
-    if _is_admin_session():
-        return True
-    role = str(app.storage.user.get("role") or "").strip().lower()
-    if role != "empresa":
-        return False
-    company_id = current_company_id_for_ai()
-    if not company_id:
-        return False
-    try:
-        local_user_id = app.storage.user.get("local_user_id")
-        local_user_id = int(local_user_id) if local_user_id else None
-    except Exception:
-        local_user_id = None
-    try:
-        if local_user_id:
-            return can_user_access_module(int(local_user_id), int(company_id), str(module_code or ""))
-        return can_company_access_module(int(company_id), str(module_code or ""))
-    except Exception:
-        return False
+    # 2026-08-24 (audit finding #4, consola Super Admin): esto era una
+    # segunda copia de _can_access_module_by_assignment con la misma logica
+    # duplicada -- cuando esa se corrigio para que un EMPRESA_ADMIN no
+    # dependiera del toggle por-usuario, esta se quedo con la version vieja
+    # (por eso "Modulos Operativos" seguia sin mostrar LAB ISO 17025 aunque
+    # el gate de shell() ya lo dejaba pasar). _module_code_from_key() es una
+    # identidad para todo codigo de modulo real, asi que delegar ahi es
+    # exactamente equivalente y deja una sola implementacion para mantener.
+    return _can_access_module_by_assignment(module_code)
 
 
 def current_company_id_for_ai() -> int | None:
@@ -3207,20 +3205,76 @@ def smart_ideas_admin_page():
                     ui.notify('Backup creado.' if ok else msg, type='positive' if ok else 'negative')
                     refresh_backups_table()
 
+                last_restore_label = ui.label('').classes('text-xs text-slate-500')
+
+                def _refresh_last_restore_label() -> None:
+                    try:
+                        last = obtener_ultima_restauracion_backup()
+                    except Exception:
+                        last = None
+                    last_restore_label.text = (
+                        f"Ultimo restore: {last['created_at']} por {last['actor']} desde {last['detalle']}"
+                        if last else ''
+                    )
+
+                def _execute_restore(name: str, dialog) -> None:
+                    ok, msg = restaurar_backup_db(name)
+                    actor, role = _current_actor()
+                    registrar_auditoria(
+                        None, actor=actor, actor_role=role, entidad='backup', accion='RESTORE',
+                        detalle=name, resultado='ok' if ok else 'error',
+                    )
+                    ui.notify(msg, type='positive' if ok else 'negative')
+                    dialog.close()
+                    refresh_backups_table()
+                    _refresh_last_restore_label()
+
                 def restore_selected_backup() -> None:
+                    # 2026-08-24 (auditoria consola Super Admin, hallazgo #1): esto
+                    # restauraba de un click, sin confirmacion reforzada -- un restore
+                    # sobrescribe TODA la base (un solo ideas.db para todos los
+                    # tenants), no solo la empresa que se este viendo en ese momento,
+                    # y es dificil de deshacer. Ahora exige escribir el nombre exacto
+                    # del archivo (mismo patron que usa GitHub para borrar un repo),
+                    # muestra fecha/tamano y la advertencia de alcance multi-cliente,
+                    # y deja registro en audit_log (quien, cuando, que archivo).
                     name = str(backup_select.value or '').strip()
                     if not name:
                         ui.notify('Selecciona un backup para restaurar.', type='warning')
                         return
-                    ok, msg = restaurar_backup_db(name)
-                    ui.notify(msg, type='positive' if ok else 'negative')
-                    refresh_backups_table()
+                    backup_info = next((row for row in backup_table.rows if row.get('name') == name), None)
+                    with ui.dialog() as confirm_dialog, ui.card().classes('w-[520px] max-w-[95vw] p-5'):
+                        ui.label('Restaurar backup').classes('text-lg font-bold text-slate-900')
+                        ui.label(
+                            'Esta accion sobrescribe TODA la base de datos de la plataforma -- afecta a '
+                            'todos los clientes, no solo a la empresa que estas viendo. Se crea un respaldo '
+                            'de seguridad automatico antes de aplicarla, pero igual no es una accion trivial '
+                            'de deshacer.'
+                        ).classes('text-sm text-amber-700 bg-amber-50 rounded-lg p-3 mt-2')
+                        with ui.column().classes('w-full gap-1 mt-3'):
+                            ui.label(f"Archivo: {name}").classes('text-sm text-slate-700 font-mono')
+                            if backup_info:
+                                ui.label(f"Fecha: {backup_info.get('updated_at', '-')}  ·  {backup_info.get('size_kb', '-')} KB").classes('text-sm text-slate-500')
+                        ui.label(f'Para confirmar, escribi el nombre exacto del archivo ("{name}"):').classes('text-sm text-slate-700 mt-3')
+                        confirm_input = ui.input(placeholder=name).classes('w-full').props('outlined dense')
+                        with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                            ui.button('Cancelar', on_click=confirm_dialog.close).props('flat')
+                            restore_btn = ui.button(
+                                'Restaurar', icon='restore', color='negative',
+                                on_click=lambda: _execute_restore(name, confirm_dialog),
+                            ).props('unelevated')
+                            restore_btn.disable()
+                            confirm_input.on_value_change(
+                                lambda e: restore_btn.enable() if str(e.value or '') == name else restore_btn.disable()
+                            )
+                    confirm_dialog.open()
 
                 with ui.row().classes('w-full items-center gap-2'):
                     ui.button('Crear backup ahora', icon='save', on_click=create_backup_now).props('flat color=primary')
                     ui.button('Refrescar lista', icon='refresh', on_click=refresh_backups_table).props('flat')
                     ui.button('Restaurar backup', icon='restore', on_click=restore_selected_backup).props('flat color=warning')
                 refresh_backups_table()
+                _refresh_last_restore_label()
 
                 editor = ui.textarea(
                     label='Estandar IDEAS (Markdown)',
