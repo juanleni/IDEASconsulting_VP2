@@ -403,3 +403,68 @@ class TestIsMatrixAdmin:
     def test_plain_empresa_user_is_not_matrix_admin(self, monkeypatch):
         self._patch_storage_user(monkeypatch, {'role': 'empresa', 'local_user_role': 'EMPRESA_USER'})
         assert mlm._is_matrix_admin() is False
+
+
+class TestMatrixRoles:
+    """RBAC real de Matriz Legal (audit finding #4): antes del 2026-08-21 el
+    selector de rol en la UI (Admin/Editor/Aprobador/Lector) era puro estado
+    de JS, sin ningun endpoint que lo verificara -- cualquier usuario
+    autenticado de la empresa tenia permiso real de escritura sin importar
+    que rol mostrara la pantalla. Estos tests cubren el modelo real que lo
+    reemplaza: legal_matrix_user_roles + _require_matrix_permission()."""
+
+    def _patch_storage_user(self, monkeypatch, values: dict):
+        monkeypatch.setattr(type(mlm.app.storage), 'user', property(lambda self: values))
+
+    def test_unassigned_user_defaults_to_editor(self, monkeypatch):
+        self._patch_storage_user(monkeypatch, {'role': 'empresa', 'local_user_role': 'EMPRESA_USER'})
+        # nadie asigno un rol todavia -- el default tiene que ser 'editor',
+        # no 'reader', para no sacarle de golpe a un usuario existente una
+        # capacidad que ya tenia antes de que este control existiera.
+        assert mlm.obtener_legal_matrix_role(user_id=99, empresa_id=1) == 'editor'
+
+    def test_assigned_role_is_persisted_and_read_back(self, monkeypatch):
+        self._patch_storage_user(monkeypatch, {'role': 'empresa', 'local_user_role': 'EMPRESA_USER'})
+        ok, _msg = mlm.asignar_legal_matrix_role(99, 1, 'reader', assigned_by='tester')
+        assert ok is True
+        assert mlm.obtener_legal_matrix_role(user_id=99, empresa_id=1) == 'reader'
+
+    def test_invalid_role_is_rejected(self):
+        ok, msg = mlm.asignar_legal_matrix_role(99, 1, 'superuser')
+        assert ok is False
+        assert 'invalido' in msg.lower()
+
+    def test_empresa_admin_always_resolves_to_admin_regardless_of_stored_role(self, monkeypatch):
+        # un EMPRESA_ADMIN no se puede autobloquear via una fila vieja/incorrecta
+        # en legal_matrix_user_roles -- _is_matrix_admin() manda siempre.
+        mlm.asignar_legal_matrix_role(7, 1, 'reader')
+        self._patch_storage_user(monkeypatch, {'role': 'empresa', 'local_user_role': 'EMPRESA_ADMIN', 'local_user_id': 7})
+        assert mlm.obtener_legal_matrix_role(user_id=7, empresa_id=1) == 'admin'
+
+    def test_reader_cannot_create(self, monkeypatch):
+        self._patch_storage_user(monkeypatch, {'role': 'empresa', 'local_user_role': 'EMPRESA_USER', 'local_user_id': 5})
+        mlm.asignar_legal_matrix_role(5, 1, 'reader')
+        with pytest.raises(mlm.HTTPException) as exc:
+            mlm._require_matrix_permission(1, 'create')
+        assert exc.value.status_code == 403
+
+    def test_editor_can_create_but_not_delete(self, monkeypatch):
+        self._patch_storage_user(monkeypatch, {'role': 'empresa', 'local_user_role': 'EMPRESA_USER', 'local_user_id': 6})
+        mlm.asignar_legal_matrix_role(6, 1, 'editor')
+        mlm._require_matrix_permission(1, 'create')  # no debe levantar
+        with pytest.raises(mlm.HTTPException) as exc:
+            mlm._require_matrix_permission(1, 'delete')
+        assert exc.value.status_code == 403
+
+    def test_approver_can_approve_but_not_edit(self, monkeypatch):
+        self._patch_storage_user(monkeypatch, {'role': 'empresa', 'local_user_role': 'EMPRESA_USER', 'local_user_id': 4})
+        mlm.asignar_legal_matrix_role(4, 1, 'approver')
+        mlm._require_matrix_permission(1, 'approve')  # no debe levantar
+        with pytest.raises(mlm.HTTPException) as exc:
+            mlm._require_matrix_permission(1, 'edit')
+        assert exc.value.status_code == 403
+
+    def test_admin_can_do_everything(self, monkeypatch):
+        self._patch_storage_user(monkeypatch, {'role': 'admin'})
+        for action in ('create', 'edit', 'delete', 'approve'):
+            mlm._require_matrix_permission(1, action)  # no debe levantar ninguna

@@ -24,6 +24,15 @@ def register_users_module(ui, deps: dict) -> None:
     tiene_legal_matrix_password_personalizada = deps.get('tiene_legal_matrix_password_personalizada')
     obtener_legal_matrix_alert_settings = deps.get('obtener_legal_matrix_alert_settings')
     guardar_legal_matrix_alert_settings = deps.get('guardar_legal_matrix_alert_settings')
+    obtener_legal_matrix_role = deps.get('obtener_legal_matrix_role')
+    asignar_legal_matrix_role = deps.get('asignar_legal_matrix_role')
+    matrix_roles_disponibles = deps.get('MATRIX_ROLES') or ('reader', 'editor', 'approver', 'admin')
+    matrix_role_labels = {
+        'reader': 'Lector (solo ve y exporta)',
+        'editor': 'Editor (crea y edita normas)',
+        'approver': 'Aprobador (aprueba evidencia)',
+        'admin': 'Administrador (acceso total)',
+    }
 
     modulos_opciones = {
         'cert_iso_9001': 'Sistema de Gestion de Calidad',
@@ -232,6 +241,29 @@ def register_users_module(ui, deps: dict) -> None:
                             ui.button('Asignar todos', icon='select_all', on_click=lambda: (user_module_state.update({int(k): True for k in user_module_state}), _render_user_module_pool())).props('flat')
                             ui.button('Quitar todos', icon='deselect', on_click=lambda: (user_module_state.update({int(k): False for k in user_module_state}), _render_user_module_pool())).props('flat color=warning')
 
+                    # 2026-08-21: rol de Matriz Legal (audit finding #4). Solo aplica a
+                    # EMPRESA_USER -- un EMPRESA_ADMIN/IDEAS_ADMIN siempre opera como
+                    # 'admin' en ese modulo sin importar lo que se guarde aca
+                    # (obtener_legal_matrix_role() lo resuelve asi del lado del
+                    # servidor), asi que mostrar el selector para esos roles solo
+                    # confundiria sin cambiar nada real.
+                    matrix_role_box = ui.column().classes('w-full mt-4 p-4 border rounded-xl bg-slate-50')
+                    matrix_role_box.bind_visibility_from(select_rol, 'value', lambda value: value == 'EMPRESA_USER')
+                    matrix_role_inicial = 'editor'
+                    if editando and callable(obtener_legal_matrix_role) and empresa_inicial:
+                        try:
+                            matrix_role_inicial = obtener_legal_matrix_role(int(usuario_actual.get('id')), int(empresa_inicial))
+                        except Exception:
+                            matrix_role_inicial = 'editor'
+                    with matrix_role_box:
+                        ui.label('Rol en Matriz Legal').classes('font-semibold text-slate-700')
+                        ui.label('Controla que puede hacer este usuario en el modulo de Matriz Legal Digital: crear, editar, borrar o solo ver.').classes('text-xs text-slate-500')
+                        matrix_role_select = ui.select(
+                            {role: matrix_role_labels.get(role, role) for role in matrix_roles_disponibles if role != 'admin'},
+                            value=matrix_role_inicial if matrix_role_inicial != 'admin' else 'editor',
+                            label='Rol',
+                        ).classes('w-full mt-2').props('outlined')
+
                     def guardar() -> None:
                         rol = str(select_rol.value or '').strip()
                         empresa_id = None
@@ -273,6 +305,13 @@ def register_users_module(ui, deps: dict) -> None:
                                     [int(mid) for mid, enabled in user_module_state.items() if bool(enabled)],
                                     actor=str(app.storage.user.get('session_user_key') or app.storage.user.get('username') or ''),
                                 )
+                                if callable(asignar_legal_matrix_role) and rol == 'EMPRESA_USER':
+                                    asignar_legal_matrix_role(
+                                        int(target_user_id),
+                                        int(empresa_id),
+                                        str(matrix_role_select.value or 'editor'),
+                                        assigned_by=str(app.storage.user.get('session_user_key') or app.storage.user.get('username') or ''),
+                                    )
                         ui.notify(fix_text(mensaje), type='positive')
                         dialog.close()
                         cargar_tabla_usuarios.refresh()

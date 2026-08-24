@@ -174,7 +174,21 @@ function persist(path, method, payload){
     method: method || "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload || {})
-  }).then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); });
+  }).then(function(r){
+    if (r.ok) return r.json();
+    // 2026-08-21 (audit finding #4): el server ahora puede rechazar esto de
+    // verdad (403 por rol insuficiente), algo que antes nunca pasaba. Sin
+    // esto, el llamador solo tiene un .catch(function(){}) vacio -- la UI ya
+    // habia actualizado el estado local de forma optimista (ver
+    // deleteRequirement, por ejemplo) y quedaba mostrando un cambio que el
+    // server rechazo, hasta el proximo F5. Avisamos y recargamos para
+    // resincronizar con lo que el server realmente guardo.
+    return r.json().catch(function(){ return {}; }).then(function(body){
+      showToast(body.detail || "No se pudo guardar el cambio (permisos insuficientes).");
+      setTimeout(function(){ location.reload(); }, 1500);
+      return Promise.reject(r.status);
+    });
+  });
 }
 
 function requestDeleteBulk(ids){
@@ -217,7 +231,14 @@ const appState = {
   activeTab: "dashboard", // dashboard | matrix | sites | audits | evidence | alerts | auditlog
   selectedCompany: demoData.company.name,
   selectedSite: "all",
-  currentRole: "admin", // admin | editor | approver | reader
+  // 2026-08-21 (audit finding #4): antes arrancaba siempre en "admin" y
+  // cualquiera podia cambiarlo libremente -- era pura decoracion, el server
+  // no lo verificaba. Ahora arranca en el rol REAL del usuario logueado
+  // (demoData.realRole, que el server calcula y hace cumplir en cada
+  // endpoint de escritura). Solo un realAdmin puede moverlo desde acá para
+  // previsualizar como se ve la UI en otros roles -- cambiarlo ya no otorga
+  // ningun permiso real, el server sigue mandando.
+  currentRole: demoData.realRole || "reader", // admin | editor | approver | reader
   notifOpen: false,
   toast: null,
   deleteMode: false,
@@ -309,10 +330,26 @@ function badge(meta){
 // -------- Encabezado / rol / kpis / tabs --------
 function renderRoleBar(){
   const roles = Object.keys(ROLE_LABELS);
+  // 2026-08-21 (audit finding #4): esta barra dejo de ser una decoracion.
+  // demoData.realRole es el rol que el server realmente hace cumplir en
+  // cada endpoint de escritura -- para la gran mayoria de usuarios esto es
+  // solo informativo (asi es tu rol, pedile a un admin que lo cambie desde
+  // Usuarios). Solo un admin real (que igual tiene todos los permisos pase
+  // lo que pase) puede tocar el selector, y es una previsualizacion de la
+  // UI en otros roles, no un cambio de permisos -- el server sigue
+  // rechazando cualquier accion que tu rol real no permita.
+  if (!demoData.realAdmin) {
+    document.getElementById("role-bar").innerHTML = `
+      <div class="lm-role-bar">
+        <span class="msym" style="font-size:16px;">badge</span>
+        <span>Tu rol en Matriz Legal: <strong>${ROLE_LABELS[appState.currentRole] || appState.currentRole}</strong> (lo asigna un administrador desde Usuarios)</span>
+      </div>`;
+    return;
+  }
   document.getElementById("role-bar").innerHTML = `
     <div class="lm-role-bar">
       <span class="msym" style="font-size:16px;">visibility</span>
-      <span>Rol de demostración (controla qué acciones se ocultan/deshabilitan):</span>
+      <span>Previsualizar como otro rol (no cambia tus permisos reales, sos admin):</span>
       ${roles.map(r => `<button class="lm-role-btn ${appState.currentRole === r ? "active" : ""}" data-action="change-role" data-role="${r}">${ROLE_LABELS[r]}</button>`).join("")}
     </div>`;
 }

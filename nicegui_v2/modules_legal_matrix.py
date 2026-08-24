@@ -63,6 +63,10 @@ from legal_matrix_service import (
     _log_to_design,
     _is_matrix_admin,
     _is_ideas_staff,
+    _require_matrix_permission,
+    obtener_legal_matrix_role,
+    asignar_legal_matrix_role,
+    MATRIX_ROLES,
     _build_design_context,
     _render_design_page,
     _xlsx_text,
@@ -73,6 +77,7 @@ from legal_matrix_service import (
 
 __all__ = [
     'DB_PATH', 'DESIGN_HTML_PATH', 'go_to_legal_matrix_module', 'register_legal_matrix_module',
+    'obtener_legal_matrix_role', 'asignar_legal_matrix_role', 'MATRIX_ROLES',
 ]
 
 
@@ -170,6 +175,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     async def create_legal_requirement(empresa_id: int, request: Request):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'create')
         payload = await request.json()
         rid = _insert('legal_requirements', {
             'empresa_id': empresa_id,
@@ -193,6 +199,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     async def import_legal_requirements(empresa_id: int, file: UploadFile = File(...)):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'create')
         content = await file.read()
 
         def _process() -> int:
@@ -212,6 +219,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     async def update_legal_requirement(empresa_id: int, req_id: int, request: Request):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'edit')
         payload = await request.json()
         _update('legal_requirements', req_id, {
             'site_id': int(payload['siteId']) if payload.get('siteId') else None,
@@ -235,6 +243,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     def delete_legal_requirement(empresa_id: int, req_id: int):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'delete')
         with _connect() as conn:
             conn.execute('DELETE FROM legal_requirements WHERE id = ? AND empresa_id = ?', (req_id, empresa_id))
         _log(empresa_id, 'BAJA', 'requisito legal', req_id, '')
@@ -244,6 +253,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     async def delete_legal_requirements_bulk(empresa_id: int, request: Request):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'delete')
         payload = await request.json()
         ids = [int(item) for item in (payload.get('ids') or [])]
         if not ids:
@@ -278,6 +288,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     async def create_legal_site(empresa_id: int, request: Request):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'create')
         payload = await request.json()
         rid = _insert('legal_sites', {
             'empresa_id': empresa_id,
@@ -293,6 +304,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     async def update_legal_site(empresa_id: int, site_id: int, request: Request):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'edit')
         payload = await request.json()
         _update('legal_sites', site_id, {
             'nombre': payload.get('name') or '',
@@ -308,6 +320,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     async def create_legal_audit(empresa_id: int, request: Request):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'create')
         payload = await request.json()
         rid = _insert('legal_audits', {
             'empresa_id': empresa_id,
@@ -325,6 +338,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     async def create_legal_evidence(empresa_id: int, request: Request):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'create')
         payload = await request.json()
         if not payload.get('requirementId'):
             raise HTTPException(status_code=400, detail='requirementId requerido')
@@ -341,6 +355,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     def approve_legal_evidence(empresa_id: int, evidence_id: int):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'approve')
         _update('legal_evidence', evidence_id, {'estado_aprobacion': 'aprobado'})
         _log(empresa_id, 'APROBACIÓN', 'evidencia', evidence_id, '')
         return JSONResponse({'ok': True})
@@ -349,6 +364,7 @@ def register_legal_matrix_module(ui, deps: dict) -> None:
     def resolve_legal_alert(empresa_id: int, alert_id: int):
         if not _frame_guard(empresa_id):
             raise HTTPException(status_code=403)
+        _require_matrix_permission(empresa_id, 'edit')
         _update('legal_alerts', alert_id, {'estado': 'Cerrada'})
         _log(empresa_id, 'RESOLUCIÓN', 'alerta', alert_id, '')
         return JSONResponse({'ok': True})

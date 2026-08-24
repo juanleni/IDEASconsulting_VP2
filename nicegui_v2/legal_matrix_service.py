@@ -93,6 +93,12 @@ def _ensure_tables() -> None:
                 resumen TEXT NOT NULL, destinatario TEXT DEFAULT '', enviado_por TEXT DEFAULT '',
                 enviado_ok INTEGER DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS legal_matrix_user_roles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, empresa_id INTEGER NOT NULL,
+                role TEXT NOT NULL DEFAULT 'editor', assigned_by TEXT DEFAULT '',
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, empresa_id)
+            );
             CREATE INDEX IF NOT EXISTS idx_legal_req_empresa ON legal_requirements(empresa_id);
             CREATE INDEX IF NOT EXISTS idx_legal_log_empresa ON legal_audit_log(empresa_id);
             CREATE INDEX IF NOT EXISTS idx_legal_updates_empresa ON legal_matrix_updates(empresa_id);
@@ -692,6 +698,86 @@ def _is_ideas_staff() -> bool:
     return role == 'admin' or local_role == 'IDEAS_ADMIN'
 
 
+# 2026-08-21: RBAC real de Matriz Legal (audit finding #4). Hasta acá el
+# selector "Administrador/Editor/Aprobador/Lector" que se ve en la UI era
+# 100% cosmetico -- estado local de JS que ocultaba/deshabilitaba botones,
+# sin ningun endpoint que lo verificara. Cualquier usuario autenticado de la
+# empresa podia crear/editar/borrar normas sin importar que rol tuviera
+# seleccionado en pantalla. Esto le pone un modelo real detras: un rol por
+# usuario/empresa persistido en legal_matrix_user_roles, verificado del lado
+# del servidor en cada endpoint de escritura.
+MATRIX_ROLES = ('reader', 'editor', 'approver', 'admin')
+
+# Mismo matriz de permisos que ROLE_PERMISSIONS en legal_matrix_design.html
+# (que sigue controlando que se oculta/deshabilita en la UI) -- esta es la
+# copia que de verdad se hace cumplir. 'delete' acá es borrado individual de
+# una norma; el borrado total de la matriz sigue exigiendo ademas ser
+# _is_matrix_admin() + la contraseña de borrado total (sin cambios).
+_MATRIX_PERMISSIONS = {
+    'reader':   {'create': False, 'edit': False, 'delete': False, 'approve': False},
+    'editor':   {'create': True,  'edit': True,  'delete': False, 'approve': False},
+    'approver': {'create': False, 'edit': False, 'delete': False, 'approve': True},
+    'admin':    {'create': True,  'edit': True,  'delete': True,  'approve': True},
+}
+
+
+def obtener_legal_matrix_role(user_id: int | None, empresa_id: int) -> str:
+    """Rol efectivo de Matriz Legal para un usuario en una empresa.
+
+    Un EMPRESA_ADMIN/IDEAS_ADMIN (o la sesion 'admin' de plataforma) siempre
+    resuelve a 'admin', sin importar lo que diga la tabla -- evita que se
+    autobloqueen por error y mantiene consistencia con _is_matrix_admin().
+    Si no hay fila guardada para ese usuario, el default es 'editor': asi no
+    se le saca de golpe a nadie una capacidad que ya tenia antes de que
+    existiera este control (crear/editar sin restriccion).
+    """
+    if _is_matrix_admin():
+        return 'admin'
+    if not user_id:
+        return 'editor'
+    _ensure_tables()
+    with _connect() as conn:
+        row = conn.execute(
+            'SELECT role FROM legal_matrix_user_roles WHERE user_id = ? AND empresa_id = ?',
+            (int(user_id), int(empresa_id)),
+        ).fetchone()
+    role = str(row['role']) if row and row['role'] in MATRIX_ROLES else 'editor'
+    return role
+
+
+def asignar_legal_matrix_role(user_id: int, empresa_id: int, role: str, assigned_by: str = '') -> tuple[bool, str]:
+    role = str(role or '').strip().lower()
+    if role not in MATRIX_ROLES:
+        return False, 'Rol invalido.'
+    _ensure_tables()
+    with _connect() as conn:
+        conn.execute(
+            '''INSERT INTO legal_matrix_user_roles (user_id, empresa_id, role, assigned_by, updated_at)
+               VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+               ON CONFLICT(user_id, empresa_id) DO UPDATE SET
+                   role = excluded.role, assigned_by = excluded.assigned_by, updated_at = CURRENT_TIMESTAMP''',
+            (int(user_id), int(empresa_id), role, assigned_by),
+        )
+        conn.commit()
+    return True, 'Rol actualizado.'
+
+
+def _current_matrix_role(empresa_id: int) -> str:
+    return obtener_legal_matrix_role(app.storage.user.get('local_user_id'), empresa_id)
+
+
+def _require_matrix_permission(empresa_id: int, action: str) -> None:
+    """Levanta 403 si el usuario de la sesion no tiene permiso real para
+    `action` ('create'/'edit'/'delete'/'approve') sobre esta empresa. Es la
+    verificacion server-side que faltaba: la UI ya oculta/deshabilita estos
+    botones segun el rol, pero eso por si solo nunca alcanza -- alguien podia
+    pegarle directo al endpoint sin pasar por la UI."""
+    from fastapi import HTTPException
+    role = _current_matrix_role(empresa_id)
+    if not _MATRIX_PERMISSIONS.get(role, {}).get(action, False):
+        raise HTTPException(status_code=403, detail=f'Tu rol en Matriz Legal ({role}) no permite esta accion.')
+
+
 def _build_design_context(empresa_id: int, company_name: str, contact_email: str = '') -> dict:
     reqs = _rows('SELECT * FROM legal_requirements WHERE empresa_id = ?', (empresa_id,))
     sites = _rows('SELECT * FROM legal_sites WHERE empresa_id = ?', (empresa_id,))
@@ -724,6 +810,7 @@ def _build_design_context(empresa_id: int, company_name: str, contact_email: str
         'auditLog': [_log_to_design(row) for row in logs],
         'realAdmin': _is_matrix_admin(),
         'isIdeasStaff': _is_ideas_staff(),
+        'realRole': _current_matrix_role(empresa_id),
     }
 
 
