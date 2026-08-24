@@ -937,9 +937,9 @@ def register_kpi_module(ui, deps: dict) -> None:
                             ui.label(fix_text(kpi.get('nombre') or 'KPI sin nombre')).classes('text-xl font-bold text-slate-900')
                             ui.badge(proceso_nombre, color='blue-grey').classes('px-3 py-2')
                         with ui.row().classes('items-center gap-2'):
-                            ui.button(icon='settings', on_click=lambda row=kpi: _show_new_kpi_dialog(int(selected_company_id), row)).props('flat round color=secondary')
-                            ui.button(icon='edit_calendar', on_click=lambda row=kpi: _show_months_dialog(row)).props('flat round color=primary')
-                            ui.button(icon='delete', on_click=lambda row_id=int(kpi['id']): confirm_delete_kpi(row_id)).props('flat round color=negative')
+                            ui.button(icon='settings', on_click=lambda row=kpi: _show_new_kpi_dialog(int(selected_company_id), row)).props('flat round color=secondary').tooltip('Editar configuración del KPI')
+                            ui.button(icon='edit_calendar', on_click=lambda row=kpi: _show_months_dialog(row)).props('flat round color=primary').tooltip('Cargar valores mensuales')
+                            ui.button(icon='delete', on_click=lambda row_id=int(kpi['id']): confirm_delete_kpi(row_id)).props('flat round color=negative').tooltip('Eliminar KPI')
 
                     if False and _uses_ytd(kpi):
                         ui.html(
@@ -975,7 +975,7 @@ def register_kpi_module(ui, deps: dict) -> None:
                             value=initial_type,
                             label='Gráfico',
                         ).classes('w-[110px]').props('outlined dense')
-                        cargar_diario_btn = ui.button(icon='calendar_month', on_click=lambda row=kpi: _show_daily_dialog(row)).props('flat round color=primary')
+                        cargar_diario_btn = ui.button(icon='calendar_month', on_click=lambda row=kpi: _show_daily_dialog(row)).props('flat round color=primary').tooltip('Cargar valores diarios')
                     month_chart.bind_visibility_from(vista_chart, 'value', lambda v: str(v or '').lower().startswith('dia'))
                     year_chart.bind_visibility_from(vista_chart, 'value', lambda v: str(v or '').lower().startswith('dia'))
                     cargar_diario_btn.bind_visibility_from(vista_chart, 'value', lambda v: str(v or '').lower().startswith('dia'))
@@ -1473,8 +1473,8 @@ def register_kpi_module(ui, deps: dict) -> None:
                                 ui.label(fix_text(kpi.get('nombre') or 'KPI sin nombre')).classes('text-xl font-bold text-slate-900')
                                 ui.badge(proceso_nombre, color='blue-grey').classes('px-3 py-2')
                             with ui.row().classes('items-center gap-2'):
-                                ui.button(icon='edit_calendar', on_click=lambda row=kpi: _show_months_dialog(row)).props('flat round color=primary')
-                                ui.button(icon='delete', on_click=lambda row_id=int(kpi['id']): confirm_delete_kpi(row_id)).props('flat round color=negative')
+                                ui.button(icon='edit_calendar', on_click=lambda row=kpi: _show_months_dialog(row)).props('flat round color=primary').tooltip('Cargar valores mensuales')
+                                ui.button(icon='delete', on_click=lambda row_id=int(kpi['id']): confirm_delete_kpi(row_id)).props('flat round color=negative').tooltip('Eliminar KPI')
 
                         if _uses_ytd(kpi):
                             ui.html(

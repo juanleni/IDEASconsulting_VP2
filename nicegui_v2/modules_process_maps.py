@@ -314,7 +314,7 @@ def _render_process_tile(
                 ui.label('Haz clic en Abrir tortuga para editar el contenido del proceso.').classes('text-sm text-slate-500')
                 with ui.row().classes('items-center gap-2'):
                     ui.button('Abrir tortuga', icon='open_in_full', on_click=open_editor).props('outline color=primary')
-                    ui.button(icon='delete', on_click=delete_process).props('flat color=negative round')
+                    ui.button(icon='delete', on_click=delete_process).props('flat color=negative round').tooltip('Eliminar proceso')
 
 
 def register_process_maps_module(ui, deps: dict) -> None:

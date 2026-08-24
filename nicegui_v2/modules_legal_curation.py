@@ -782,7 +782,7 @@ def register_legal_curation_module(ui, deps: dict) -> None:
                             ui.label(fix_text(norma.get('titulo') or 'Sin título')).classes(
                                 'text-lg font-bold flex-1'
                             ).style('color:#0E3A53;')
-                            ui.button(icon='close', on_click=detail_dialog.close).props('flat round dense')
+                            ui.button(icon='close', on_click=detail_dialog.close).props('flat round dense').tooltip('Cerrar')
 
                         tema_m = _tema_meta(norma.get('tema'))
                         estado_m = _estado_meta(norma.get('estado'))

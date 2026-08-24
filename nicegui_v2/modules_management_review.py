@@ -234,7 +234,7 @@ def register_management_review_module(ui, deps: dict) -> None:
                                 ui.label(f"Fecha: {r.get('fecha') or '—'} · {fix_text(r.get('participantes')) or 'Sin participantes registrados'}").classes('text-xs text-gray-500')
                             with ui.row().classes('items-center gap-2'):
                                 ui.label(r.get('estado')).classes('text-xs font-semibold px-2 py-1 rounded-full').style(f'color:{color}; background:{color}22;')
-                                ui.button(icon='visibility', on_click=lambda rid=r['id']: _ver_revision(rid)).props('flat round dense size=sm')
-                                ui.button(icon='delete', on_click=lambda rid=r['id']: _eliminar_revision(rid)).props('flat round dense size=sm color=negative')
+                                ui.button(icon='visibility', on_click=lambda rid=r['id']: _ver_revision(rid)).props('flat round dense size=sm').tooltip('Ver revisión')
+                                ui.button(icon='delete', on_click=lambda rid=r['id']: _eliminar_revision(rid)).props('flat round dense size=sm color=negative').tooltip('Eliminar revisión')
 
             tabla_revisiones()

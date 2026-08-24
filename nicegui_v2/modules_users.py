@@ -177,7 +177,7 @@ def register_users_module(ui, deps: dict) -> None:
                         with ui.column().classes('gap-1'):
                             ui.label('Editar acceso' if editando else 'Nuevo usuario').classes('ideas-section-title')
                             ui.label('Define rol, empresa y sistemas permitidos para mantener el aislamiento por cliente.').classes('ideas-section-note')
-                        ui.button(icon='close', on_click=dialog.close).props('flat round dense')
+                        ui.button(icon='close', on_click=dialog.close).props('flat round dense').tooltip('Cerrar')
 
                     with ui.grid(columns=2).classes('ideas-grid-2 w-full mt-4'):
                         username_input = ui.input('Nombre de Usuario', value=fix_text(usuario_actual.get('username', ''))).classes('w-full').props('outlined')

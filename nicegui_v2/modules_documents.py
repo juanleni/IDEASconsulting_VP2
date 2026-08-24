@@ -227,7 +227,7 @@ def _render_requirement_dialog(*, row: dict, fix_text_fn, explain_requisito_fn=N
             with ui.column().classes('gap-1'):
                 ui.label(fix_text_fn(row['requisito'])).classes('text-2xl font-bold text-slate-900')
                 ui.label(fix_text_fn(row['resumen'])).classes('text-slate-600 leading-7')
-            ui.button(icon='close', on_click=dialog.close).props('flat round dense')
+            ui.button(icon='close', on_click=dialog.close).props('flat round dense').tooltip('Cerrar')
         with ui.row().classes('w-full gap-2 mt-3'):
             ui.badge(f'Capitulo {fix_text_fn(row["capitulo"])}').props('color=primary outline')
             ui.badge(fix_text_fn(row['tipo_documento'])).props('color=blue outline')
@@ -256,7 +256,7 @@ def _render_requirement_dialog(*, row: dict, fix_text_fn, explain_requisito_fn=N
                             with ui.column().classes('gap-1'):
                                 ui.label('Explicacion con IA').classes('text-2xl font-bold text-slate-900')
                                 ui.label('Traduccion operativa del requisito con lenguaje simple y enfoque practico.').classes('text-slate-600')
-                            ui.button(icon='close', on_click=ia_dialog.close).props('flat round dense')
+                            ui.button(icon='close', on_click=ia_dialog.close).props('flat round dense').tooltip('Cerrar')
                         content = ui.column().classes('w-full gap-3 mt-4')
                         with content:
                             with ui.row().classes('w-full items-center gap-3'):
@@ -350,7 +350,7 @@ def _render_reference_collection_card(*, title: str, subtitle: str, items: list[
                 with ui.column().classes('gap-1'):
                     ui.label(title).classes('text-2xl font-bold text-slate-900')
                     ui.label(subtitle).classes('text-slate-600')
-                ui.button(icon='close', on_click=dialog.close).props('flat round dense')
+                ui.button(icon='close', on_click=dialog.close).props('flat round dense').tooltip('Cerrar')
             with ui.column().classes('w-full gap-2 mt-4'):
                 for idx, item in enumerate(items, start=1):
                     ui.html(
@@ -607,7 +607,7 @@ def register_documents_module(ui, deps: dict) -> None:
                                 with ui.column().classes('gap-1'):
                                     ui.label('Copiloto IA documental').classes('text-2xl font-bold text-slate-900')
                                     ui.label('Resumen contextual preparado a partir de la base de conocimiento de esta empresa.').classes('text-slate-600')
-                                ui.button(icon='close', on_click=dialog.close).props('flat round dense')
+                                ui.button(icon='close', on_click=dialog.close).props('flat round dense').tooltip('Cerrar')
 
                             ui.html(
                                 f'''<div class="ideas-grid-3" style="margin-top:16px;">

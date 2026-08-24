@@ -229,7 +229,7 @@ def render_dashboard_customizer(*, module_key: str, company_id: int, metric_cata
                                     sources=sources_cache,
                                 ),
                             ).props("flat round dense")
-                            ui.button(icon="delete", on_click=lambda _=None, i=idx: _delete_saved_ai(i)).props("flat round dense color=negative")
+                            ui.button(icon="delete", on_click=lambda _=None, i=idx: _delete_saved_ai(i)).props("flat round dense color=negative").tooltip("Eliminar")
 
         def _delete_saved_ai(index: int) -> None:
             delete_dashboard(str(module_key or "general"), int(company_id), index)

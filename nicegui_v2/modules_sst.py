@@ -469,8 +469,8 @@ def _render_incidentes_block(ui, empresa_id, fix_text, obtener_fn, crear_fn, act
                         ui.label(fix_text(r.get("descripcion"))[:140]).classes("text-xs text-gray-500")
                     with ui.row().classes("items-center gap-2"):
                         ui.label(r.get("estado")).classes("text-xs font-semibold px-2 py-1 rounded-full").style(f"color:{color}; background:{color}22;")
-                        ui.button(icon="edit", on_click=lambda row=r: _abrir_form(row)).props("flat round dense size=sm")
-                        ui.button(icon="delete", on_click=lambda rid=r["id"]: _eliminar(rid)).props("flat round dense size=sm color=negative")
+                        ui.button(icon="edit", on_click=lambda row=r: _abrir_form(row)).props("flat round dense size=sm").tooltip("Editar")
+                        ui.button(icon="delete", on_click=lambda rid=r["id"]: _eliminar(rid)).props("flat round dense size=sm color=negative").tooltip("Eliminar")
 
     tabla()
 
@@ -544,8 +544,8 @@ def _render_peligros_block(ui, empresa_id, fix_text, obtener_fn, crear_fn, actua
                         ui.label(f"{fix_text(r.get('proceso_area')) or 'Sin área'} · P{r.get('probabilidad')} × S{r.get('severidad')}").classes("text-xs text-gray-500")
                     with ui.row().classes("items-center gap-2"):
                         ui.label(f"Nivel {r.get('nivel_riesgo')}").classes("text-xs font-semibold px-2 py-1 rounded-full").style(f"color:{color}; background:{color}22;")
-                        ui.button(icon="edit", on_click=lambda row=r: _abrir_form(row)).props("flat round dense size=sm")
-                        ui.button(icon="delete", on_click=lambda rid=r["id"]: _eliminar(rid)).props("flat round dense size=sm color=negative")
+                        ui.button(icon="edit", on_click=lambda row=r: _abrir_form(row)).props("flat round dense size=sm").tooltip("Editar")
+                        ui.button(icon="delete", on_click=lambda rid=r["id"]: _eliminar(rid)).props("flat round dense size=sm color=negative").tooltip("Eliminar")
 
     tabla()
 
@@ -618,8 +618,8 @@ def _render_epp_block(ui, empresa_id, fix_text, obtener_epp_fn, crear_epp_fn, ac
                         ui.label(fix_text(r.get("nombre"))).classes("text-sm font-semibold")
                         ui.label(f"{fix_text(r.get('puesto_aplicable')) or 'Sin puesto asignado'} · Stock: {r.get('stock')} · Cert: {fix_text(r.get('norma_certificacion')) or '—'}").classes("text-xs text-gray-500")
                     with ui.row().classes("gap-2"):
-                        ui.button(icon="edit", on_click=lambda row=r: _abrir_form_epp(row)).props("flat round dense size=sm")
-                        ui.button(icon="delete", on_click=lambda rid=r["id"]: _eliminar_epp(rid)).props("flat round dense size=sm color=negative")
+                        ui.button(icon="edit", on_click=lambda row=r: _abrir_form_epp(row)).props("flat round dense size=sm").tooltip("Editar EPP")
+                        ui.button(icon="delete", on_click=lambda rid=r["id"]: _eliminar_epp(rid)).props("flat round dense size=sm color=negative").tooltip("Eliminar EPP")
 
     tabla_epp()
 
@@ -674,7 +674,7 @@ def _render_epp_block(ui, empresa_id, fix_text, obtener_epp_fn, crear_epp_fn, ac
                 ui.label(fix_text(r.get("epp_nombre")) or "—").classes("text-xs flex-1")
                 ui.label(str(r.get("cantidad"))).classes("text-xs w-10")
                 ui.label(r.get("fecha_entrega") or "—").classes("text-xs w-28 text-gray-400")
-                ui.button(icon="delete", on_click=lambda rid=r["id"]: _eliminar_entrega(rid)).props("flat round dense size=sm color=negative")
+                ui.button(icon="delete", on_click=lambda rid=r["id"]: _eliminar_entrega(rid)).props("flat round dense size=sm color=negative").tooltip("Eliminar entrega")
 
     tabla_entregas()
 
@@ -754,9 +754,9 @@ def _render_plan_accion_block(ui, empresa_id, fix_text, obtener_fn, crear_fn, ac
                         ui.label(f"{r.get('origen')} · Resp: {fix_text(r.get('responsable')) or '—'} · Límite: {r.get('fecha_limite') or '—'}").classes("text-xs text-gray-500")
                     with ui.row().classes("items-center gap-2"):
                         ui.label(r.get("estado")).classes("text-xs font-semibold px-2 py-1 rounded-full").style(f"color:{color}; background:{color}22;")
-                        ui.button(icon="edit", on_click=lambda row=r: _abrir_form(row)).props("flat round dense size=sm")
+                        ui.button(icon="edit", on_click=lambda row=r: _abrir_form(row)).props("flat round dense size=sm").tooltip("Editar")
                         if r.get("estado") != "Cumplido":
-                            ui.button(icon="task_alt", on_click=lambda rid=r["id"]: _cerrar(rid)).props("flat round dense size=sm color=positive")
-                        ui.button(icon="delete", on_click=lambda rid=r["id"]: _eliminar(rid)).props("flat round dense size=sm color=negative")
+                            ui.button(icon="task_alt", on_click=lambda rid=r["id"]: _cerrar(rid)).props("flat round dense size=sm color=positive").tooltip("Cerrar")
+                        ui.button(icon="delete", on_click=lambda rid=r["id"]: _eliminar(rid)).props("flat round dense size=sm color=negative").tooltip("Eliminar")
 
     tabla()

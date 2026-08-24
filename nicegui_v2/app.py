@@ -1710,7 +1710,7 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                 with ui.card().classes('w-full h-full p-4'):
                     with ui.row().classes('w-full items-center justify-between'):
                         ui.label('Smart IDEAS Workspace').classes('text-xl font-bold text-slate-900')
-                        ui.button(icon='close', on_click=ai_workspace_dialog.close).props('flat round')
+                        ui.button(icon='close', on_click=ai_workspace_dialog.close).props('flat round').tooltip('Cerrar')
                     workspace_full_container = ui.column().classes('w-full h-full gap-3 mt-3 overflow-auto')
             with ui.row().classes('items-center justify-between gap-2'):
                 with ui.row().classes('items-center gap-2'):
@@ -1718,7 +1718,7 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                     ui.label(assistant_name).classes('text-[0.95rem] font-semibold text-slate-800')
                     ai_state_badge = ui.label('IDLE').classes('ideas-ai-state-pill')
                 with ui.row().classes('items-center gap-1'):
-                    ui.button(icon='open_in_full', on_click=ai_workspace_dialog.open).props('flat round dense').classes('text-slate-500')
+                    ui.button(icon='open_in_full', on_click=ai_workspace_dialog.open).props('flat round dense').classes('text-slate-500').tooltip('Expandir a pantalla completa')
             focus_payload = ((app.storage.user.get('ai_focus_context') or {}).get('payload') or {})
             normas_consideradas = focus_payload.get('normas_visibles') or focus_payload.get('certificaciones_activas') or []
             normas_text = ', '.join(str(n) for n in normas_consideradas[:6]) if normas_consideradas else 'Normas segun certificaciones activas'
@@ -1769,7 +1769,7 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                 loading_label = ui.label('Smart IDEAS esta analizando tu consulta...')
             with ui.row().classes('ideas-ai-input-shell w-full items-end gap-2'):
                 ai_input = ui.input('Preguntale algo a Smart IDEAS...').props('outlined dense').classes('ideas-ai-input w-full')
-                ai_send = ui.button(icon='send').props('flat round dense').classes('ideas-ai-send')
+                ai_send = ui.button(icon='send').props('flat round dense').classes('ideas-ai-send').tooltip('Enviar')
             sending_lock = {'active': False}
 
             def _set_workspace_state(state: str) -> None:
@@ -2282,8 +2282,8 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
             ai_input.on('keydown.enter', trigger_send)
             ai_send.on_click(trigger_send)
             with ui.row().classes('w-full items-center justify-start gap-1'):
-                ui.button(icon='library_books', on_click=open_conversation_library).props('flat round dense').classes('text-slate-600')
-                ui.button(icon='content_copy', on_click=copy_last_answer).props('flat round dense').classes('text-slate-600')
+                ui.button(icon='library_books', on_click=open_conversation_library).props('flat round dense').classes('text-slate-600').tooltip('Historial de conversaciones')
+                ui.button(icon='content_copy', on_click=copy_last_answer).props('flat round dense').classes('text-slate-600').tooltip('Copiar última respuesta')
                 def reset_conversation() -> None:
                     archive_current_conversation()
                     persisted_messages.clear()
@@ -2297,13 +2297,13 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                             text_html=True,
                         )
                     render_ai_workspace_view('')
-                ui.button(icon='refresh', on_click=reset_conversation).props('flat round dense').classes('text-slate-600')
+                ui.button(icon='refresh', on_click=reset_conversation).props('flat round dense').classes('text-slate-600').tooltip('Nueva conversación')
             render_ai_workspace_view('')
     with ui.header().classes('ideas-topbar'):
         with ui.row().classes('w-full items-center justify-between px-4 flex-wrap'):
             with ui.row().classes('items-center gap-3'):
                 if drawer is not None:
-                    ui.button(icon='menu', on_click=drawer.toggle).props('flat round dense').classes('text-slate-600')
+                    ui.button(icon='menu', on_click=drawer.toggle).props('flat round dense').classes('text-slate-600').tooltip('Mostrar/ocultar menú')
                 if back_route:
                     ui.button(
                         icon='arrow_back',

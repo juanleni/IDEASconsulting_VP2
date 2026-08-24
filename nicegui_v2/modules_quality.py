@@ -415,7 +415,7 @@ def _show_quality_editor(
                 with ui.column().classes('gap-1'):
                     ui.label('Copiloto IA para Ishikawa').classes('text-2xl font-bold text-slate-900')
                     ui.label('Sugerencias breves basadas en OpenAI y en el contexto del caso actual.').classes('text-slate-600')
-                ui.button(icon='close', on_click=dialog.close).props('flat round dense')
+                ui.button(icon='close', on_click=dialog.close).props('flat round dense').tooltip('Cerrar')
 
             ui.html(
                 f'''<div class="ideas-grid-3" style="margin-top:16px;">
@@ -488,7 +488,7 @@ def _show_quality_editor(
                     top_save_button = ui.button('Guardar 8D', icon='save', color='primary').props('unelevated')
                     ui.label('Usa este bot³n para guardar').classes('text-sm text-slate-500')
                     export_editor_button = ui.button('Reporte 8D (PDF)', icon='picture_as_pdf', color='red-8').props('unelevated')
-                    ui.button(icon='close', on_click=dialog.close).props('flat round')
+                    ui.button(icon='close', on_click=dialog.close).props('flat round').tooltip('Cerrar')
 
             with ui.row().classes('w-full items-center justify-between px-6 pt-2'):
                 ui.label(f'Empresa activa: {company_name}').classes('ideas-section-note')
@@ -923,7 +923,7 @@ def _show_quality_editor(
                                             ui.image(path).classes('w-full h-32 object-cover rounded-[12px]')
                                             with ui.row().classes('w-full items-center justify-between mt-2'):
                                                 ui.label(Path(path).name).classes('text-xs text-slate-600')
-                                                ui.button(icon='delete', on_click=lambda current=path: remove_file(current)).props('flat round dense color=negative')
+                                                ui.button(icon='delete', on_click=lambda current=path: remove_file(current)).props('flat round dense color=negative').tooltip('Quitar archivo')
 
                         def remove_file(path: str) -> None:
                             if path in uploaded_paths:
@@ -1096,7 +1096,7 @@ def _show_quality_editor(
                                 for current_path in draft_files:
                                     with ui.row().classes('w-full items-center justify-between rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2'):
                                         ui.label(Path(current_path).name).classes('text-sm text-slate-700')
-                                        ui.button(icon='delete', on_click=lambda _, current_phase=phase, item=current_path: _remove_draft_file(current_phase, item)).props('flat round dense color=negative')
+                                        ui.button(icon='delete', on_click=lambda _, current_phase=phase, item=current_path: _remove_draft_file(current_phase, item)).props('flat round dense color=negative').tooltip('Quitar archivo')
                         with ui.row().classes('w-full justify-end gap-2 mt-3'):
                             if action_edit_state[phase]:
                                 ui.button('Cancelar edición', on_click=lambda current_phase=phase: cancel_action_edit(current_phase)).props('flat')

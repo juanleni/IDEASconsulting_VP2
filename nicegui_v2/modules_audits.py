@@ -157,14 +157,14 @@ def register_audits_module(ui, deps: dict) -> None:
                                         with ui.row().classes('gap-1'):
                                             ui.button(icon='edit', on_click=lambda hid=h['id']: _abrir_form_hallazgo(auditoria_id, hid)).props(
                                                 'flat round dense size=sm'
-                                            )
+                                            ).tooltip('Editar hallazgo')
                                             if h.get('estado') != 'Cerrado':
                                                 ui.button(icon='task_alt', on_click=lambda hid=h['id']: _cerrar_hallazgo(hid)).props(
                                                     'flat round dense size=sm color=positive'
-                                                )
+                                                ).tooltip('Cerrar hallazgo')
                                             ui.button(icon='delete', on_click=lambda hid=h['id']: _eliminar_hallazgo(hid)).props(
                                                 'flat round dense size=sm color=negative'
-                                            )
+                                            ).tooltip('Eliminar hallazgo')
 
                     def _cerrar_hallazgo(hallazgo_id: int) -> None:
                         with ui.dialog() as ev_dialog, ui.card().classes('w-full max-w-sm'):
@@ -292,7 +292,7 @@ def register_audits_module(ui, deps: dict) -> None:
                                 ui.label(a.get('estado')).classes('text-xs font-semibold px-2 py-1 rounded-full').style(
                                     f'color:{color}; background:{color}22;'
                                 )
-                                ui.button(icon='visibility', on_click=lambda aid=a['id']: _abrir_detalle(aid)).props('flat round dense size=sm')
-                                ui.button(icon='delete', on_click=lambda aid=a['id']: _eliminar_auditoria(aid)).props('flat round dense size=sm color=negative')
+                                ui.button(icon='visibility', on_click=lambda aid=a['id']: _abrir_detalle(aid)).props('flat round dense size=sm').tooltip('Ver detalle')
+                                ui.button(icon='delete', on_click=lambda aid=a['id']: _eliminar_auditoria(aid)).props('flat round dense size=sm color=negative').tooltip('Eliminar auditoría')
 
             tabla_auditorias()
