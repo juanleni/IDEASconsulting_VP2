@@ -464,26 +464,27 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                         ui.label('Entradas rápidas para la operación diaria del equipo IDEAS.').classes('ideas-section-note')
                     ui.badge('Modo interno', color='primary').classes('px-3 py-2')
 
+                # 2026-08-24 (auditoria consola Super Admin, hallazgo #3): estas
+                # tarjetas usaban ui.tabs()/ui.tab() con la navegacion atada aparte
+                # via .on('click') -- el mismo patron que ya causaba el bug de
+                # scroll en "Modulos Operativos" (ver pages_management.py). Ahi el
+                # sintoma era otro: el primer click solo actualiza el estado
+                # "seleccionado" (reactive, viaja por websocket) y el navigate.to
+                # de esta funcion depende de que ese roundtrip ya haya terminado --
+                # con un click rapido siguiente, el handler todavia ve el titulo
+                # VIEJO seleccionado y navega a la tarjeta anterior. Botones
+                # directos, cada uno con su propio on_click, sacan esa capa de
+                # estado intermedio de en medio: no hay nada que pueda quedar
+                # desincronizado entre "lo que se ve resaltado" y "a donde navega".
                 home_shortcuts = [
                     ('Empresas', 'business', '/empresas'),
                     ('Diagnóstico', 'assignment_add', '/diagnostico'),
                     ('Workspace Ejecutivo', 'dashboard_customize', '/sistema-gestion'),
                     ('Usuarios y Permisos', 'manage_accounts', '/sistema-gestion/usuarios'),
                 ]
-                with ui.tabs().classes('w-full mt-1 ideas-panel p-2 rounded-[24px]'):
-                    home_shortcut_tabs = {
-                        title: ui.tab(title, icon=icon).props('no-caps').classes('text-slate-700')
-                        for title, icon, _route in home_shortcuts
-                    }
-
-                def _open_home_shortcut(title: str) -> None:
-                    for item_title, _icon, route in home_shortcuts:
-                        if item_title == title:
-                            ui.navigate.to(route)
-                            return
-
-                for title, tab_obj in home_shortcut_tabs.items():
-                    tab_obj.on('click', lambda _e, t=title: _open_home_shortcut(t))
+                with ui.row().classes('w-full mt-1 ideas-panel p-2 rounded-[24px] flex-wrap gap-1'):
+                    for title, icon, route in home_shortcuts:
+                        ui.button(title, icon=icon, on_click=lambda r=route: ui.navigate.to(r)).props('flat no-caps').classes('text-slate-700')
 
                 with ui.card().classes('ideas-panel w-full').style('margin-top:24px;'):
                     ui.label('Alertas y Actividades Pendientes').classes('ideas-section-title')
