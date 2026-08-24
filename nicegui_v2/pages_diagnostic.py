@@ -51,6 +51,24 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
         'Otro',
     ]
 
+    # 2026-08-24: alcance parcial del diagnostico -- pedido de Juan para poder
+    # armar un diagnostico recortado segun el servicio que se vaya a cotizar
+    # (ej. "Ambiental y SST" sin revisar Mantenimiento/Logistica/etc.), en vez
+    # de forzar siempre los 14 ejes completos. EJES_SIEMPRE son la base de
+    # gestion transversal que se incluye en cualquier alcance, elegido o no;
+    # EJE_PRESETS son atajos de un click por linea de servicio -- ambos
+    # hardcodeados por ahora (a definir si conviene moverlos a una hoja del
+    # Excel si el catalogo de servicios cambia seguido). El alcance de un
+    # diagnostico ya guardado no necesita columna nueva en la base: son,
+    # simplemente, los ejes que aparecen en sus `respuestas`.
+    EJES_SIEMPRE = ['Dirección y Estrategia', 'Mapa de Procesos', 'Organización', 'Cultura y Madurez']
+    EJE_PRESETS = [
+        ('Ambiental y SST', ['Ambiental', 'Seguridad y Salud']),
+        ('Calidad', ['Calidad']),
+        ('Operaciones', ['Producción', 'Mantenimiento', 'Logística y Almacenes', 'Compras']),
+        ('Comercial y Finanzas', ['Comercial', 'Finanzas', 'Riesgos y Continuidad']),
+    ]
+
     root_dir = Path(__file__).resolve().parents[1]
     company_logo_dir = root_dir / 'assets' / 'logos_empresas'
 
@@ -630,7 +648,50 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                 guide_html = ''.join(f'''<div class="ideas-score-item"><div class="badge">{int(item['escala'])}</div><div style="margin-top:10px;font-weight:800;color:#0f172a;">{fix_text(item['nivel'])}</div><div style="margin-top:8px;color:#475569;line-height:1.55;">{fix_text(item['resumen'])}</div></div>''' for item in criteria)
                 ui.label('Criterios de puntuación').classes('text-lg font-semibold text-slate-900'); ui.html(f'<div class="ideas-score-guide mt-3">{guide_html}</div>'); ui.label(f'Regla de evidencia: {fix_text(regla)}').classes('text-sm text-amber-700 mt-3')
             default_company = preload['empresa_id'] if preload else (current_selection()[0] or None); company_select = ui.select(company_map, value=default_company, label='Empresa').classes('w-full mt-5').props('outlined')
+
+            # Alcance del diagnóstico: qué ejes se evalúan en este corte. Al
+            # editar/duplicar, arranca con los ejes que ya tenían respuestas
+            # (mas los EJES_SIEMPRE) para no recortar sin querer un diagnostico
+            # existente -- se puede ampliar tildando mas.
+            ejes_disponibles = list(grouped.keys())
+            ejes_con_respuesta_preload = {eje for eje, _pregunta in preload_map.keys()}
+            selected_ejes: set[str] = set(EJES_SIEMPRE) | ejes_con_respuesta_preload
+            answers_state: dict[tuple[str, str], dict] = {key: dict(value) for key, value in preload_map.items()}
+            eje_checks: dict[str, ui.checkbox] = {}
+
+            def _sync_selected_from_checks() -> None:
+                selected_ejes.clear(); selected_ejes.update(eje for eje, cb in eje_checks.items() if cb.value)
+
+            def _on_eje_toggle(_eje: str) -> None:
+                _sync_selected_from_checks(); questions_container.refresh()
+
+            def _apply_preset(preset_ejes: list[str]) -> None:
+                target = set(EJES_SIEMPRE) | set(preset_ejes)
+                for eje, cb in eje_checks.items(): cb.value = eje in target
+                _sync_selected_from_checks(); questions_container.refresh()
+
+            with ui.card().classes('ideas-panel w-full mt-5'):
+                ui.label('Alcance del diagnóstico').classes('text-lg font-semibold text-slate-900')
+                ui.label('Elegí qué ejes evaluar según el servicio a cotizar. Los marcados como "siempre" quedan incluidos en cualquier alcance.').classes('text-sm text-slate-500 mt-1')
+                with ui.row().classes('w-full gap-2 flex-wrap mt-3'):
+                    for preset_label, preset_ejes in EJE_PRESETS:
+                        ui.button(preset_label, on_click=lambda p=preset_ejes: _apply_preset(p)).props('outline no-caps dense')
+                    ui.button('Diagnóstico completo', icon='select_all', on_click=lambda: _apply_preset(ejes_disponibles)).props('outline no-caps dense')
+                with ui.row().classes('w-full gap-x-6 gap-y-1 flex-wrap mt-3'):
+                    for eje in ejes_disponibles:
+                        es_siempre = eje in EJES_SIEMPRE
+                        cb = ui.checkbox(fix_text(eje), value=(eje in selected_ejes) or es_siempre)
+                        if es_siempre:
+                            cb.disable(); cb.tooltip('Este eje se incluye siempre')
+                        else:
+                            cb.on_value_change(lambda _e, e=eje: _on_eje_toggle(e))
+                        eje_checks[eje] = cb
+
             response_inputs, evidence_inputs, evidence_containers, observation_inputs = {}, {}, {}, {}
+
+            def _remember_answer(key: tuple[str, str], **fields) -> None:
+                answers_state.setdefault(key, {}).update(fields)
+
             def ensure_evidence_fields(key):
                 fields = evidence_inputs[key]; values = [fix_text(field.value).strip() for field in fields]
                 if values and values[-1] != '':
@@ -640,23 +701,40 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                 if not fields:
                     with evidence_containers[key]: new_field = ui.input('Evidencia 1').classes('w-full').props('outlined')
                     fields.append(new_field); new_field.on_value_change(lambda _e, current_key=key: ensure_evidence_fields(current_key))
-            for eje, questions in grouped.items():
-                with ui.expansion(fix_text(eje), icon='schema').classes('w-full ideas-card mt-4'):
-                    for question in questions:
-                        key, existing = (eje, question), preload_map.get((eje, question), {})
-                        with ui.card().classes('ideas-soft w-full p-4 mb-3'):
-                            ui.label(question).classes('text-base font-semibold text-slate-900')
-                            response_inputs[key] = ui.select({value: f"{label} · {fix_text(next((c['resumen'] for c in criteria if int(c['escala']) == value), ''))}" for value, label in score_labels.items()}, value=int(existing.get('respuesta', 3)), label='Puntaje').classes('w-full mt-3').props('outlined')
-                            with ui.row().classes('w-full gap-4 mt-2'):
-                                evidence_containers[key] = ui.column().classes('col w-full gap-2'); observation_inputs[key] = ui.textarea('Observación').classes('col w-full').props('outlined autogrow')
-                            evidence_inputs[key] = []; preload_evidences = split_evidence_values(existing.get('evidencia', ''))
-                            with evidence_containers[key]:
-                                for idx, evidence_value in enumerate(preload_evidences, start=1):
-                                    field = ui.input(f'Evidencia {idx}').classes('w-full').props('outlined'); field.value = evidence_value; evidence_inputs[key].append(field)
-                                if not preload_evidences or preload_evidences[-1].strip() != '':
-                                    evidence_inputs[key].append(ui.input(f'Evidencia {len(evidence_inputs[key]) + 1}').classes('w-full').props('outlined'))
-                            for field in evidence_inputs[key]: field.on_value_change(lambda _e, current_key=key: ensure_evidence_fields(current_key))
-                            ensure_evidence_fields(key); observation_inputs[key].value = existing.get('observacion', '')
+                _remember_answer(key, evidencia=', '.join(fix_text(field.value).strip() for field in evidence_inputs[key] if fix_text(field.value).strip()))
+
+            # 2026-08-24: renderizado en una funcion refreshable, controlada por
+            # `selected_ejes`, para que tildar/destildar un eje (o aplicar un
+            # preset) solo redibuje esto -- no toda la pagina. Los valores ya
+            # cargados se preservan via `answers_state` (poblado en cada cambio
+            # por _remember_answer/ensure_evidence_fields), asi que sacar y
+            # volver a tildar un eje en la misma sesion no pierde lo tipeado.
+            @ui.refreshable
+            def questions_container() -> None:
+                response_inputs.clear(); evidence_inputs.clear(); evidence_containers.clear(); observation_inputs.clear()
+                for eje, questions in grouped.items():
+                    if eje not in selected_ejes:
+                        continue
+                    with ui.expansion(fix_text(eje), icon='schema').classes('w-full ideas-card mt-4'):
+                        for question in questions:
+                            key, existing = (eje, question), answers_state.get((eje, question), preload_map.get((eje, question), {}))
+                            with ui.card().classes('ideas-soft w-full p-4 mb-3'):
+                                ui.label(question).classes('text-base font-semibold text-slate-900')
+                                response_inputs[key] = ui.select({value: f"{label} · {fix_text(next((c['resumen'] for c in criteria if int(c['escala']) == value), ''))}" for value, label in score_labels.items()}, value=int(existing.get('respuesta', 3)), label='Puntaje').classes('w-full mt-3').props('outlined')
+                                response_inputs[key].on_value_change(lambda e, k=key: _remember_answer(k, respuesta=int(e.value or 1)))
+                                with ui.row().classes('w-full gap-4 mt-2'):
+                                    evidence_containers[key] = ui.column().classes('col w-full gap-2'); observation_inputs[key] = ui.textarea('Observación').classes('col w-full').props('outlined autogrow')
+                                evidence_inputs[key] = []; preload_evidences = split_evidence_values(existing.get('evidencia', ''))
+                                with evidence_containers[key]:
+                                    for idx, evidence_value in enumerate(preload_evidences, start=1):
+                                        field = ui.input(f'Evidencia {idx}').classes('w-full').props('outlined'); field.value = evidence_value; evidence_inputs[key].append(field)
+                                    if not preload_evidences or preload_evidences[-1].strip() != '':
+                                        evidence_inputs[key].append(ui.input(f'Evidencia {len(evidence_inputs[key]) + 1}').classes('w-full').props('outlined'))
+                                for field in evidence_inputs[key]: field.on_value_change(lambda _e, current_key=key: ensure_evidence_fields(current_key))
+                                ensure_evidence_fields(key); observation_inputs[key].value = existing.get('observacion', '')
+                                observation_inputs[key].on_value_change(lambda e, k=key: _remember_answer(k, observacion=e.value or ''))
+            questions_container()
+
             def save_diagnosis() -> None:
                 if not company_select.value: ui.notify('Seleccioná una empresa antes de guardar.', type='warning'); return
                 rows = [{'eje': eje, 'pregunta': question, 'respuesta': int(selector.value or 1), 'evidencia': ', '.join([fix_text(field.value).strip() for field in evidence_inputs[(eje, question)] if fix_text(field.value).strip()]), 'observacion': observation_inputs[(eje, question)].value or ''} for (eje, question), selector in response_inputs.items()]
@@ -717,6 +795,19 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
             nivel = fix_text(diag.get('nivel', 'Sin nivel'))
             conclusion = fix_text(diag.get('conclusion', '')) or fix_text(obtener_mensaje_direccion(nivel))
 
+            # 2026-08-24: alcance del diagnostico -- no hay columna nueva en la
+            # base, son directamente los ejes que aparecen en `respuestas`. Si
+            # coincide con el catalogo completo se muestra como "completo"; si
+            # no, se listan los ejes evaluados para que quede claro que fue un
+            # corte parcial a proposito (y no un diagnostico incompleto).
+            ejes_en_alcance = sorted({r['eje'] for r in respuestas})
+            total_ejes_catalogo = len(grouped_questions(leer_diagnostico_excel()))
+            alcance_texto = (
+                'Diagnóstico completo (todos los ejes)'
+                if ejes_en_alcance and len(ejes_en_alcance) >= total_ejes_catalogo
+                else f"Alcance parcial: {', '.join(ejes_en_alcance)}" if ejes_en_alcance else ''
+            )
+
             async def export_results_pdf() -> None:
                 try:
                     company_info = obtener_empresa_detalle(int(diag.get('empresa_id') or empresa_id)) or {}
@@ -736,6 +827,7 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                         eje_scores,
                         criticas,
                         company_info,
+                        alcance=alcance_texto,
                     )
                     ui.download(str(pdf_path))
                 except Exception as exc:
@@ -758,6 +850,8 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                 </div>
                 '''
             )
+            if alcance_texto:
+                ui.label(alcance_texto).classes('text-sm text-slate-500 mt-2')
 
             ui.html(
                 f'''
@@ -896,8 +990,11 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                     return
                 app.storage.user['history_selected_id'] = int(diag['id']); company = obtener_empresa_detalle(diag['empresa_id']); responses = diagnosis_response_dicts(diag['id']); df_resp = pd.DataFrame(responses)
                 strengths = ', '.join(df_resp[df_resp['respuesta'] >= 3]['eje'].drop_duplicates().head(3).tolist()) if not df_resp.empty else 'Sin datos'; weaknesses = ', '.join(df_resp[df_resp['respuesta'] <= 2]['eje'].drop_duplicates().head(3).tolist()) if not df_resp.empty else 'Sin datos'
+                # Alcance del corte: los ejes con respuesta, sin columna nueva en la base (ver /resultados).
+                ejes_alcance = sorted({item['eje'] for item in responses}); total_ejes_catalogo = len(grouped_questions(leer_diagnostico_excel()))
+                alcance_detalle = 'Diagnóstico completo' if ejes_alcance and len(ejes_alcance) >= total_ejes_catalogo else (', '.join(ejes_alcance) or 'Sin datos')
                 with detail_card:
-                    ui.label('Vista preliminar del diagnóstico seleccionado').classes('ideas-section-title'); ui.label(f"{diag['empresa']} · {diag['fecha']}").classes('text-slate-500'); ui.html(f'<div style="margin-top:12px;display:inline-flex;padding:10px 14px;border-radius:999px;font-weight:800;{diagnosis_badge_style(diag["nivel"])}">Nivel {diag["nivel"]} · Score {diag["score"]:.2f}</div>'); ui.html(f'''<div class="ideas-grid-2" style="margin-top:18px;"><div class="ideas-quick-card"><div class="label">Ficha de empresa</div><div class="detail">Razón social: {fix_text(company.get('razon_social', diag['empresa'])) if company else diag['empresa']}</div><div class="detail">Ubicación: {fix_text(company.get('ubicacion', '')) if company else ''}</div><div class="detail">Rubro: {fix_text(company.get('rubro', '')) if company else ''}</div><div class="detail">Empleados: {company.get('cantidad_empleados', 0) if company else 0}</div></div><div class="ideas-quick-card"><div class="label">Resumen consultivo</div><div class="detail">Puntos fuertes: {fix_text(strengths)}</div><div class="detail">Áreas débiles: {fix_text(weaknesses)}</div><div class="detail">Contacto: {fix_text(company.get('contacto_nombre', '')) if company else ''}</div><div class="detail">Certificaciones: {certifications_summary(company)}</div></div></div>''')
+                    ui.label('Vista preliminar del diagnóstico seleccionado').classes('ideas-section-title'); ui.label(f"{diag['empresa']} · {diag['fecha']}").classes('text-slate-500'); ui.html(f'<div style="margin-top:12px;display:inline-flex;padding:10px 14px;border-radius:999px;font-weight:800;{diagnosis_badge_style(diag["nivel"])}">Nivel {diag["nivel"]} · Score {diag["score"]:.2f}</div>'); ui.label(f'Alcance: {alcance_detalle}').classes('text-sm text-slate-500 mt-2'); ui.html(f'''<div class="ideas-grid-2" style="margin-top:18px;"><div class="ideas-quick-card"><div class="label">Ficha de empresa</div><div class="detail">Razón social: {fix_text(company.get('razon_social', diag['empresa'])) if company else diag['empresa']}</div><div class="detail">Ubicación: {fix_text(company.get('ubicacion', '')) if company else ''}</div><div class="detail">Rubro: {fix_text(company.get('rubro', '')) if company else ''}</div><div class="detail">Empleados: {company.get('cantidad_empleados', 0) if company else 0}</div></div><div class="ideas-quick-card"><div class="label">Resumen consultivo</div><div class="detail">Puntos fuertes: {fix_text(strengths)}</div><div class="detail">Áreas débiles: {fix_text(weaknesses)}</div><div class="detail">Contacto: {fix_text(company.get('contacto_nombre', '')) if company else ''}</div><div class="detail">Certificaciones: {certifications_summary(company)}</div></div></div>''')
             render_detail(None)
             table.on('rowClick', lambda event: render_detail(extract_diag_id(event.args)))
             table.on('open_resultados', lambda event: (set_selection(diagnosis_record(int(event.args))['empresa_id'], int(event.args)), ui.navigate.to('/resultados')) if diagnosis_record(int(event.args)) else ui.notify('No se encontró ese diagnóstico.', type='warning'))

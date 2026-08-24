@@ -216,6 +216,7 @@ def generar_pdf_ejecutivo_v2(
     eje_scores: dict[str, float],
     criticas: list[str],
     empresa_info: dict | None = None,
+    alcance: str = "",
 ) -> Path:
     TMP_DIR.mkdir(parents=True, exist_ok=True)
     empresa_info = empresa_info or {}
@@ -271,6 +272,7 @@ def generar_pdf_ejecutivo_v2(
             <h2>{_esc(nombre_empresa)}</h2>
             <div>{_esc(fecha)} · {_esc(empresa_info.get("rubro") or "Rubro sin definir")} · {_esc(empresa_info.get("ubicacion") or "Ubicacion sin definir")}</div>
             <div style="margin-top:10px">{certs_html}</div>
+            {f'<div style="margin-top:8px;color:#64748b;font-size:12px;">{_esc(alcance)}</div>' if alcance else ''}
         </section>
 
         <section class="metrics">
