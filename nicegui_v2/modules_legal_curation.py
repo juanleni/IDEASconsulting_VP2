@@ -670,7 +670,8 @@ def register_legal_curation_module(ui, deps: dict) -> None:
                 'incorporarlas a la Matriz Legal de cualquier empresa. Ninguna empresa cliente ve esta pantalla.'
             ).classes('ideas-section-note mb-4')
 
-            state = {'texto': '', 'tema': 'todos', 'revision': 'todos', 'fuente_id': None}
+            state = {'texto': '', 'tema': 'todos', 'revision': 'todos', 'fuente_id': None, 'pagina': 1}
+            NORMAS_POR_PAGINA = 20
 
             # -- Stats ---------------------------------------------------
             @ui.refreshable
@@ -764,6 +765,7 @@ def register_legal_curation_module(ui, deps: dict) -> None:
                 state['tema'] = tema_select.value
                 state['revision'] = revision_select.value
                 state['fuente_id'] = fuente_select.value
+                state['pagina'] = 1  # nuevo filtro -> volver a la primera pagina
                 tabla_normas.refresh()
 
             search.on_value_change(_aplicar_filtros)
@@ -883,6 +885,12 @@ def register_legal_curation_module(ui, deps: dict) -> None:
                 detail_dialog.open()
 
             # -- Tabla -----------------------------------------------------
+            # 2026-08-24 (auditoria consola Super Admin, hallazgo #5): esta lista
+            # renderiza tarjetas a mano (no ui.table()), asi que no tenia el
+            # paginado que si tienen Empresas/Usuarios/Historial/Resultados --
+            # con las ~208 normas actuales carga todo de una sola vez. Recorta a
+            # NORMAS_POR_PAGINA por pagina, con controles simples arriba y abajo
+            # de la lista.
             @ui.refreshable
             def tabla_normas() -> None:
                 filas = listar_normas_raw(state['texto'], state['tema'], state['revision'], state['fuente_id'])
@@ -891,7 +899,22 @@ def register_legal_curation_module(ui, deps: dict) -> None:
                         ui.icon('search_off').classes('text-5xl text-gray-300')
                         ui.label('Sin resultados con estos filtros').classes('text-gray-500 font-medium')
                     return
-                for norma in filas:
+                total = len(filas)
+                total_paginas = max(1, -(-total // NORMAS_POR_PAGINA))  # ceil
+                pagina_actual = min(max(1, int(state.get('pagina') or 1)), total_paginas)
+                state['pagina'] = pagina_actual
+
+                def _ir_a_pagina(nueva: int) -> None:
+                    state['pagina'] = nueva
+                    tabla_normas.refresh()
+
+                if total_paginas > 1:
+                    with ui.row().classes('w-full items-center justify-between mb-1'):
+                        ui.label(f'{total} normas · página {pagina_actual} de {total_paginas}').classes('text-xs text-slate-500')
+                        ui.pagination(1, total_paginas, value=pagina_actual, direction_links=True, on_change=lambda e: _ir_a_pagina(int(e.value))).props('dense')
+
+                inicio = (pagina_actual - 1) * NORMAS_POR_PAGINA
+                for norma in filas[inicio:inicio + NORMAS_POR_PAGINA]:
                     tema_m = _tema_meta(norma.get('tema'))
                     estado_m = _estado_meta(norma.get('estado'))
                     revision_m = REVISION_META.get(norma.get('revision'), REVISION_META['pendiente'])
@@ -921,6 +944,10 @@ def register_legal_curation_module(ui, deps: dict) -> None:
                             ui.label(revision_m['label']).classes('text-[11px] font-semibold px-2 py-0.5 rounded-full').style(
                                 f"color:{revision_m['color']}; background:{revision_m['bg']};"
                             )
+
+                if total_paginas > 1:
+                    with ui.row().classes('w-full justify-center mt-2'):
+                        ui.pagination(1, total_paginas, value=pagina_actual, direction_links=True, on_change=lambda e: _ir_a_pagina(int(e.value))).props('dense')
 
             stats_row()
             fuentes_row()
