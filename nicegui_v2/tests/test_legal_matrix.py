@@ -1,11 +1,17 @@
 """Tests for modules_legal_matrix.py.
 
-These are unit tests only: they exercise the parsing/SQL/password helpers
+Most of these are unit tests: they exercise the parsing/SQL/password helpers
 directly against a throwaway SQLite file (never the real ideas.db), and never
-import app.py or start a server. Route-level (HTTP) testing is intentionally
-out of scope for now: every module in this codebase hardcodes DB_PATH to the
-real ideas.db, so driving the FastAPI routes in tests would risk touching
-real company data until that gets an env-var override.
+start a real server. TestMatrixRoleEndpoints (2026-08-24, audit finding #1 of
+the second round) is the exception -- it registers the real FastAPI routes
+from register_legal_matrix_module() onto nicegui's app singleton and drives
+them with fastapi.testclient.TestClient, to prove the RBAC enforcement added
+2026-08-21 (legal_matrix_service._require_matrix_permission) actually runs
+on the live route and not just when called directly. Still safe: DB_PATH is
+redirected to the scratch_db fixture's throwaway file exactly like every
+other test here, and app.storage.user is monkeypatched the same way
+TestIsMatrixAdmin already does below, so no real session/cookie machinery
+(and no real ideas.db) is involved.
 """
 from __future__ import annotations
 
@@ -468,3 +474,85 @@ class TestMatrixRoles:
         self._patch_storage_user(monkeypatch, {'role': 'admin'})
         for action in ('create', 'edit', 'delete', 'approve'):
             mlm._require_matrix_permission(1, action)  # no debe levantar ninguna
+
+
+@pytest.fixture(scope='module')
+def legal_matrix_client():
+    """Registra las rutas reales de Matriz Legal una sola vez para todo el
+    modulo de tests y devuelve un TestClient para pegarles directo -- a
+    diferencia de TestMatrixRoles arriba (que llama _require_matrix_permission
+    a mano), esto prueba que el endpoint HTTP de verdad la invoca."""
+    from fastapi.testclient import TestClient
+    from nicegui import app as nicegui_app
+    from nicegui import ui as nicegui_ui
+
+    stub_deps = {
+        'ensure_platform_access': lambda: True,
+        'shell': lambda *a, **k: None,
+        'company_options': lambda: {},
+        'current_selection': lambda: (None, None),
+        'set_selection': lambda *a, **k: None,
+        'obtener_empresa_detalle': lambda *a, **k: {},
+    }
+    mlm.register_legal_matrix_module(nicegui_ui, stub_deps)
+    return TestClient(nicegui_app)
+
+
+class TestMatrixRoleEndpoints:
+    """Mismo hallazgo que TestMatrixRoles, pero pegandole al endpoint HTTP
+    real en vez de llamar _require_matrix_permission directamente -- es la
+    prueba que el segundo informe de auditoria (24/08) pidio explicitamente:
+    'un test que llame a cada endpoint autenticado como cada rol real y
+    confirme que un rol sin permiso recibe 403, no 200'. Cubre los seis
+    endpoints de escritura de Matriz Legal contra los tres roles no-admin."""
+
+    def _session(self, monkeypatch, user_id: int, empresa_id: int = 1):
+        monkeypatch.setattr(
+            type(mlm.app.storage), 'user',
+            property(lambda self: {
+                'platform_auth': True, 'role': 'empresa',
+                'logged_empresa_id': empresa_id,
+                'local_user_id': user_id, 'local_user_role': 'EMPRESA_USER',
+            }),
+        )
+
+    def test_reader_gets_403_on_every_write_endpoint(self, legal_matrix_client, monkeypatch):
+        self._session(monkeypatch, user_id=10)
+        mlm.asignar_legal_matrix_role(10, 1, 'reader')
+        c = legal_matrix_client
+        assert c.post('/api/legal-matrix/1/requirements', json={'title': 'x'}).status_code == 403
+        assert c.put('/api/legal-matrix/1/requirements/999', json={'title': 'x'}).status_code == 403
+        assert c.delete('/api/legal-matrix/1/requirements/999').status_code == 403
+        assert c.post('/api/legal-matrix/1/requirements/delete-bulk', json={'ids': [999]}).status_code == 403
+        assert c.post('/api/legal-matrix/1/sites', json={'name': 'x'}).status_code == 403
+        assert c.post('/api/legal-matrix/1/audits', json={'date': '2026-01-01'}).status_code == 403
+        assert c.post('/api/legal-matrix/1/evidence', json={'requirementId': 1, 'name': 'x'}).status_code == 403
+        assert c.post('/api/legal-matrix/1/evidence/999/approve').status_code == 403
+        assert c.post('/api/legal-matrix/1/alerts/999/resolve').status_code == 403
+
+    def test_editor_can_create_but_not_delete_or_approve(self, legal_matrix_client, monkeypatch):
+        self._session(monkeypatch, user_id=11)
+        mlm.asignar_legal_matrix_role(11, 1, 'editor')
+        c = legal_matrix_client
+        created = c.post('/api/legal-matrix/1/requirements', json={'title': 'norma de test'})
+        assert created.status_code == 200
+        req_id = created.json()['id']
+        assert c.put(f'/api/legal-matrix/1/requirements/{req_id}', json={'title': 'editada'}).status_code == 200
+        assert c.delete(f'/api/legal-matrix/1/requirements/{req_id}').status_code == 403
+        assert c.post('/api/legal-matrix/1/evidence/999/approve').status_code == 403
+
+    def test_approver_can_approve_but_not_create(self, legal_matrix_client, monkeypatch):
+        self._session(monkeypatch, user_id=12)
+        mlm.asignar_legal_matrix_role(12, 1, 'approver')
+        c = legal_matrix_client
+        assert c.post('/api/legal-matrix/1/requirements', json={'title': 'x'}).status_code == 403
+        # id inexistente -> el UPDATE no toca filas pero igual pasa el check de permiso (200)
+        assert c.post('/api/legal-matrix/1/evidence/999/approve').status_code == 200
+
+    def test_unassigned_user_keeps_editor_behavior_by_default(self, legal_matrix_client, monkeypatch):
+        # nadie le asigno rol a este usuario -- tiene que poder seguir
+        # creando/editando como podia antes de que este control existiera.
+        self._session(monkeypatch, user_id=13)
+        c = legal_matrix_client
+        assert c.post('/api/legal-matrix/1/requirements', json={'title': 'x'}).status_code == 200
+        assert c.delete('/api/legal-matrix/1/requirements/999').status_code == 403
