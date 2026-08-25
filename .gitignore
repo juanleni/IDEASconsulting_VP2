@@ -29,6 +29,10 @@ dist/
 backups/
 uploads/
 
+# Evidencia adjunta del diagnostico inicial (fotos/archivos de clientes --
+# mismo criterio que ideas.db, nunca versionar).
+assets/diagnostico_evidencia/
+
 # Reference library and AI-tool exports (not app source)
 Biblioteca/
 notebooklm_export/
