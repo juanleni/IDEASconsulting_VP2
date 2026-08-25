@@ -540,6 +540,43 @@ def inject_global_styles() -> None:
         .ideas-ops-scroll { overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scrollbar-width:thin; }
         .ideas-ops-chip { border-radius:14px; cursor:pointer; user-select:none; transition:background-color .15s ease; flex-shrink:0; }
         .ideas-ops-chip:hover { background-color:rgba(15,23,42,.05); }
+
+        /* 2026-08-24: rediseño de /diagnostico (audit-free, pedido directo de
+           Juan -- "quedo antiguo, no amigable para completar"). Mismo lenguaje
+           visual que el resto de IDEUS (Poppins, navy/teal/verde, cards con
+           blur), pero pensado para responder rapido: pills de puntaje en vez
+           de un <select>, barra de progreso en base a evidencia cargada (no
+           en base a "respondido", porque todas las preguntas arrancan en 3
+           por default -- eso no es progreso real), badge de score promedio
+           por eje que se actualiza en vivo. */
+        .ideas-diag-progress { padding:18px 22px; border-radius:22px; background:linear-gradient(135deg, #0f172a 0%, #12314d 52%, #0d9488 100%); color:#f0fdfa; box-shadow:0 16px 30px rgba(15,23,42,.14); }
+        .ideas-diag-progress .eyebrow { color:rgba(255,255,255,.72); font-size:.72rem; text-transform:uppercase; letter-spacing:.14em; font-weight:800; }
+        .ideas-diag-progress .headline { margin-top:6px; font-size:1.3rem; font-weight:700; }
+        .ideas-diag-progress .bar-track { width:100%; height:9px; border-radius:999px; background:rgba(255,255,255,.16); overflow:hidden; margin-top:12px; }
+        .ideas-diag-progress .bar-fill { height:100%; border-radius:999px; background:linear-gradient(90deg, #00d6a6, #7ed625); transition:width .35s ease; }
+
+        .ideas-eje-chip { border-radius:999px !important; border:1.5px solid rgba(148,163,184,.35) !important; background:rgba(255,255,255,.7) !important; color:#334155 !important; font-weight:500 !important; }
+        .ideas-eje-chip--active { border-color:#0d9488 !important; background:rgba(13,148,136,.10) !important; color:#0d9488 !important; font-weight:700 !important; }
+        .ideas-eje-chip--locked { border-color:rgba(15,143,97,.45) !important; background:rgba(15,143,97,.08) !important; color:#0f8f61 !important; font-weight:700 !important; }
+        .ideas-preset-btn { border-radius:14px !important; font-weight:600 !important; }
+
+        .ideas-eje-card { border-radius:22px !important; overflow:hidden; }
+        .ideas-eje-card .q-item { padding:16px 18px !important; }
+        .ideas-eje-avg { padding:.3rem .75rem; border-radius:999px; font-size:.74rem; font-weight:800; white-space:nowrap; }
+
+        .ideas-score-pill-row { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+        .ideas-score-pill { border-radius:16px !important; padding:10px 4px !important; min-height:56px; border:1.5px solid rgba(148,163,184,.30) !important; background:rgba(255,255,255,.75) !important; color:#334155 !important; transition:all .15s ease; }
+        .ideas-score-pill .q-btn__content { flex-direction:column; gap:1px; }
+        .ideas-score-pill .pill-num { font-size:1.15rem; font-weight:800; line-height:1; }
+        .ideas-score-pill .pill-label { font-size:.64rem; font-weight:600; text-transform:uppercase; letter-spacing:.03em; line-height:1.2; }
+        .ideas-score-pill--1.ideas-score-pill--active { background:rgba(239,68,68,.12) !important; border-color:#ef4444 !important; color:#b91c1c !important; }
+        .ideas-score-pill--2.ideas-score-pill--active { background:rgba(255,138,33,.14) !important; border-color:#ff8a21 !important; color:#c2620a !important; }
+        .ideas-score-pill--3.ideas-score-pill--active { background:rgba(46,140,255,.12) !important; border-color:#2e8cff !important; color:#1d5fa8 !important; }
+        .ideas-score-pill--4.ideas-score-pill--active { background:rgba(15,143,97,.12) !important; border-color:#0f8f61 !important; color:#0f8f61 !important; }
+
+        .ideas-question-card { border-radius:18px; background:rgba(255,255,255,.88); border:1px solid rgba(148,163,184,.16); padding:16px; transition:box-shadow .15s ease; }
+        .ideas-question-card:hover { box-shadow:0 8px 22px rgba(15,23,42,.06); }
+        .ideas-question-num { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:8px; background:rgba(13,148,136,.12); color:#0d9488; font-size:.72rem; font-weight:800; margin-right:.5rem; flex-shrink:0; }
         .ideas-workspace-banner { padding:20px 22px; border-radius:18px; background:linear-gradient(135deg, #0f172a 0%, #12314d 52%, #0f8f61 100%); color:#f8fbff; box-shadow:0 16px 30px rgba(15,23,42,.14); }
         .ideas-workspace-banner .eyebrow { color:rgba(255,255,255,.72); font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; font-weight:800; }
         .ideas-workspace-banner .headline { margin-top:8px; font-size:1.5rem; font-weight:600; line-height:1.06; letter-spacing:-.01em; }

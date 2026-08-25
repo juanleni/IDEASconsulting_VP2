@@ -637,7 +637,13 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
     def diagnostic_page() -> None:
         if not ensure_platform_access(): return
         shell_container = shell('Nuevo Diagnóstico'); df_base = leer_diagnostico_excel().copy(); grouped = grouped_questions(df_base); criteria, regla = load_criteria(); company_map = company_options()
-        score_labels = {1: '1 · Inicial', 2: '2 · Parcial', 3: '3 · Implementado', 4: '4 · Estandarizado'}
+        # Un escala (1-4) puede tener mas de una fila en CRITERIOS DE EVALUACION
+        # (distintos "sabores" de descripcion segun el tipo de pregunta) -- nos
+        # quedamos con la primera por escala, igual que hacia el <select> viejo.
+        criteria_by_scale: dict[int, dict] = {}
+        for item in criteria:
+            criteria_by_scale.setdefault(int(item['escala']), item)
+        nivel_labels = {esc: fix_text(item.get('nivel', '')) for esc, item in criteria_by_scale.items()}
         edit_id, duplicate_id = app.storage.user.get('edit_diag_id'), app.storage.user.get('duplicate_diag_id')
         preload_id = int(edit_id or duplicate_id) if (edit_id or duplicate_id) else None; preload = diagnosis_record(preload_id); preload_responses = diagnosis_response_dicts(preload_id); preload_map = {(row['eje'], row['pregunta']): row for row in preload_responses}
         with shell_container:
@@ -657,87 +663,156 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
             ejes_con_respuesta_preload = {eje for eje, _pregunta in preload_map.keys()}
             selected_ejes: set[str] = set(EJES_SIEMPRE) | ejes_con_respuesta_preload
             answers_state: dict[tuple[str, str], dict] = {key: dict(value) for key, value in preload_map.items()}
-            eje_checks: dict[str, ui.checkbox] = {}
+            eje_chip_state: dict[str, bool] = {eje: (eje in selected_ejes) for eje in ejes_disponibles}
+            eje_chip_buttons: dict[str, ui.button] = {}
 
-            def _sync_selected_from_checks() -> None:
-                selected_ejes.clear(); selected_ejes.update(eje for eje, cb in eje_checks.items() if cb.value)
+            def _style_eje_chip(eje: str) -> None:
+                cls = 'ideas-eje-chip'
+                if eje in EJES_SIEMPRE: cls += ' ideas-eje-chip--locked'
+                elif eje_chip_state.get(eje): cls += ' ideas-eje-chip--active'
+                eje_chip_buttons[eje].classes(replace=cls)
 
-            def _on_eje_toggle(_eje: str) -> None:
-                _sync_selected_from_checks(); questions_container.refresh()
+            def _apply_scope(target_ejes: set[str]) -> None:
+                for eje in eje_chip_state:
+                    eje_chip_state[eje] = eje in target_ejes or eje in EJES_SIEMPRE
+                    _style_eje_chip(eje)
+                selected_ejes.clear(); selected_ejes.update(e for e, on in eje_chip_state.items() if on)
+                questions_container.refresh(); _update_progress()
+
+            def _toggle_eje_chip(eje: str) -> None:
+                if eje in EJES_SIEMPRE: return
+                _apply_scope(set(e for e, on in eje_chip_state.items() if on) ^ {eje})
 
             def _apply_preset(preset_ejes: list[str]) -> None:
-                target = set(EJES_SIEMPRE) | set(preset_ejes)
-                for eje, cb in eje_checks.items(): cb.value = eje in target
-                _sync_selected_from_checks(); questions_container.refresh()
+                _apply_scope(set(EJES_SIEMPRE) | set(preset_ejes))
 
             with ui.card().classes('ideas-panel w-full mt-5'):
                 ui.label('Alcance del diagnóstico').classes('text-lg font-semibold text-slate-900')
                 ui.label('Elegí qué ejes evaluar según el servicio a cotizar. Los marcados como "siempre" quedan incluidos en cualquier alcance.').classes('text-sm text-slate-500 mt-1')
                 with ui.row().classes('w-full gap-2 flex-wrap mt-3'):
                     for preset_label, preset_ejes in EJE_PRESETS:
-                        ui.button(preset_label, on_click=lambda p=preset_ejes: _apply_preset(p)).props('outline no-caps dense')
-                    ui.button('Diagnóstico completo', icon='select_all', on_click=lambda: _apply_preset(ejes_disponibles)).props('outline no-caps dense')
-                with ui.row().classes('w-full gap-x-6 gap-y-1 flex-wrap mt-3'):
+                        ui.button(preset_label, on_click=lambda p=preset_ejes: _apply_preset(p)).props('outline no-caps dense').classes('ideas-preset-btn')
+                    ui.button('Diagnóstico completo', icon='select_all', on_click=lambda: _apply_preset(ejes_disponibles)).props('outline no-caps dense').classes('ideas-preset-btn')
+                with ui.row().classes('w-full gap-2 flex-wrap mt-4'):
                     for eje in ejes_disponibles:
                         es_siempre = eje in EJES_SIEMPRE
-                        cb = ui.checkbox(fix_text(eje), value=(eje in selected_ejes) or es_siempre)
-                        if es_siempre:
-                            cb.disable(); cb.tooltip('Este eje se incluye siempre')
-                        else:
-                            cb.on_value_change(lambda _e, e=eje: _on_eje_toggle(e))
-                        eje_checks[eje] = cb
+                        btn = ui.button(
+                            fix_text(eje), icon=('lock' if es_siempre else None),
+                            on_click=(None if es_siempre else (lambda e=eje: _toggle_eje_chip(e))),
+                        ).props('outline no-caps dense')
+                        if es_siempre: btn.tooltip('Este eje se incluye siempre')
+                        eje_chip_buttons[eje] = btn; _style_eje_chip(eje)
 
-            response_inputs, evidence_inputs, evidence_containers, observation_inputs = {}, {}, {}, {}
+            # 2026-08-24: barra de progreso -- a proposito NO cuenta "preguntas
+            # respondidas" (todas arrancan en 3 por default, asi que eso no
+            # refleja avance real), sino preguntas con evidencia cargada, que
+            # es la señal honesta de que se reviso algo en vez de dejar el
+            # default. Se actualiza en vivo con cada cambio de evidencia/alcance.
+            with ui.card().classes('ideas-diag-progress w-full mt-5'):
+                ui.label('AVANCE DEL RELEVAMIENTO').classes('eyebrow')
+                progress_headline = ui.label('').classes('headline')
+                with ui.element('div').classes('bar-track'):
+                    progress_bar_fill = ui.element('div').classes('bar-fill').style('width:0%;')
+
+            def _update_progress() -> None:
+                total = sum(len(grouped.get(eje, [])) for eje in selected_ejes)
+                con_evidencia = sum(
+                    1 for eje in selected_ejes for pregunta in grouped.get(eje, [])
+                    if str(answers_state.get((eje, pregunta), {}).get('evidencia', '')).strip()
+                )
+                pct = round((con_evidencia / total) * 100) if total else 0
+                progress_headline.text = f'{con_evidencia} de {total} preguntas con evidencia cargada · {len(selected_ejes)} eje(s) en alcance'
+                progress_bar_fill.style(f'width:{pct}%;')
 
             def _remember_answer(key: tuple[str, str], **fields) -> None:
                 answers_state.setdefault(key, {}).update(fields)
 
-            def ensure_evidence_fields(key):
-                fields = evidence_inputs[key]; values = [fix_text(field.value).strip() for field in fields]
-                if values and values[-1] != '':
-                    with evidence_containers[key]: new_field = ui.input(f'Evidencia {len(fields) + 1}').classes('w-full').props('outlined')
-                    fields.append(new_field); new_field.on_value_change(lambda _e, current_key=key: ensure_evidence_fields(current_key)); return
-                for index in reversed([i for i, value in enumerate(values[:-1]) if value == '']): fields.pop(index).delete()
-                if not fields:
-                    with evidence_containers[key]: new_field = ui.input('Evidencia 1').classes('w-full').props('outlined')
-                    fields.append(new_field); new_field.on_value_change(lambda _e, current_key=key: ensure_evidence_fields(current_key))
-                _remember_answer(key, evidencia=', '.join(fix_text(field.value).strip() for field in evidence_inputs[key] if fix_text(field.value).strip()))
+            def _avg_style(avg: float) -> str:
+                if avg < 2: return 'background:rgba(239,68,68,.12);color:#b91c1c;'
+                if avg < 3: return 'background:rgba(255,138,33,.14);color:#c2620a;'
+                if avg < 3.5: return 'background:rgba(46,140,255,.12);color:#1d5fa8;'
+                return 'background:rgba(15,143,97,.12);color:#0f8f61;'
+
+            eje_avg_labels: dict[str, ui.label] = {}
+
+            def _update_eje_avg(eje: str) -> None:
+                if eje not in eje_avg_labels: return
+                preguntas = grouped.get(eje, [])
+                valores = [int(answers_state.get((eje, p), {}).get('respuesta', 3)) for p in preguntas]
+                avg = round(sum(valores) / len(valores), 2) if valores else 0.0
+                eje_avg_labels[eje].text = f'Promedio {avg:.2f}'; eje_avg_labels[eje].style(_avg_style(avg))
+
+            def _make_score_pills(key: tuple[str, str], initial: int) -> None:
+                pills: dict[int, ui.button] = {}
+
+                def _apply_pill_style(value: int, selected: int) -> None:
+                    cls = f'ideas-score-pill ideas-score-pill--{value}' + (' ideas-score-pill--active' if value == selected else '')
+                    pills[value].classes(replace=cls)
+
+                def _select(value: int) -> None:
+                    _remember_answer(key, respuesta=value)
+                    for v in pills: _apply_pill_style(v, value)
+                    _update_eje_avg(key[0])
+
+                with ui.row().classes('ideas-score-pill-row w-full mt-3'):
+                    for value in (1, 2, 3, 4):
+                        pill = ui.button(on_click=lambda _e=None, v=value: _select(v)).props('outline no-caps')
+                        with pill:
+                            ui.label(str(value)).classes('pill-num')
+                            ui.label(nivel_labels.get(value, '')).classes('pill-label')
+                        pill.tooltip(fix_text(criteria_by_scale.get(value, {}).get('resumen', '')))
+                        pills[value] = pill
+                for v in pills: _apply_pill_style(v, initial)
+
+            rendered_keys: list[tuple[str, str]] = []
 
             # 2026-08-24: renderizado en una funcion refreshable, controlada por
             # `selected_ejes`, para que tildar/destildar un eje (o aplicar un
             # preset) solo redibuje esto -- no toda la pagina. Los valores ya
-            # cargados se preservan via `answers_state` (poblado en cada cambio
-            # por _remember_answer/ensure_evidence_fields), asi que sacar y
-            # volver a tildar un eje en la misma sesion no pierde lo tipeado.
+            # cargados se preservan via `answers_state` (poblado en cada cambio),
+            # asi que sacar y volver a tildar un eje en la misma sesion no pierde
+            # lo tipeado.
             @ui.refreshable
             def questions_container() -> None:
-                response_inputs.clear(); evidence_inputs.clear(); evidence_containers.clear(); observation_inputs.clear()
+                rendered_keys.clear(); eje_avg_labels.clear()
                 for eje, questions in grouped.items():
                     if eje not in selected_ejes:
                         continue
-                    with ui.expansion(fix_text(eje), icon='schema').classes('w-full ideas-card mt-4'):
-                        for question in questions:
-                            key, existing = (eje, question), answers_state.get((eje, question), preload_map.get((eje, question), {}))
-                            with ui.card().classes('ideas-soft w-full p-4 mb-3'):
-                                ui.label(question).classes('text-base font-semibold text-slate-900')
-                                response_inputs[key] = ui.select({value: f"{label} · {fix_text(next((c['resumen'] for c in criteria if int(c['escala']) == value), ''))}" for value, label in score_labels.items()}, value=int(existing.get('respuesta', 3)), label='Puntaje').classes('w-full mt-3').props('outlined')
-                                response_inputs[key].on_value_change(lambda e, k=key: _remember_answer(k, respuesta=int(e.value or 1)))
-                                with ui.row().classes('w-full gap-4 mt-2'):
-                                    evidence_containers[key] = ui.column().classes('col w-full gap-2'); observation_inputs[key] = ui.textarea('Observación').classes('col w-full').props('outlined autogrow')
-                                evidence_inputs[key] = []; preload_evidences = split_evidence_values(existing.get('evidencia', ''))
-                                with evidence_containers[key]:
-                                    for idx, evidence_value in enumerate(preload_evidences, start=1):
-                                        field = ui.input(f'Evidencia {idx}').classes('w-full').props('outlined'); field.value = evidence_value; evidence_inputs[key].append(field)
-                                    if not preload_evidences or preload_evidences[-1].strip() != '':
-                                        evidence_inputs[key].append(ui.input(f'Evidencia {len(evidence_inputs[key]) + 1}').classes('w-full').props('outlined'))
-                                for field in evidence_inputs[key]: field.on_value_change(lambda _e, current_key=key: ensure_evidence_fields(current_key))
-                                ensure_evidence_fields(key); observation_inputs[key].value = existing.get('observacion', '')
-                                observation_inputs[key].on_value_change(lambda e, k=key: _remember_answer(k, observacion=e.value or ''))
+                    with ui.expansion(value=True).classes('w-full ideas-card ideas-eje-card mt-4') as expansion:
+                        with expansion.add_slot('header'):
+                            with ui.row().classes('w-full items-center justify-between pr-2'):
+                                with ui.row().classes('items-center gap-2'):
+                                    ui.icon('schema').classes('text-slate-500')
+                                    ui.label(fix_text(eje)).classes('text-base font-semibold text-slate-900')
+                                    ui.label(f'{len(questions)} preguntas').classes('text-xs text-slate-400')
+                                eje_avg_labels[eje] = ui.label('').classes('ideas-eje-avg')
+                        for idx, question in enumerate(questions, start=1):
+                            key = (eje, question); existing = answers_state.get(key, preload_map.get(key, {}))
+                            answers_state.setdefault(key, {
+                                'respuesta': int(existing.get('respuesta', 3)),
+                                'evidencia': existing.get('evidencia', ''),
+                                'observacion': existing.get('observacion', ''),
+                            })
+                            rendered_keys.append(key)
+                            with ui.card().classes('ideas-question-card w-full mt-3'):
+                                with ui.row().classes('w-full items-start no-wrap'):
+                                    ui.label(f'{idx:02d}').classes('ideas-question-num')
+                                    ui.label(question).classes('text-base font-semibold text-slate-900')
+                                _make_score_pills(key, int(existing.get('respuesta', 3)))
+                                evidencia_inicial = '\n'.join(split_evidence_values(existing.get('evidencia', ''))).strip()
+                                with ui.row().classes('w-full gap-3 mt-3'):
+                                    evidencia_field = ui.textarea('Evidencia (una por línea o separadas por coma)', value=evidencia_inicial).classes('col w-full').props('outlined autogrow')
+                                    observacion_field = ui.textarea('Observación').classes('col w-full').props('outlined autogrow')
+                                observacion_field.value = existing.get('observacion', '')
+                                evidencia_field.on_value_change(lambda e, k=key: (_remember_answer(k, evidencia=e.value or ''), _update_progress()))
+                                observacion_field.on_value_change(lambda e, k=key: _remember_answer(k, observacion=e.value or ''))
+                        _update_eje_avg(eje)
             questions_container()
+            _update_progress()
 
             def save_diagnosis() -> None:
                 if not company_select.value: ui.notify('Seleccioná una empresa antes de guardar.', type='warning'); return
-                rows = [{'eje': eje, 'pregunta': question, 'respuesta': int(selector.value or 1), 'evidencia': ', '.join([fix_text(field.value).strip() for field in evidence_inputs[(eje, question)] if fix_text(field.value).strip()]), 'observacion': observation_inputs[(eje, question)].value or ''} for (eje, question), selector in response_inputs.items()]
+                rows = [{'eje': eje, 'pregunta': pregunta, 'respuesta': int(answers_state.get((eje, pregunta), {}).get('respuesta', 3)), 'evidencia': fix_text(answers_state.get((eje, pregunta), {}).get('evidencia', '')).strip(), 'observacion': answers_state.get((eje, pregunta), {}).get('observacion', '') or ''} for eje, pregunta in rendered_keys]
                 score = round(sum(item['respuesta'] for item in rows) / len(rows), 2) if rows else 0; nivel = obtener_nivel(score); conclusion = fix_text(obtener_conclusion(score)); empresa_id = int(company_select.value)
                 if edit_id:
                     diag_id, _fecha, unchanged = actualizar_diagnostico(int(edit_id), empresa_id, score, nivel, conclusion, rows); ui.notify('No se detectaron cambios; el diagnóstico ya estaba actualizado.' if unchanged else 'Diagnóstico actualizado correctamente.', type='positive')
