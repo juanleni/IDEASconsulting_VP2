@@ -1451,8 +1451,183 @@ def eliminar_diagnostico(diagnostico_id, empresa_id=None):
     c.execute("DELETE FROM diagnosticos WHERE id = ?", (diagnostico_id,))
     conn.commit()
     conn.close()
+    for archivo_path in _borrar_evidencia_archivos_de_diagnostico(diagnostico_id):
+        try:
+            Path(archivo_path).unlink(missing_ok=True)
+        except Exception:
+            pass
     _clear_caches()
     return True
+
+
+# 2026-08-25: evidencia adjunta (fotos/archivos) por pregunta del diagnostico
+# inicial -- pedido de Juan para no depender solo del campo de texto libre.
+# Los archivos se suben ANTES de que exista el diagnostico (se arma pregunta
+# por pregunta, y recien se guarda todo junto al final), asi que se registran
+# con diagnostico_id NULL ("borrador", scopeado por empresa_id/eje/pregunta) y
+# se "reclaman" (asignar_evidencia_archivos) recien cuando save_diagnosis()
+# obtiene el id real. Si el usuario cancela sin guardar, esos archivos quedan
+# huerfanos con diagnostico_id NULL -- descartar_evidencia_borrador() los
+# limpia si la pagina llega a cancelarse explicitamente, pero no hay today un
+# job que barra huerfanos de sesiones que se cerraron sin pasar por ahi
+# (ej. cerrar la pestana a mitad de carga); queda como deuda conocida.
+def _ensure_diagnostico_evidencia_table() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS diagnostico_evidencia_archivos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            diagnostico_id INTEGER,
+            empresa_id INTEGER NOT NULL,
+            eje TEXT NOT NULL,
+            pregunta TEXT NOT NULL,
+            archivo_path TEXT NOT NULL,
+            archivo_nombre TEXT NOT NULL,
+            size_kb REAL DEFAULT 0,
+            subido_por TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    c.execute("CREATE INDEX IF NOT EXISTS idx_diag_evid_diag ON diagnostico_evidencia_archivos(diagnostico_id)")
+    c.execute(
+        "CREATE INDEX IF NOT EXISTS idx_diag_evid_borrador "
+        "ON diagnostico_evidencia_archivos(empresa_id, eje, pregunta, diagnostico_id)"
+    )
+    conn.commit()
+    conn.close()
+
+
+def registrar_evidencia_archivo(empresa_id, eje, pregunta, archivo_path, archivo_nombre, size_kb=0, subido_por="", diagnostico_id=None) -> int:
+    _ensure_diagnostico_evidencia_table()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        """
+        INSERT INTO diagnostico_evidencia_archivos
+            (diagnostico_id, empresa_id, eje, pregunta, archivo_path, archivo_nombre, size_kb, subido_por)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(diagnostico_id) if diagnostico_id else None,
+            int(empresa_id), eje, pregunta, str(archivo_path), archivo_nombre, float(size_kb or 0), subido_por,
+        ),
+    )
+    conn.commit()
+    new_id = int(c.lastrowid)
+    conn.close()
+    return new_id
+
+
+def obtener_evidencia_archivos_borrador(empresa_id, eje, pregunta) -> list[dict]:
+    """Archivos ya subidos para esta pregunta, todavia sin diagnostico guardado."""
+    _ensure_diagnostico_evidencia_table()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute(
+        "SELECT * FROM diagnostico_evidencia_archivos WHERE empresa_id = ? AND eje = ? AND pregunta = ? "
+        "AND diagnostico_id IS NULL ORDER BY id",
+        (int(empresa_id), eje, pregunta),
+    )
+    rows = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return rows
+
+
+def obtener_evidencia_archivos_diagnostico(diagnostico_id) -> dict[tuple[str, str], list[dict]]:
+    """Todos los archivos de un diagnostico ya guardado, agrupados por (eje, pregunta)."""
+    _ensure_diagnostico_evidencia_table()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM diagnostico_evidencia_archivos WHERE diagnostico_id = ? ORDER BY id", (int(diagnostico_id),))
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for row in c.fetchall():
+        grouped.setdefault((row["eje"], row["pregunta"]), []).append(dict(row))
+    conn.close()
+    return grouped
+
+
+def obtener_evidencia_archivo_owner(archivo_id) -> int | None:
+    """empresa_id dueña de un archivo de evidencia -- para el guard de permisos."""
+    _ensure_diagnostico_evidencia_table()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    row = c.execute("SELECT empresa_id FROM diagnostico_evidencia_archivos WHERE id = ?", (int(archivo_id),)).fetchone()
+    conn.close()
+    return int(row[0]) if row else None
+
+
+def eliminar_evidencia_archivo(archivo_id) -> str | None:
+    """Borra la fila y devuelve el path en disco para que el caller lo elimine."""
+    _ensure_diagnostico_evidencia_table()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    row = c.execute("SELECT archivo_path FROM diagnostico_evidencia_archivos WHERE id = ?", (int(archivo_id),)).fetchone()
+    if not row:
+        conn.close()
+        return None
+    c.execute("DELETE FROM diagnostico_evidencia_archivos WHERE id = ?", (int(archivo_id),))
+    conn.commit()
+    conn.close()
+    return row[0]
+
+
+def asignar_evidencia_archivos(archivo_ids: list[int], diagnostico_id: int) -> None:
+    """'Reclama' archivos subidos en modo borrador para el diagnostico recien guardado."""
+    ids = [int(item) for item in (archivo_ids or [])]
+    if not ids:
+        return
+    _ensure_diagnostico_evidencia_table()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    marks = ", ".join("?" for _ in ids)
+    c.execute(
+        f"UPDATE diagnostico_evidencia_archivos SET diagnostico_id = ? WHERE id IN ({marks})",
+        (int(diagnostico_id), *ids),
+    )
+    conn.commit()
+    conn.close()
+
+
+def descartar_evidencia_borrador(archivo_ids: list[int]) -> None:
+    """Borra archivos (fila + disco) subidos en un borrador que se cancelo sin guardar."""
+    ids = [int(item) for item in (archivo_ids or [])]
+    if not ids:
+        return
+    _ensure_diagnostico_evidencia_table()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    marks = ", ".join("?" for _ in ids)
+    rows = c.execute(
+        f"SELECT archivo_path FROM diagnostico_evidencia_archivos WHERE id IN ({marks}) AND diagnostico_id IS NULL",
+        ids,
+    ).fetchall()
+    c.execute(f"DELETE FROM diagnostico_evidencia_archivos WHERE id IN ({marks}) AND diagnostico_id IS NULL", ids)
+    conn.commit()
+    conn.close()
+    for (path,) in rows:
+        try:
+            Path(path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def _borrar_evidencia_archivos_de_diagnostico(diagnostico_id) -> list[str]:
+    """Usado por eliminar_diagnostico(): borra las filas de evidencia de ese
+    diagnostico y devuelve los paths para que el caller limpie el disco."""
+    _ensure_diagnostico_evidencia_table()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    rows = c.execute(
+        "SELECT archivo_path FROM diagnostico_evidencia_archivos WHERE diagnostico_id = ?", (diagnostico_id,)
+    ).fetchall()
+    c.execute("DELETE FROM diagnostico_evidencia_archivos WHERE diagnostico_id = ?", (diagnostico_id,))
+    conn.commit()
+    conn.close()
+    return [row[0] for row in rows]
 
 
 def eliminar_empresa(empresa_id):

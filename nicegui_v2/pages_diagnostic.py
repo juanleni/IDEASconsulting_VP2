@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import datetime
 import re
 from pathlib import Path
 
@@ -37,6 +38,12 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
     assign_modules_to_company = deps.get('assign_modules_to_company')
     sync_user_modules_after_company_change = deps.get('sync_user_modules_after_company_change')
     generar_pdf_ejecutivo_v2 = deps['generar_pdf_ejecutivo_v2']
+    registrar_evidencia_archivo = deps['registrar_evidencia_archivo']
+    obtener_evidencia_archivos_borrador = deps['obtener_evidencia_archivos_borrador']
+    obtener_evidencia_archivos_diagnostico = deps['obtener_evidencia_archivos_diagnostico']
+    eliminar_evidencia_archivo = deps['eliminar_evidencia_archivo']
+    asignar_evidencia_archivos = deps['asignar_evidencia_archivos']
+    descartar_evidencia_borrador = deps['descartar_evidencia_borrador']
     RUBRO_OPTIONS = [
         'Autopartista',
         'Alimenticia',
@@ -68,9 +75,41 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
         ('Operaciones', ['Producción', 'Mantenimiento', 'Logística y Almacenes', 'Compras']),
         ('Comercial y Finanzas', ['Comercial', 'Finanzas', 'Riesgos y Continuidad']),
     ]
+    SCOPE_GROUP_ICONS = {
+        'Ambiental y SST': 'eco',
+        'Calidad': 'verified',
+        'Operaciones': 'precision_manufacturing',
+        'Comercial y Finanzas': 'payments',
+    }
 
     root_dir = Path(__file__).resolve().parents[1]
     company_logo_dir = root_dir / 'assets' / 'logos_empresas'
+    evidence_dir = root_dir / 'assets' / 'diagnostico_evidencia'
+    IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
+
+    def _slug(text: str) -> str:
+        return re.sub(r'[^a-z0-9]+', '_', fix_text(text).strip().lower()).strip('_')[:60] or 'x'
+
+    def _read_upload_bytes(event) -> bytes:
+        # Mismo patron defensivo que _save_uploaded_file en modules_quality.py
+        # -- distintas versiones/backends de NiceGUI exponen el contenido
+        # subido de formas distintas (.file._data, .file._path, .content).
+        upload = getattr(event, 'file', None)
+        if upload is not None:
+            data = getattr(upload, '_data', None)
+            if isinstance(data, (bytes, bytearray)):
+                return bytes(data)
+            path = getattr(upload, '_path', None)
+            if path:
+                source = Path(str(path))
+                if source.exists():
+                    return source.read_bytes()
+        content = getattr(event, 'content', None)
+        if content is None:
+            raise ValueError('El archivo cargado no contiene contenido legible.')
+        if hasattr(content, 'seek'):
+            content.seek(0)
+        return content.read() if hasattr(content, 'read') else bytes(content)
 
     def logo_url_from_path(path: str) -> str:
         clean = str(path or '').strip().replace('\\', '/')
@@ -653,174 +692,298 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
             with ui.card().classes('ideas-panel w-full mt-4'):
                 guide_html = ''.join(f'''<div class="ideas-score-item"><div class="badge">{int(item['escala'])}</div><div style="margin-top:10px;font-weight:800;color:#0f172a;">{fix_text(item['nivel'])}</div><div style="margin-top:8px;color:#475569;line-height:1.55;">{fix_text(item['resumen'])}</div></div>''' for item in criteria)
                 ui.label('Criterios de puntuación').classes('text-lg font-semibold text-slate-900'); ui.html(f'<div class="ideas-score-guide mt-3">{guide_html}</div>'); ui.label(f'Regla de evidencia: {fix_text(regla)}').classes('text-sm text-amber-700 mt-3')
-            default_company = preload['empresa_id'] if preload else (current_selection()[0] or None); company_select = ui.select(company_map, value=default_company, label='Empresa').classes('w-full mt-5').props('outlined')
-
-            # Alcance del diagnóstico: qué ejes se evalúan en este corte. Al
-            # editar/duplicar, arranca con los ejes que ya tenían respuestas
-            # (mas los EJES_SIEMPRE) para no recortar sin querer un diagnostico
-            # existente -- se puede ampliar tildando mas.
-            ejes_disponibles = list(grouped.keys())
-            ejes_con_respuesta_preload = {eje for eje, _pregunta in preload_map.keys()}
-            selected_ejes: set[str] = set(EJES_SIEMPRE) | ejes_con_respuesta_preload
-            answers_state: dict[tuple[str, str], dict] = {key: dict(value) for key, value in preload_map.items()}
-            eje_chip_state: dict[str, bool] = {eje: (eje in selected_ejes) for eje in ejes_disponibles}
-            eje_chip_buttons: dict[str, ui.button] = {}
-
-            def _style_eje_chip(eje: str) -> None:
-                cls = 'ideas-eje-chip'
-                if eje in EJES_SIEMPRE: cls += ' ideas-eje-chip--locked'
-                elif eje_chip_state.get(eje): cls += ' ideas-eje-chip--active'
-                eje_chip_buttons[eje].classes(replace=cls)
-
-            def _apply_scope(target_ejes: set[str]) -> None:
-                for eje in eje_chip_state:
-                    eje_chip_state[eje] = eje in target_ejes or eje in EJES_SIEMPRE
-                    _style_eje_chip(eje)
-                selected_ejes.clear(); selected_ejes.update(e for e, on in eje_chip_state.items() if on)
-                questions_container.refresh(); _update_progress()
-
-            def _toggle_eje_chip(eje: str) -> None:
-                if eje in EJES_SIEMPRE: return
-                _apply_scope(set(e for e, on in eje_chip_state.items() if on) ^ {eje})
-
-            def _apply_preset(preset_ejes: list[str]) -> None:
-                _apply_scope(set(EJES_SIEMPRE) | set(preset_ejes))
-
+            default_company = preload['empresa_id'] if preload else (current_selection()[0] or None)
             with ui.card().classes('ideas-panel w-full mt-5'):
-                ui.label('Alcance del diagnóstico').classes('text-lg font-semibold text-slate-900')
-                ui.label('Elegí qué ejes evaluar según el servicio a cotizar. Los marcados como "siempre" quedan incluidos en cualquier alcance.').classes('text-sm text-slate-500 mt-1')
-                with ui.row().classes('w-full gap-2 flex-wrap mt-3'):
-                    for preset_label, preset_ejes in EJE_PRESETS:
-                        ui.button(preset_label, on_click=lambda p=preset_ejes: _apply_preset(p)).props('outline no-caps dense').classes('ideas-preset-btn')
-                    ui.button('Diagnóstico completo', icon='select_all', on_click=lambda: _apply_preset(ejes_disponibles)).props('outline no-caps dense').classes('ideas-preset-btn')
-                with ui.row().classes('w-full gap-2 flex-wrap mt-4'):
-                    for eje in ejes_disponibles:
-                        es_siempre = eje in EJES_SIEMPRE
-                        btn = ui.button(
-                            fix_text(eje), icon=('lock' if es_siempre else None),
-                            on_click=(None if es_siempre else (lambda e=eje: _toggle_eje_chip(e))),
-                        ).props('outline no-caps dense')
-                        if es_siempre: btn.tooltip('Este eje se incluye siempre')
-                        eje_chip_buttons[eje] = btn; _style_eje_chip(eje)
+                company_select = ui.select(company_map, value=default_company, label='Empresa').classes('w-full').props('outlined')
+                if not preload:
+                    ui.label('Elegí la empresa para habilitar el alcance y las preguntas (necesaria también para poder adjuntar evidencia).').classes('text-sm text-slate-500 mt-2')
 
-            # 2026-08-24: barra de progreso -- a proposito NO cuenta "preguntas
-            # respondidas" (todas arrancan en 3 por default, asi que eso no
-            # refleja avance real), sino preguntas con evidencia cargada, que
-            # es la señal honesta de que se reviso algo en vez de dejar el
-            # default. Se actualiza en vivo con cada cambio de evidencia/alcance.
-            with ui.card().classes('ideas-diag-progress w-full mt-5'):
-                ui.label('AVANCE DEL RELEVAMIENTO').classes('eyebrow')
-                progress_headline = ui.label('').classes('headline')
-                with ui.element('div').classes('bar-track'):
-                    progress_bar_fill = ui.element('div').classes('bar-fill').style('width:0%;')
+            ejes_disponibles = list(grouped.keys())
+            staged_file_ids: list[int] = []  # archivos subidos en esta sesion, todavia no "reclamados" por un diagnostico_id
 
-            def _update_progress() -> None:
-                total = sum(len(grouped.get(eje, [])) for eje in selected_ejes)
-                con_evidencia = sum(
-                    1 for eje in selected_ejes for pregunta in grouped.get(eje, [])
-                    if str(answers_state.get((eje, pregunta), {}).get('evidencia', '')).strip()
-                )
-                pct = round((con_evidencia / total) * 100) if total else 0
-                progress_headline.text = f'{con_evidencia} de {total} preguntas con evidencia cargada · {len(selected_ejes)} eje(s) en alcance'
-                progress_bar_fill.style(f'width:{pct}%;')
+            def _discard_staged_evidence() -> None:
+                # Tambien se llama al (re)entrar a rest_of_form() por un cambio
+                # de empresa -- si no se limpiara aca, un archivo subido para
+                # la Empresa A quedaria en staged_file_ids y se reclamaria mal
+                # (asignado a un diagnostico de la Empresa B) si el usuario
+                # cambia de empresa sin guardar.
+                if staged_file_ids:
+                    descartar_evidencia_borrador(list(staged_file_ids))
+                    staged_file_ids.clear()
 
-            def _remember_answer(key: tuple[str, str], **fields) -> None:
-                answers_state.setdefault(key, {}).update(fields)
-
-            def _avg_style(avg: float) -> str:
-                if avg < 2: return 'background:rgba(239,68,68,.12);color:#b91c1c;'
-                if avg < 3: return 'background:rgba(255,138,33,.14);color:#c2620a;'
-                if avg < 3.5: return 'background:rgba(46,140,255,.12);color:#1d5fa8;'
-                return 'background:rgba(15,143,97,.12);color:#0f8f61;'
-
-            eje_avg_labels: dict[str, ui.label] = {}
-
-            def _update_eje_avg(eje: str) -> None:
-                if eje not in eje_avg_labels: return
-                preguntas = grouped.get(eje, [])
-                valores = [int(answers_state.get((eje, p), {}).get('respuesta', 3)) for p in preguntas]
-                avg = round(sum(valores) / len(valores), 2) if valores else 0.0
-                eje_avg_labels[eje].text = f'Promedio {avg:.2f}'; eje_avg_labels[eje].style(_avg_style(avg))
-
-            def _make_score_pills(key: tuple[str, str], initial: int) -> None:
-                pills: dict[int, ui.button] = {}
-
-                def _apply_pill_style(value: int, selected: int) -> None:
-                    cls = f'ideas-score-pill ideas-score-pill--{value}' + (' ideas-score-pill--active' if value == selected else '')
-                    pills[value].classes(replace=cls)
-
-                def _select(value: int) -> None:
-                    _remember_answer(key, respuesta=value)
-                    for v in pills: _apply_pill_style(v, value)
-                    _update_eje_avg(key[0])
-
-                with ui.row().classes('ideas-score-pill-row w-full mt-3'):
-                    for value in (1, 2, 3, 4):
-                        pill = ui.button(on_click=lambda _e=None, v=value: _select(v)).props('outline no-caps')
-                        with pill:
-                            ui.label(str(value)).classes('pill-num')
-                            ui.label(nivel_labels.get(value, '')).classes('pill-label')
-                        pill.tooltip(fix_text(criteria_by_scale.get(value, {}).get('resumen', '')))
-                        pills[value] = pill
-                for v in pills: _apply_pill_style(v, initial)
-
-            rendered_keys: list[tuple[str, str]] = []
-
-            # 2026-08-24: renderizado en una funcion refreshable, controlada por
-            # `selected_ejes`, para que tildar/destildar un eje (o aplicar un
-            # preset) solo redibuje esto -- no toda la pagina. Los valores ya
-            # cargados se preservan via `answers_state` (poblado en cada cambio),
-            # asi que sacar y volver a tildar un eje en la misma sesion no pierde
-            # lo tipeado.
+            # 2026-08-25: todo lo que depende de la empresa elegida (alcance,
+            # progreso, preguntas -- la evidencia se guarda en disco bajo
+            # assets/diagnostico_evidencia/empresa_{id}/..., asi que hace
+            # falta saber la empresa antes de poder subir nada) vive adentro
+            # de este refreshable, gateado por company_select.value. Pedido
+            # de Juan aparte: la vieja nube de chips para elegir ejes ("es un
+            # espanto") pasa a un panel agrupado por linea de servicio, con
+            # switches en vez de pills sueltas.
             @ui.refreshable
-            def questions_container() -> None:
-                rendered_keys.clear(); eje_avg_labels.clear()
-                for eje, questions in grouped.items():
-                    if eje not in selected_ejes:
-                        continue
-                    with ui.expansion(value=True).classes('w-full ideas-card ideas-eje-card mt-4') as expansion:
-                        with expansion.add_slot('header'):
-                            with ui.row().classes('w-full items-center justify-between pr-2'):
-                                with ui.row().classes('items-center gap-2'):
-                                    ui.icon('schema').classes('text-slate-500')
-                                    ui.label(fix_text(eje)).classes('text-base font-semibold text-slate-900')
-                                    ui.label(f'{len(questions)} preguntas').classes('text-xs text-slate-400')
-                                eje_avg_labels[eje] = ui.label('').classes('ideas-eje-avg')
-                        for idx, question in enumerate(questions, start=1):
-                            key = (eje, question); existing = answers_state.get(key, preload_map.get(key, {}))
-                            answers_state.setdefault(key, {
-                                'respuesta': int(existing.get('respuesta', 3)),
-                                'evidencia': existing.get('evidencia', ''),
-                                'observacion': existing.get('observacion', ''),
-                            })
-                            rendered_keys.append(key)
-                            with ui.card().classes('ideas-question-card w-full mt-3'):
-                                with ui.row().classes('w-full items-start no-wrap'):
-                                    ui.label(f'{idx:02d}').classes('ideas-question-num')
-                                    ui.label(question).classes('text-base font-semibold text-slate-900')
-                                _make_score_pills(key, int(existing.get('respuesta', 3)))
-                                evidencia_inicial = '\n'.join(split_evidence_values(existing.get('evidencia', ''))).strip()
-                                with ui.row().classes('w-full gap-3 mt-3'):
-                                    evidencia_field = ui.textarea('Evidencia (una por línea o separadas por coma)', value=evidencia_inicial).classes('col w-full').props('outlined autogrow')
-                                    observacion_field = ui.textarea('Observación').classes('col w-full').props('outlined autogrow')
-                                observacion_field.value = existing.get('observacion', '')
-                                evidencia_field.on_value_change(lambda e, k=key: (_remember_answer(k, evidencia=e.value or ''), _update_progress()))
-                                observacion_field.on_value_change(lambda e, k=key: _remember_answer(k, observacion=e.value or ''))
-                        _update_eje_avg(eje)
-            questions_container()
-            _update_progress()
+            def rest_of_form() -> None:
+                _discard_staged_evidence()  # empresa (re)elegida: descarta evidencia sin guardar de la seleccion anterior
+                empresa_id = int(company_select.value) if company_select.value else None
+                if not empresa_id:
+                    with ui.card().classes('ideas-panel w-full mt-5 items-center text-center').style('padding:48px 24px;'):
+                        ui.icon('business', size='2.2rem').classes('text-slate-300')
+                        ui.label('Seleccioná una empresa arriba para continuar.').classes('text-slate-500 mt-2')
+                    return
 
-            def save_diagnosis() -> None:
-                if not company_select.value: ui.notify('Seleccioná una empresa antes de guardar.', type='warning'); return
-                rows = [{'eje': eje, 'pregunta': pregunta, 'respuesta': int(answers_state.get((eje, pregunta), {}).get('respuesta', 3)), 'evidencia': fix_text(answers_state.get((eje, pregunta), {}).get('evidencia', '')).strip(), 'observacion': answers_state.get((eje, pregunta), {}).get('observacion', '') or ''} for eje, pregunta in rendered_keys]
-                score = round(sum(item['respuesta'] for item in rows) / len(rows), 2) if rows else 0; nivel = obtener_nivel(score); conclusion = fix_text(obtener_conclusion(score)); empresa_id = int(company_select.value)
-                if edit_id:
-                    diag_id, _fecha, unchanged = actualizar_diagnostico(int(edit_id), empresa_id, score, nivel, conclusion, rows); ui.notify('No se detectaron cambios; el diagnóstico ya estaba actualizado.' if unchanged else 'Diagnóstico actualizado correctamente.', type='positive')
-                else:
-                    diag_id, _fecha, duplicated = guardar_diagnostico(empresa_id, score, nivel, conclusion, rows); ui.notify('Ese diagnóstico ya estaba guardado; se reutilizó el corte existente.' if duplicated else 'Diagnóstico guardado correctamente.', type='positive')
-                app.storage.user['edit_diag_id'] = None; app.storage.user['duplicate_diag_id'] = None; set_selection(empresa_id, diag_id); ui.navigate.to('/resultados')
-            with ui.row().classes('w-full justify-end gap-3 mt-6'):
-                ui.button('Cancelar', icon='close', on_click=lambda: ui.navigate.to('/historial')).props('outline'); ui.button('Guardar diagnóstico', icon='save', on_click=save_diagnosis).props('unelevated color=primary')
+                # Al editar/duplicar, arranca con los ejes que ya tenian
+                # respuestas (mas los EJES_SIEMPRE) para no recortar sin
+                # querer un diagnostico existente -- se puede ampliar
+                # tildando mas.
+                ejes_con_respuesta_preload = {eje for eje, _pregunta in preload_map.keys()}
+                selected_ejes: set[str] = set(EJES_SIEMPRE) | ejes_con_respuesta_preload
+                answers_state: dict[tuple[str, str], dict] = {key: dict(value) for key, value in preload_map.items()}
+                archivos_del_diagnostico = obtener_evidencia_archivos_diagnostico(int(edit_id)) if edit_id else {}
+                eje_switches: dict[str, ui.switch] = {}
+
+                def _sync_selected_from_switches() -> None:
+                    selected_ejes.clear(); selected_ejes.update(EJES_SIEMPRE)
+                    selected_ejes.update(eje for eje, sw in eje_switches.items() if sw.value)
+
+                def _on_eje_switch(_eje: str, _value: bool) -> None:
+                    _sync_selected_from_switches(); questions_container.refresh(); _update_progress()
+
+                def _apply_preset(preset_ejes: list[str]) -> None:
+                    target = set(EJES_SIEMPRE) | set(preset_ejes)
+                    for eje, sw in eje_switches.items(): sw.value = eje in target
+                    _sync_selected_from_switches(); questions_container.refresh(); _update_progress()
+
+                with ui.card().classes('ideas-panel w-full mt-5'):
+                    ui.label('Alcance del diagnóstico').classes('text-lg font-semibold text-slate-900')
+                    ui.label('Elegí qué procesos evaluar según el servicio a cotizar.').classes('text-sm text-slate-500 mt-1')
+                    with ui.row().classes('w-full items-center gap-2 mt-4'):
+                        ui.icon('verified_user').classes('text-emerald-600')
+                        ui.label('Núcleo de gestión · siempre incluido').classes('text-sm font-semibold text-slate-700')
+                    ui.html(''.join(f'<span class="ideas-nucleo-pill">{fix_text(eje)}</span>' for eje in EJES_SIEMPRE)).classes('flex flex-wrap gap-2 mt-2')
+                    ui.separator().classes('my-4')
+                    with ui.row().classes('w-full items-center justify-between'):
+                        ui.label('Procesos por línea de servicio').classes('text-sm font-semibold text-slate-700')
+                        ui.button('Diagnóstico completo', icon='select_all', on_click=lambda: _apply_preset(ejes_disponibles)).props('outline no-caps dense').classes('ideas-preset-btn')
+                    with ui.row().classes('ideas-scope-grid w-full mt-3'):
+                        for preset_label, preset_ejes in EJE_PRESETS:
+                            with ui.card().classes('ideas-scope-group'):
+                                with ui.row().classes('items-center gap-2'):
+                                    ui.icon(SCOPE_GROUP_ICONS.get(preset_label, 'category')).classes('text-teal-600')
+                                    ui.label(preset_label).classes('font-semibold text-slate-800 text-sm')
+                                for eje in preset_ejes:
+                                    with ui.row().classes('w-full items-center justify-between ideas-scope-row'):
+                                        ui.label(fix_text(eje)).classes('text-sm text-slate-700')
+                                        sw = ui.switch(value=eje in selected_ejes).props('dense color=teal')
+                                        sw.on_value_change(lambda e, ej=eje: _on_eje_switch(ej, e.value))
+                                        eje_switches[eje] = sw
+
+                # 2026-08-24: barra de progreso -- a proposito NO cuenta
+                # "preguntas respondidas" (todas arrancan en 3 por default,
+                # asi que eso no refleja avance real), sino preguntas con
+                # evidencia cargada (texto o archivo adjunto).
+                with ui.card().classes('ideas-diag-progress w-full mt-5'):
+                    ui.label('AVANCE DEL RELEVAMIENTO').classes('eyebrow')
+                    progress_headline = ui.label('').classes('headline')
+                    with ui.element('div').classes('bar-track'):
+                        progress_bar_fill = ui.element('div').classes('bar-fill').style('width:0%;')
+
+                def _has_evidence(key: tuple[str, str]) -> bool:
+                    entry = answers_state.get(key, {})
+                    return bool(str(entry.get('evidencia', '')).strip()) or bool(entry.get('archivo_ids'))
+
+                def _update_progress() -> None:
+                    total = sum(len(grouped.get(eje, [])) for eje in selected_ejes)
+                    con_evidencia = sum(1 for eje in selected_ejes for pregunta in grouped.get(eje, []) if _has_evidence((eje, pregunta)))
+                    pct = round((con_evidencia / total) * 100) if total else 0
+                    progress_headline.text = f'{con_evidencia} de {total} preguntas con evidencia cargada · {len(selected_ejes)} eje(s) en alcance'
+                    progress_bar_fill.style(f'width:{pct}%;')
+
+                def _remember_answer(key: tuple[str, str], **fields) -> None:
+                    answers_state.setdefault(key, {}).update(fields)
+
+                def _avg_style(avg: float) -> str:
+                    if avg < 2: return 'background:rgba(239,68,68,.12);color:#b91c1c;'
+                    if avg < 3: return 'background:rgba(255,138,33,.14);color:#c2620a;'
+                    if avg < 3.5: return 'background:rgba(46,140,255,.12);color:#1d5fa8;'
+                    return 'background:rgba(15,143,97,.12);color:#0f8f61;'
+
+                eje_avg_labels: dict[str, ui.label] = {}
+
+                def _update_eje_avg(eje: str) -> None:
+                    if eje not in eje_avg_labels: return
+                    preguntas = grouped.get(eje, [])
+                    valores = [int(answers_state.get((eje, p), {}).get('respuesta', 3)) for p in preguntas]
+                    avg = round(sum(valores) / len(valores), 2) if valores else 0.0
+                    eje_avg_labels[eje].text = f'Promedio {avg:.2f}'; eje_avg_labels[eje].style(_avg_style(avg))
+
+                def _make_score_pills(key: tuple[str, str], initial: int) -> None:
+                    pills: dict[int, ui.button] = {}
+
+                    def _apply_pill_style(value: int, selected: int) -> None:
+                        cls = f'ideas-score-pill ideas-score-pill--{value}' + (' ideas-score-pill--active' if value == selected else '')
+                        pills[value].classes(replace=cls)
+
+                    def _select(value: int) -> None:
+                        _remember_answer(key, respuesta=value)
+                        for v in pills: _apply_pill_style(v, value)
+                        _update_eje_avg(key[0])
+
+                    with ui.row().classes('ideas-score-pill-row w-full mt-3'):
+                        for value in (1, 2, 3, 4):
+                            pill = ui.button(on_click=lambda _e=None, v=value: _select(v)).props('outline no-caps')
+                            with pill:
+                                ui.label(str(value)).classes('pill-num')
+                                ui.label(nivel_labels.get(value, '')).classes('pill-label')
+                            pill.tooltip(fix_text(criteria_by_scale.get(value, {}).get('resumen', '')))
+                            pills[value] = pill
+                    for v in pills: _apply_pill_style(v, initial)
+
+                # 2026-08-25: evidencia adjunta (fotos/archivos) por pregunta,
+                # ademas del campo de texto libre. Se sube de a una pregunta
+                # por vez, asi que se persiste apenas se sube (diagnostico_id
+                # NULL = "borrador") en vez de esperar a Guardar -- si el
+                # diagnostico todavia no existe no hay id para asociarla. Al
+                # guardar, se "reclaman" con asignar_evidencia_archivos(); si
+                # se cancela, se descartan con descartar_evidencia_borrador().
+                def _make_evidence_uploader(key: tuple[str, str]) -> None:
+                    eje, pregunta = key
+                    if edit_id:
+                        existentes = archivos_del_diagnostico.get(key, [])
+                    else:
+                        existentes = obtener_evidencia_archivos_borrador(empresa_id, eje, pregunta)
+                    answers_state.setdefault(key, {})['archivo_ids'] = [item['id'] for item in existentes]
+                    files_by_id = {item['id']: item for item in existentes}
+                    preview = ui.row().classes('w-full gap-2 flex-wrap mt-2')
+
+                    def _refresh_preview() -> None:
+                        preview.clear()
+                        ids = answers_state.get(key, {}).get('archivo_ids', [])
+                        with preview:
+                            for archivo_id in ids:
+                                info = files_by_id.get(archivo_id)
+                                if not info: continue
+                                with ui.card().classes('ideas-evidence-chip'):
+                                    is_image = Path(info['archivo_nombre']).suffix.lower() in IMAGE_SUFFIXES
+                                    if is_image:
+                                        ui.image(logo_url_from_path(info['archivo_path'])).classes('ideas-evidence-thumb')
+                                    else:
+                                        with ui.element('div').classes('ideas-evidence-icon'):
+                                            ui.icon('description', size='1.6rem').classes('text-slate-400')
+                                    ui.label(fix_text(info['archivo_nombre'])).classes('text-[10px] text-slate-500 truncate w-full')
+                                    ui.button(icon='close', on_click=lambda aid=archivo_id: _remove_file(aid)).props('flat round dense size=sm color=negative')
+
+                    def _remove_file(archivo_id: int) -> None:
+                        path = eliminar_evidencia_archivo(archivo_id)
+                        if path:
+                            try: (root_dir / path).unlink(missing_ok=True)
+                            except Exception: pass
+                        ids = answers_state.get(key, {}).get('archivo_ids', [])
+                        if archivo_id in ids: ids.remove(archivo_id)
+                        if archivo_id in staged_file_ids: staged_file_ids.remove(archivo_id)
+                        files_by_id.pop(archivo_id, None)
+                        _refresh_preview(); _update_progress()
+
+                    def _on_upload(event) -> None:
+                        try:
+                            target_dir = evidence_dir / f'empresa_{empresa_id}' / _slug(eje) / _slug(pregunta)
+                            target_dir.mkdir(parents=True, exist_ok=True)
+                            uploaded = getattr(event, 'file', None)
+                            raw_name = str(getattr(uploaded, 'name', None) or getattr(event, 'name', None) or 'evidencia.bin')
+                            safe_name = re.sub(r'[^A-Za-z0-9_.-]+', '_', raw_name).strip('_') or 'evidencia.bin'
+                            stamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
+                            target_path = target_dir / f'{stamp}_{safe_name}'
+                            data = _read_upload_bytes(event)
+                            if not data: raise ValueError('El archivo llegó vacío.')
+                            target_path.write_bytes(data)
+                            rel_path = target_path.relative_to(root_dir).as_posix()
+                            new_id = registrar_evidencia_archivo(
+                                empresa_id, eje, pregunta, rel_path, raw_name, round(len(data) / 1024, 1),
+                                subido_por=str(app.storage.user.get('session_user_name') or ''),
+                                diagnostico_id=(int(edit_id) if edit_id else None),
+                            )
+                            files_by_id[new_id] = {'id': new_id, 'archivo_path': rel_path, 'archivo_nombre': raw_name}
+                            answers_state.setdefault(key, {}).setdefault('archivo_ids', []).append(new_id)
+                            if not edit_id: staged_file_ids.append(new_id)
+                            _refresh_preview(); _update_progress()
+                            ui.notify(f'Archivo cargado: {raw_name}', type='positive')
+                        except Exception as exc:
+                            ui.notify(f'No se pudo guardar el archivo: {exc}', type='negative')
+                        # 2026-08-25: probé uploader.reset() aca para no duplicar la
+                        # lista propia del widget con nuestro preview de abajo, pero
+                        # dispara un 404 interno de NiceGUI (parece pisar el ciclo de
+                        # vida del propio upload) que a veces se comía la actualizacion
+                        # de progreso subsiguiente. Prioridad a que los datos queden
+                        # bien guardados por sobre la prolijidad visual del duplicado.
+
+                    ui.upload(on_upload=_on_upload, multiple=True, auto_upload=True, label='Foto o archivo de evidencia').props(
+                        'accept=".png,.jpg,.jpeg,.webp,.pdf,.doc,.docx,.xls,.xlsx" flat'
+                    ).classes('w-full mt-2')
+                    _refresh_preview()
+
+                rendered_keys: list[tuple[str, str]] = []
+
+                # Renderizado en una funcion refreshable, controlada por
+                # `selected_ejes`, para que tildar/destildar un eje (o
+                # aplicar un preset) solo redibuje esto -- no toda la
+                # pagina. Los valores ya cargados se preservan via
+                # `answers_state`, asi que sacar y volver a tildar un eje en
+                # la misma sesion no pierde lo tipeado ni lo adjuntado.
+                @ui.refreshable
+                def questions_container() -> None:
+                    rendered_keys.clear(); eje_avg_labels.clear()
+                    for eje, questions in grouped.items():
+                        if eje not in selected_ejes:
+                            continue
+                        with ui.expansion(value=True).classes('w-full ideas-card ideas-eje-card mt-4') as expansion:
+                            with expansion.add_slot('header'):
+                                with ui.row().classes('w-full items-center justify-between pr-2'):
+                                    with ui.row().classes('items-center gap-2'):
+                                        ui.icon('schema').classes('text-slate-500')
+                                        ui.label(fix_text(eje)).classes('text-base font-semibold text-slate-900')
+                                        ui.label(f'{len(questions)} preguntas').classes('text-xs text-slate-400')
+                                    eje_avg_labels[eje] = ui.label('').classes('ideas-eje-avg')
+                            for idx, question in enumerate(questions, start=1):
+                                key = (eje, question); existing = answers_state.get(key, preload_map.get(key, {}))
+                                answers_state.setdefault(key, {
+                                    'respuesta': int(existing.get('respuesta', 3)),
+                                    'evidencia': existing.get('evidencia', ''),
+                                    'observacion': existing.get('observacion', ''),
+                                })
+                                rendered_keys.append(key)
+                                with ui.card().classes('ideas-question-card w-full mt-3'):
+                                    with ui.row().classes('w-full items-start no-wrap'):
+                                        ui.label(f'{idx:02d}').classes('ideas-question-num')
+                                        ui.label(question).classes('text-base font-semibold text-slate-900')
+                                    _make_score_pills(key, int(existing.get('respuesta', 3)))
+                                    evidencia_inicial = '\n'.join(split_evidence_values(existing.get('evidencia', ''))).strip()
+                                    with ui.row().classes('w-full gap-3 mt-3'):
+                                        evidencia_field = ui.textarea('Notas de evidencia (una por línea o separadas por coma)', value=evidencia_inicial).classes('col w-full').props('outlined autogrow')
+                                        observacion_field = ui.textarea('Observación').classes('col w-full').props('outlined autogrow')
+                                    observacion_field.value = existing.get('observacion', '')
+                                    evidencia_field.on_value_change(lambda e, k=key: (_remember_answer(k, evidencia=e.value or ''), _update_progress()))
+                                    observacion_field.on_value_change(lambda e, k=key: _remember_answer(k, observacion=e.value or ''))
+                                    _make_evidence_uploader(key)
+                            _update_eje_avg(eje)
+                questions_container()
+                _update_progress()
+
+                def save_diagnosis() -> None:
+                    rows = [{'eje': eje, 'pregunta': pregunta, 'respuesta': int(answers_state.get((eje, pregunta), {}).get('respuesta', 3)), 'evidencia': fix_text(answers_state.get((eje, pregunta), {}).get('evidencia', '')).strip(), 'observacion': answers_state.get((eje, pregunta), {}).get('observacion', '') or ''} for eje, pregunta in rendered_keys]
+                    score = round(sum(item['respuesta'] for item in rows) / len(rows), 2) if rows else 0; nivel = obtener_nivel(score); conclusion = fix_text(obtener_conclusion(score))
+                    if edit_id:
+                        diag_id, _fecha, unchanged = actualizar_diagnostico(int(edit_id), empresa_id, score, nivel, conclusion, rows); ui.notify('No se detectaron cambios; el diagnóstico ya estaba actualizado.' if unchanged else 'Diagnóstico actualizado correctamente.', type='positive')
+                    else:
+                        diag_id, _fecha, duplicated = guardar_diagnostico(empresa_id, score, nivel, conclusion, rows); ui.notify('Ese diagnóstico ya estaba guardado; se reutilizó el corte existente.' if duplicated else 'Diagnóstico guardado correctamente.', type='positive')
+                        if staged_file_ids: asignar_evidencia_archivos(staged_file_ids, diag_id)
+                    app.storage.user['edit_diag_id'] = None; app.storage.user['duplicate_diag_id'] = None; set_selection(empresa_id, diag_id); ui.navigate.to('/resultados')
+
+                def cancel_diagnosis() -> None:
+                    _discard_staged_evidence(); ui.navigate.to('/historial')
+
+                with ui.row().classes('w-full justify-end gap-3 mt-6'):
+                    ui.button('Cancelar', icon='close', on_click=cancel_diagnosis).props('outline')
+                    ui.button('Guardar diagnóstico', icon='save', on_click=save_diagnosis).props('unelevated color=primary')
+
+            company_select.on_value_change(lambda _e: rest_of_form.refresh())
+            rest_of_form()
 
     @ui.page('/resultados')
     def results_page() -> None:

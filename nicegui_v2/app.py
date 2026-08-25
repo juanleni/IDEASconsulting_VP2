@@ -63,6 +63,13 @@ from core_data import (  # noqa: E402
     eliminar_aspecto_ambiental,
     eliminar_empresa,
     eliminar_diagnostico,
+    registrar_evidencia_archivo,
+    obtener_evidencia_archivos_borrador,
+    obtener_evidencia_archivos_diagnostico,
+    eliminar_evidencia_archivo,
+    obtener_evidencia_archivo_owner,
+    asignar_evidencia_archivos,
+    descartar_evidencia_borrador,
     eliminar_kpi,
     eliminar_item_riesgo,
     eliminar_matriz_riesgos,
@@ -555,14 +562,28 @@ def inject_global_styles() -> None:
         .ideas-diag-progress .bar-track { width:100%; height:9px; border-radius:999px; background:rgba(255,255,255,.16); overflow:hidden; margin-top:12px; }
         .ideas-diag-progress .bar-fill { height:100%; border-radius:999px; background:linear-gradient(90deg, #00d6a6, #7ed625); transition:width .35s ease; }
 
-        .ideas-eje-chip { border-radius:999px !important; border:1.5px solid rgba(148,163,184,.35) !important; background:rgba(255,255,255,.7) !important; color:#334155 !important; font-weight:500 !important; }
-        .ideas-eje-chip--active { border-color:#0d9488 !important; background:rgba(13,148,136,.10) !important; color:#0d9488 !important; font-weight:700 !important; }
-        .ideas-eje-chip--locked { border-color:rgba(15,143,97,.45) !important; background:rgba(15,143,97,.08) !important; color:#0f8f61 !important; font-weight:700 !important; }
         .ideas-preset-btn { border-radius:14px !important; font-weight:600 !important; }
+
+        /* 2026-08-25: "Alcance del diagnostico" pasa de una nube de chips a
+           un panel de gestion agrupado por linea de servicio -- pedido
+           directo de Juan ("es un espanto"). Un card por grupo (Ambiental y
+           SST / Calidad / Operaciones / Comercial y Finanzas), cada uno con
+           sus ejes en filas con switch, mas un bloque aparte de solo-lectura
+           para el nucleo siempre incluido. */
+        .ideas-nucleo-pill { display:inline-flex; align-items:center; padding:.42rem .9rem; border-radius:999px; background:rgba(15,143,97,.10); color:#0f8f61; font-weight:700; font-size:.8rem; border:1px solid rgba(15,143,97,.24); }
+        .ideas-scope-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:14px; }
+        .ideas-scope-group { border-radius:20px; background:rgba(255,255,255,.85); border:1px solid rgba(148,163,184,.18); padding:16px; }
+        .ideas-scope-row { padding:.5rem 0; border-bottom:1px solid rgba(148,163,184,.14); }
+        .ideas-scope-row:last-child { border-bottom:none; }
 
         .ideas-eje-card { border-radius:22px !important; overflow:hidden; }
         .ideas-eje-card .q-item { padding:16px 18px !important; }
         .ideas-eje-avg { padding:.3rem .75rem; border-radius:999px; font-size:.74rem; font-weight:800; white-space:nowrap; }
+
+        /* Evidencia adjunta (archivos/fotos) por pregunta -- pedido de Juan. */
+        .ideas-evidence-chip { width:120px; border-radius:14px !important; padding:8px !important; background:rgba(255,255,255,.9); border:1px solid rgba(148,163,184,.20); box-shadow:none !important; }
+        .ideas-evidence-thumb { width:100%; height:72px; object-fit:cover; border-radius:10px; }
+        .ideas-evidence-icon { width:100%; height:72px; display:flex; align-items:center; justify-content:center; background:rgba(148,163,184,.10); border-radius:10px; }
 
         .ideas-score-pill-row { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
         .ideas-score-pill { border-radius:16px !important; padding:10px 4px !important; min-height:56px; border:1.5px solid rgba(148,163,184,.30) !important; background:rgba(255,255,255,.75) !important; color:#334155 !important; transition:all .15s ease; }
@@ -1428,6 +1449,19 @@ def guarded_actualizar_diagnostico(diagnostico_id, empresa_id, score, nivel, con
     if not _can_write_company(int(empresa_id) if empresa_id else None):
         raise PermissionError('No autorizado para actualizar diagnosticos en esta empresa.')
     return actualizar_diagnostico(diagnostico_id, empresa_id, score, nivel, conclusion, respuestas_guardar)
+
+
+def guarded_registrar_evidencia_archivo(empresa_id, eje, pregunta, archivo_path, archivo_nombre, size_kb=0, subido_por='', diagnostico_id=None):
+    if not _can_write_company(int(empresa_id) if empresa_id else None):
+        raise PermissionError('No autorizado para adjuntar evidencia en esta empresa.')
+    return registrar_evidencia_archivo(empresa_id, eje, pregunta, archivo_path, archivo_nombre, size_kb, subido_por, diagnostico_id)
+
+
+def guarded_eliminar_evidencia_archivo(archivo_id):
+    owner_empresa = obtener_evidencia_archivo_owner(archivo_id)
+    if owner_empresa is not None and not _can_write_company(owner_empresa):
+        raise PermissionError('No autorizado para eliminar esta evidencia.')
+    return eliminar_evidencia_archivo(archivo_id)
 
 
 def guarded_eliminar_diagnostico(diagnostico_id):
@@ -3519,7 +3553,7 @@ if not INSTITUTIONAL_ONLY:
         'get_data_sources_for_company': get_data_sources_for_company,
     })
     register_platform_pages(ui, app, {'public_shell': public_shell, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'get_banner_url': get_banner_url, 'get_logo_url': get_logo_url, 'quick_card': quick_card, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'diagnosis_rows': diagnosis_rows, 'obtener_alertas_globales': obtener_alertas_globales, 'verificar_usuario': verificar_usuario, 'verificar_login_empresa': verificar_login_empresa, 'guardar_token_empresa': guardar_token_empresa, 'verificar_token_empresa': verificar_token_empresa, 'actualizar_password_empresa': actualizar_password_empresa, 'provisionar_acceso_empresa': provisionar_acceso_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'set_selection': set_selection, 'PLATFORM_USER': PLATFORM_USER, 'PLATFORM_PASSWORD': PLATFORM_PASSWORD, 'ideus_wordmark_html': ideus_wordmark_html})
-    register_diagnostic_pages(ui, app, {'pd': pd, 'go': go, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'guardar_empresa': guarded_guardar_empresa, 'actualizar_empresa': guarded_actualizar_empresa, 'eliminar_empresa': guarded_eliminar_empresa, 'guardar_fuente_empresa': guarded_guardar_fuente_empresa, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'eliminar_fuente': guarded_eliminar_fuente, 'guardar_token_empresa': guardar_token_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'go_to_management_workspace': go_to_management_workspace, 'set_selection': set_selection, 'leer_diagnostico_excel': leer_diagnostico_excel, 'grouped_questions': grouped_questions, 'load_criteria': load_criteria, 'company_options': company_options, 'current_selection': current_selection, 'diagnosis_record': diagnosis_record, 'diagnosis_response_dicts': diagnosis_response_dicts, 'split_evidence_values': split_evidence_values, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'actualizar_diagnostico': guarded_actualizar_diagnostico, 'guardar_diagnostico': guarded_guardar_diagnostico, 'obtener_nivel': obtener_nivel, 'obtener_conclusion': obtener_conclusion, 'diagnosis_rows': diagnosis_rows, 'diagnosis_badge_style': diagnosis_badge_style, 'diagnosis_options': diagnosis_options, 'build_eje_scores': build_eje_scores, 'build_plan': build_plan, 'short_axis_label': short_axis_label, 'obtener_mensaje_direccion': obtener_mensaje_direccion, 'quick_card': quick_card, 'obtener_prioridad_recomendada': obtener_prioridad_recomendada, 'start_edit': start_edit, 'render_metrics': render_metrics, 'eliminar_diagnostico': guarded_eliminar_diagnostico, 'generar_pdf_ejecutivo_v2': generar_pdf_ejecutivo_v2, 'get_available_modules_for_company': get_available_modules_for_company, 'assign_modules_to_company': assign_modules_to_company, 'sync_user_modules_after_company_change': sync_user_modules_after_company_change})
+    register_diagnostic_pages(ui, app, {'pd': pd, 'go': go, 'shell': shell, 'ensure_platform_access': ensure_platform_access, 'obtener_empresas': obtener_empresas, 'obtener_empresa_detalle': obtener_empresa_detalle, 'guardar_empresa': guarded_guardar_empresa, 'actualizar_empresa': guarded_actualizar_empresa, 'eliminar_empresa': guarded_eliminar_empresa, 'guardar_fuente_empresa': guarded_guardar_fuente_empresa, 'obtener_fuentes_empresa': obtener_fuentes_empresa, 'eliminar_fuente': guarded_eliminar_fuente, 'guardar_token_empresa': guardar_token_empresa, 'generar_token_seguro': generar_token_seguro, 'enviar_correo_acceso': enviar_correo_acceso, 'go_to_management_workspace': go_to_management_workspace, 'set_selection': set_selection, 'leer_diagnostico_excel': leer_diagnostico_excel, 'grouped_questions': grouped_questions, 'load_criteria': load_criteria, 'company_options': company_options, 'current_selection': current_selection, 'diagnosis_record': diagnosis_record, 'diagnosis_response_dicts': diagnosis_response_dicts, 'split_evidence_values': split_evidence_values, 'fix_text': fix_text, 'certifications_summary': certifications_summary, 'actualizar_diagnostico': guarded_actualizar_diagnostico, 'guardar_diagnostico': guarded_guardar_diagnostico, 'obtener_nivel': obtener_nivel, 'obtener_conclusion': obtener_conclusion, 'diagnosis_rows': diagnosis_rows, 'diagnosis_badge_style': diagnosis_badge_style, 'diagnosis_options': diagnosis_options, 'build_eje_scores': build_eje_scores, 'build_plan': build_plan, 'short_axis_label': short_axis_label, 'obtener_mensaje_direccion': obtener_mensaje_direccion, 'quick_card': quick_card, 'obtener_prioridad_recomendada': obtener_prioridad_recomendada, 'start_edit': start_edit, 'render_metrics': render_metrics, 'eliminar_diagnostico': guarded_eliminar_diagnostico, 'generar_pdf_ejecutivo_v2': generar_pdf_ejecutivo_v2, 'get_available_modules_for_company': get_available_modules_for_company, 'assign_modules_to_company': assign_modules_to_company, 'sync_user_modules_after_company_change': sync_user_modules_after_company_change, 'registrar_evidencia_archivo': guarded_registrar_evidencia_archivo, 'obtener_evidencia_archivos_borrador': obtener_evidencia_archivos_borrador, 'obtener_evidencia_archivos_diagnostico': obtener_evidencia_archivos_diagnostico, 'eliminar_evidencia_archivo': guarded_eliminar_evidencia_archivo, 'asignar_evidencia_archivos': asignar_evidencia_archivos, 'descartar_evidencia_borrador': descartar_evidencia_borrador})
 # 2026-08-14: manejador global de errores (audit finding #3) -- por default
 # NiceGUI muestra al cliente el nombre y mensaje crudos de cualquier excepcion
 # no manejada en un @ui.page (asi se vieron los bugs #1 y #2 de este mismo
