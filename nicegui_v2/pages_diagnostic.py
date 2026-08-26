@@ -913,9 +913,19 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                         # de progreso subsiguiente. Prioridad a que los datos queden
                         # bien guardados por sobre la prolijidad visual del duplicado.
 
-                    ui.upload(on_upload=_on_upload, multiple=True, auto_upload=True, label='Foto o archivo de evidencia').props(
-                        'accept=".png,.jpg,.jpeg,.webp,.pdf,.doc,.docx,.xls,.xlsx" flat'
-                    ).classes('w-full mt-2')
+                    with ui.row().classes('ideas-evidence-upload-row w-full mt-2'):
+                        # capture="environment" abre la camara trasera directo en
+                        # mobile (en desktop no hace nada, el navegador abre el
+                        # selector de archivos de siempre) -- separado del boton
+                        # de galeria/archivo porque son dos gestos distintos en
+                        # el uso real (sacar una foto ahi mismo vs. adjuntar algo
+                        # que ya se tenia).
+                        ui.upload(on_upload=_on_upload, multiple=True, auto_upload=True, label='Tomar foto').props(
+                            'accept="image/*" capture="environment" icon="photo_camera" flat'
+                        ).classes('col')
+                        ui.upload(on_upload=_on_upload, multiple=True, auto_upload=True, label='Galería / archivo').props(
+                            'accept=".png,.jpg,.jpeg,.webp,.pdf,.doc,.docx,.xls,.xlsx" icon="attach_file" flat'
+                        ).classes('col')
                     _refresh_preview()
 
                 rendered_keys: list[tuple[str, str]] = []
@@ -949,12 +959,12 @@ def register_diagnostic_pages(ui, app, deps: dict) -> None:
                                 })
                                 rendered_keys.append(key)
                                 with ui.card().classes('ideas-question-card w-full mt-3'):
-                                    with ui.row().classes('w-full items-start no-wrap'):
+                                    with ui.row().classes('w-full items-start flex-nowrap'):
                                         ui.label(f'{idx:02d}').classes('ideas-question-num')
-                                        ui.label(question).classes('text-base font-semibold text-slate-900')
+                                        ui.label(question).classes('text-base font-semibold text-slate-900 ideas-question-title col')
                                     _make_score_pills(key, int(existing.get('respuesta', 3)))
                                     evidencia_inicial = '\n'.join(split_evidence_values(existing.get('evidencia', ''))).strip()
-                                    with ui.row().classes('w-full gap-3 mt-3'):
+                                    with ui.row().classes('w-full gap-3 mt-3 ideas-stack-row'):
                                         evidencia_field = ui.textarea('Notas de evidencia (una por línea o separadas por coma)', value=evidencia_inicial).classes('col w-full').props('outlined autogrow')
                                         observacion_field = ui.textarea('Observación').classes('col w-full').props('outlined autogrow')
                                     observacion_field.value = existing.get('observacion', '')

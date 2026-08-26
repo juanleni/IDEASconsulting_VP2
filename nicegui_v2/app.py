@@ -479,6 +479,13 @@ def inject_global_styles() -> None:
         }
         @media (max-width: 640px) { .ideas-topbar-pagetitle { display:none; } }
         @media (max-width: 520px) { .ideas-topbar-brand .ideus-topbar-mark { height:34px; } }
+        /* .ideas-topbar-actions (Smart IDEAS / AI Command Center / Web
+           institucional / Salir) se resuelve para mobile del lado del
+           servidor (ver _is_mobile_request()/_topbar_label en shell()), no
+           con una media query aca -- un intento con CSS puro no lograba
+           pisar el .block interno del boton pese a !important y el media
+           query matcheando; no vale la pena dejar esa regla muerta. */
+        .ideas-topbar-actions .q-btn { min-width:0; }
 
         /* 2026-08-14: splash de marca post-login (~3s, una sola vez). Fondo
            blanco solido a proposito -- es el mismo fondo del logo original
@@ -580,7 +587,18 @@ def inject_global_styles() -> None:
         .ideas-eje-card .q-item { padding:16px 18px !important; }
         .ideas-eje-avg { padding:.3rem .75rem; border-radius:999px; font-size:.74rem; font-weight:800; white-space:nowrap; }
 
-        /* Evidencia adjunta (archivos/fotos) por pregunta -- pedido de Juan. */
+        /* Evidencia adjunta (archivos/fotos) por pregunta -- pedido de Juan.
+           Dos uploaders separados (camara / galeria-archivo) en vez de uno
+           solo: en mobile, un input con accept="image/*" capture="environment"
+           abre la camara directo, mientras que uno sin `capture` deja elegir
+           de la galeria o de archivos -- son dos flujos que un consultor en
+           planta realmente usa distinto (foto nueva in-situ vs. algo que ya
+           tenia guardado), asi que ponerlos como dos botones explicitos es
+           mas claro que confiar en que el picker nativo del SO los combine
+           bien (no todos los navegadores lo hacen igual). En desktop
+           `capture` no hace nada, asi que ambos botones sencillamente abren
+           el selector de archivos de siempre. */
+        .ideas-evidence-upload-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
         .ideas-evidence-chip { width:120px; border-radius:14px !important; padding:8px !important; background:rgba(255,255,255,.9); border:1px solid rgba(148,163,184,.20); box-shadow:none !important; }
         .ideas-evidence-thumb { width:100%; height:72px; object-fit:cover; border-radius:10px; }
         .ideas-evidence-icon { width:100%; height:72px; display:flex; align-items:center; justify-content:center; background:rgba(148,163,184,.10); border-radius:10px; }
@@ -595,9 +613,37 @@ def inject_global_styles() -> None:
         .ideas-score-pill--3.ideas-score-pill--active { background:rgba(46,140,255,.12) !important; border-color:#2e8cff !important; color:#1d5fa8 !important; }
         .ideas-score-pill--4.ideas-score-pill--active { background:rgba(15,143,97,.12) !important; border-color:#0f8f61 !important; color:#0f8f61 !important; }
 
-        .ideas-question-card { border-radius:18px; background:rgba(255,255,255,.88); border:1px solid rgba(148,163,184,.16); padding:16px; transition:box-shadow .15s ease; }
+        .ideas-question-card { border-radius:18px; background:rgba(255,255,255,.88); border:1px solid rgba(148,163,184,.16); padding:16px; transition:box-shadow .15s ease; max-width:100%; overflow:hidden; }
         .ideas-question-card:hover { box-shadow:0 8px 22px rgba(15,23,42,.06); }
         .ideas-question-num { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:8px; background:rgba(13,148,136,.12); color:#0d9488; font-size:.72rem; font-weight:800; margin-right:.5rem; flex-shrink:0; }
+        .ideas-question-title { min-width:0; overflow-wrap:break-word; }
+        /* La fila de evidencia+observacion usaba .col (mitad y mitad, Quasar
+           flex grid) -- en mobile eso deja cada textarea con ~150px de ancho,
+           inutilizable. .ideas-stack-row las apila abajo de los 700px. */
+        .ideas-stack-row { }
+
+        /* 2026-08-25: pasada de responsividad de /diagnostico -- pedido de
+           Juan para que se pueda completar entero desde el celular sin que
+           se rompa ninguna pantalla ni quede nada afuera. El resto del sitio
+           ya tenia breakpoints en 1100/760px (.ideas-score-guide,
+           .ideas-grid-2/3, etc.); esto suma los que le faltaban
+           especificamente a las piezas nuevas del diagnostico rediseñado. */
+        @media (max-width: 700px) {
+            .ideas-stack-row { flex-direction:column; }
+            .ideas-stack-row > .col { width:100%; }
+            .ideas-score-pill-row { grid-template-columns:repeat(2, 1fr); }
+            .ideas-scope-grid { grid-template-columns:1fr; }
+            .ideas-evidence-upload-row { grid-template-columns:1fr; }
+            .ideas-diag-progress { padding:14px 16px; }
+            .ideas-diag-progress .headline { font-size:1.05rem; }
+            .ideas-question-card { padding:12px; }
+            .ideas-eje-card .q-item { padding:12px 14px !important; flex-wrap:wrap; }
+            .ideas-eje-avg { margin-top:4px; }
+        }
+        @media (max-width: 420px) {
+            .ideas-score-pill .pill-label { font-size:.58rem; }
+            .ideas-evidence-chip { width:104px; }
+        }
         .ideas-workspace-banner { padding:20px 22px; border-radius:18px; background:linear-gradient(135deg, #0f172a 0%, #12314d 52%, #0f8f61 100%); color:#f8fbff; box-shadow:0 16px 30px rgba(15,23,42,.14); }
         .ideas-workspace-banner .eyebrow { color:rgba(255,255,255,.72); font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; font-weight:800; }
         .ideas-workspace-banner .headline { margin-top:8px; font-size:1.5rem; font-weight:600; line-height:1.06; letter-spacing:-.01em; }
@@ -744,11 +790,16 @@ def inject_global_styles() -> None:
         .ideas-panel .q-field__native, .ideas-panel .q-field__input { font-size:.92rem; }
         @media (max-width: 1100px) {
             .ideas-shell { padding: 8px 14px 24px 14px; }
-            .ideas-grid-3 { grid-template-columns:repeat(2, minmax(0,1fr)); }
-            .ideas-module-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+            .ideas-grid-3 { grid-template-columns:repeat(2, minmax(0,1fr)) !important; }
+            .ideas-module-grid { grid-template-columns:repeat(2, minmax(0, 1fr)) !important; }
         }
         @media (max-width: 760px) {
-            .ideas-grid-2, .ideas-grid-3, .ideas-module-grid, .ideas-score-guide { grid-template-columns:1fr; }
+            /* !important: ui.grid(columns=N) pone grid-template-columns como
+               estilo inline (mayor especificidad que una clase), asi que sin
+               esto la regla nunca le ganaba -- encontrado en /resultados, el
+               radar de "Balance de Madurez por Eje" se quedaba a media
+               pantalla en mobile en vez de usar el ancho completo. */
+            .ideas-grid-2, .ideas-grid-3, .ideas-module-grid, .ideas-score-guide { grid-template-columns:1fr !important; }
             .ideas-panel { padding:14px; border-radius:14px; }
             .ideas-title { font-size:1.6rem; }
             .ideas-workspace-banner .headline { font-size:1.18rem; }
@@ -781,11 +832,26 @@ def inject_global_styles() -> None:
         @media (max-width: 1200px) {
             .ideas-8d-dialog .q-dialog__inner { padding-right: 0; }
         }
-        @media (max-width: 1100px) { .ideas-hero-card, .ideas-score-guide, .ideas-grid-2, .ideas-grid-3, .ideas-public-hero, .ideas-editorial-band, .ideas-feature-list, .ideas-module-grid { grid-template-columns:1fr; } .ideas-public-nav { grid-template-columns:1fr; align-items:flex-start; padding:16px 24px; left:0; transform:none; width:100%; } .ideas-public-menu { justify-content:flex-start; flex-wrap:wrap; gap:1rem; } .ideas-public-actions { justify-self:start; justify-content:flex-start; } }
+        @media (max-width: 1100px) { .ideas-hero-card, .ideas-score-guide, .ideas-grid-2, .ideas-grid-3, .ideas-public-hero, .ideas-editorial-band, .ideas-feature-list, .ideas-module-grid { grid-template-columns:1fr !important; } .ideas-public-nav { grid-template-columns:1fr; align-items:flex-start; padding:16px 24px; left:0; transform:none; width:100%; } .ideas-public-menu { justify-content:flex-start; flex-wrap:wrap; gap:1rem; } .ideas-public-actions { justify-self:start; justify-content:flex-start; } }
         @media (max-width: 520px) { .ideas-public-shell { padding:0 16px 36px 16px; } .ideas-public-nav { padding:14px 18px; gap:14px; } .ideas-public-brand img { width:42px; height:42px; } .ideas-public-brand .name { font-size:1rem; } .ideas-public-brand .tag { font-size:.78rem; } .ideas-public-actions { width:100%; justify-content:space-between; gap:12px; } .ideas-public-login-link, .ideas-public-return-link { min-height:40px; padding:0 14px; } .ideas-whatsapp-link.topbar span:last-child { display:none; } .ideas-login-card { max-width:100%; padding:24px 20px; } .ideas-public-section h2 { font-size:1.8rem; } .ideus-wordmark--topbar { --brand-font-size-primary: .92rem; } .ideas-topbar-center { order:3; width:100%; justify-content:flex-start !important; margin-top:6px; } }
         </style>
         '''
     )
+
+
+def _is_mobile_request() -> bool:
+    """Aproximacion por User-Agent de si esta sesion es un celular -- no hay
+    forma de leer el ancho real del viewport en el render inicial del lado
+    del servidor. Usado como default (nunca fuerza nada que el usuario ya
+    haya elegido a mano) para el estado inicial del drawer y, si en algun
+    momento hace falta, para decisiones de layout donde una media query CSS
+    no alcanza (ver comentario en el topbar de shell() sobre por que se
+    terminO usando esto ahi en vez de @media)."""
+    try:
+        ua = str(ui.context.client.request.headers.get('user-agent', '') or '').lower()
+    except Exception:
+        return False
+    return any(token in ua for token in ('mobi', 'android', 'iphone', 'ipad', 'ipod'))
 
 
 def fix_text(value) -> str:
@@ -1624,7 +1690,19 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
     # de verdad en cualquier tamaño de pantalla, y el estado abierto/cerrado
     # se persiste por usuario (`sidebar_open` en app.storage.user) para que
     # no se resetee a cada navegación entre páginas.
-    _sidebar_open_default = bool(app.storage.user.get('sidebar_open', True))
+    # 2026-08-25: en celular, el drawer arrancaba ABIERTO (default historico
+    # de arriba, `True`) tapando toda la pantalla hasta que alguien lo
+    # cerraba a mano una vez -- reportado al probar /diagnostico en mobile.
+    # `breakpoint=768` ya hace que Quasar lo trate como overlay en pantallas
+    # angostas (no empuja el contenido), pero eso no alcanza si ademas
+    # arranca visible. Sin poder leer el ancho real del viewport en el
+    # render inicial del lado del servidor, se aproxima con el User-Agent:
+    # solo pisa el default (a cerrado) la primera vez que un usuario entra
+    # sin preferencia guardada todavia -- en cuanto toca el toggle una vez,
+    # `sidebar_open` en storage manda siempre, sin importar el dispositivo.
+    _is_mobile = _is_mobile_request()
+    _sidebar_open_stored = app.storage.user.get('sidebar_open')
+    _sidebar_open_default = (not _is_mobile) if _sidebar_open_stored is None else bool(_sidebar_open_stored)
     drawer = ui.left_drawer(value=_sidebar_open_default, bordered=False).classes('p-4 ideas-drawer').props('breakpoint=768')
     drawer.on_value_change(lambda e: app.storage.user.__setitem__('sidebar_open', bool(e.value)))
     with drawer:
@@ -2437,15 +2515,29 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
                                 </div>
                                 '''
                             )
-            with ui.row().classes('items-center gap-2 flex-wrap justify-end'):
-                smart_button = ui.button(assistant_name, icon='auto_awesome', on_click=_toggle_drawer).props('flat dense').classes('text-blue-700 font-bold')
+            # 2026-08-25: en celular esta fila (Smart IDEAS / AI Command Center /
+            # Web institucional / Salir) no entraba en una linea y se envolvia
+            # en 3-4 renglones, comiendose como un tercio del alto de pantalla
+            # antes de mostrar contenido de la pagina (encontrado probando
+            # /diagnostico en mobile). Intente resolverlo con una media query
+            # CSS (ocultar el label y dejar solo el icono bajo 760px) pero por
+            # algun motivo que no logre aislar el navegador no la aplicaba al
+            # `.block` interno del boton de Quasar pese a que la regla estaba
+            # presente, con !important, y el media query matcheaba -- se
+            # resolvio del lado del servidor en su lugar, mismo mecanismo que
+            # el default del drawer: sin texto en el boton directamente
+            # cuando `_is_mobile` da True, no depende de que el CSS le gane a
+            # lo que sea que se lo estaba pisando.
+            _topbar_label = (lambda text: '' if _is_mobile else text)
+            with ui.row().classes('items-center gap-2 flex-wrap justify-end ideas-topbar-actions'):
+                smart_button = ui.button(_topbar_label(assistant_name), icon='auto_awesome', on_click=_toggle_drawer).props('flat dense').classes('text-blue-700 font-bold').tooltip(assistant_name)
                 if not ai_enabled_session:
                     smart_button.disable()
                     smart_button.tooltip('IA deshabilitada para la empresa seleccionada')
-                ui.button('AI Command Center', icon='auto_awesome', on_click=lambda: ui.navigate.to('/sistema-gestion/smart-ideas')).props('flat dense').classes('text-slate-700')
-                ui.button('Web institucional', icon='public', on_click=lambda: ui.navigate.to('/')).props('flat dense')
+                ui.button(_topbar_label('AI Command Center'), icon='auto_awesome', on_click=lambda: ui.navigate.to('/sistema-gestion/smart-ideas')).props('flat dense').classes('text-slate-700').tooltip('AI Command Center')
+                ui.button(_topbar_label('Web institucional'), icon='public', on_click=lambda: ui.navigate.to('/')).props('flat dense').tooltip('Web institucional')
                 if is_platform_authenticated():
-                    ui.button('Salir', icon='logout', on_click=logout_platform).props('flat dense color=negative')
+                    ui.button(_topbar_label('Salir'), icon='logout', on_click=logout_platform).props('flat dense color=negative').tooltip('Salir')
 
     # 2026-08-14: splash de marca de ~3s justo despues de loguearse (una sola
     # vez, no en cada navegacion): pages_platform.py deja `show_splash=True`
