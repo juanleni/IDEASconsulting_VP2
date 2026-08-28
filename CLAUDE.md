@@ -13,7 +13,7 @@ Plataforma de consultoría. **IDEAS Consulting** es la consultora; **IDEUS** es 
 
 1. **`nicegui_v2/`** — plataforma principal en producción. NiceGUI + SQLite (`ideas.db` en la raíz del repo, resuelto por ruta relativa). Contiene la web pública (`pages_public.py`, `institutional_app.py`) y el sistema de gestión (`app.py` es el shell/router principal, `modules_*.py` un módulo por área, `core_data.py`/`database.py` acceso a datos). Archivos delicados: `app.py`, `pdf_reports.py`, `render.yaml`, `requirements.txt` — tocar con cuidado, guardar copia antes de cambios grandes.
 2. **`mobile_legal_matrix/`** — PWA independiente (puerto 8600 local), un solo módulo (Matriz Legal). No depende de que `nicegui_v2` esté corriendo, pero **reutiliza sus helpers** (`modules_legal_matrix.py`, `core_data.py`, misma `ideas.db`, misma tabla `usuarios`, misma función `verificar_usuario`) — no duplica lógica de negocio. Login real, splash screen, carga de evidencia (cámara/galería/archivo). Deployada en Render sobre HTTPS real (necesario para service workers / push a futuro). Ver `mobile_legal_matrix/README.md` y `mobile_legal_matrix/SPEC_mobile_legal_matrix_v2.md` para el detalle de producto y el roadmap (Face ID/WebAuthn, diff de actualizaciones IDEAS, push notifications, KPIs nuevos — todo eso está spec'ado pero no implementado aún).
-3. **`app/`** — prototipo WIP de una arquitectura nueva (FastAPI multi-tenant + Postgres, routers/servicios/repositorios separados). Empezado 2026-07-20 (commit `8eca987`, marcado WIP). Embrionario, no reemplaza nada en producción todavía. **En pausa, ver `ADR-001-arquitectura-app-prototipo.md`** (2026-08-10): recomendación es no seguir invirtiendo ahí por ahora (sin tests, no arranca tal cual en un entorno limpio, no conectado a Render, sin razón de negocio documentada para Postgres hoy) y en cambio replicar el patrón de "capa de servicios" directamente sobre `nicegui_v2/` — recomendación pendiente de confirmar por Juan, no una decisión ya tomada.
+3. **`app/`** — prototipo WIP de una arquitectura nueva (FastAPI multi-tenant + Postgres, routers/servicios/repositorios separados). Empezado 2026-07-20 (commit `8eca987`, marcado WIP). Embrionario, no reemplaza nada en producción todavía. **En pausa, confirmado por Juan (2026-08-28), ver `ADR-001-arquitectura-app-prototipo.md`**: no se sigue invirtiendo ahí (sin tests, no arranca tal cual en un entorno limpio, no conectado a Render, sin razón de negocio documentada para Postgres hoy) — el camino activo es replicar el patrón de "capa de servicios" (piloto en Matriz Legal, Fase 4) directamente sobre `nicegui_v2/`, módulo por módulo.
 
 ## Estado al 2026-08-11
 
@@ -56,10 +56,10 @@ Detalle completo, fecha por fecha, en `CHANGELOG_STATUS.txt`.
 ## Pendientes conocidos
 
 - Ya se pusheó todo a GitHub (`d797dfd`, 2026-08-28). Queda hacer el **Manual Deploy en Render** (`autoDeploy` está en `false`, requiere entrar al dashboard — no hay API key/hook configurado en esta máquina para dispararlo desde acá).
-- `nicegui_v2/ideas.db` — archivo suelto sin trackear que no debería existir ahí (la app espera `ideas.db` solo en la raíz). Sin confirmar aún si borrarlo.
-- Confirmar o corregir la recomendación de `ADR-001` sobre `app/`.
+- ~~`nicegui_v2/ideas.db` — archivo suelto sin trackear~~ — borrado el 2026-08-28 (confirmado que no lo usa nada, `DB_PATH` resuelve siempre contra la raíz del repo).
+- ~~Confirmar o corregir la recomendación de `ADR-001` sobre `app/`~~ — confirmado el 2026-08-28: Opción B, `app/` en pausa (ver ADR-001).
+- Logos demo con marcas de terceros (Pepsi, Adidas, Coca-Cola) y PDFs de prueba en `reportes/premium/tmp/` — Juan pidió dejarlos para revisar aparte, no se tocaron.
 - Decidir si se sube el plan de Render a uno pago para activar disco persistente + backup real.
-- Borrar logos demo con marcas de terceros (Pepsi, Adidas, Coca-Cola) y PDFs de prueba generados durante la verificación de Fase 4 (permisos no dejaron borrarlos desde esa sesión).
 - Replicar el patrón de extracción de capa de servicios (piloto en Matriz Legal, Fase 4) en el resto de los módulos.
 - ~~Wrappear en `asyncio.to_thread`/`run.io_bound` las llamadas bloqueantes que quedan en `lab_ai_scheduler.py`, `legal_matrix_alert_scheduler.py` y `db_backup_scheduler.py`~~ — hecho el 2026-08-28 (ver arriba).
 - Definir el mapeo empresa↔norma quedó resuelto en Fase 2 — lo que sigue abierto ahí es el resto del roadmap del panel de curación (nada bloqueante conocido).

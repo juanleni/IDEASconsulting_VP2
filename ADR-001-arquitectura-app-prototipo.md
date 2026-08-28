@@ -1,6 +1,6 @@
 # ADR-001 — Camino hacia una arquitectura nueva: qué hacer con `app/`
 
-**Estado:** propuesta, pendiente de confirmación de Juan.
+**Estado:** ✅ confirmado por Juan (2026-08-28) — Opción B, pausar `app/` sin borrarlo.
 **Fecha:** 2026-08-10.
 **Contexto de esta nota:** parte de la Fase 4 (reducción de deuda técnica) del plan de robustecimiento de IDEUS. El plan pedía explícitamente no seguir invirtiendo tiempo en `app/` sin antes documentar y confirmar la decisión — esta nota es esa documentación, no una decisión ya tomada.
 
@@ -49,4 +49,4 @@ Si en el futuro aparece una razón concreta para Postgres real (multi-tenant a n
 - Se agrega una nota corta en la sección de `app/` de `CLAUDE.md` marcándolo "en pausa, ver ADR-001" para que quede claro para cualquiera (yo en una sesión futura, u otra persona) que no es el camino activo.
 - El patrón de extracción de servicios (Tarea 35, Matriz Legal) se toma como el modelo a replicar directamente en `nicegui_v2/`, no como un paso hacia `app/`.
 
-**Esta es una recomendación, no una decisión tomada.** Confirmar o corregir el rumbo cuando puedas — mientras tanto no se tocó ni un archivo dentro de `app/`.
+**Confirmado por Juan el 2026-08-28.** `app/` queda en pausa, sin más inversión, como referencia — no se borra. El patrón de extracción de servicios (Tarea 35, Matriz Legal) es el modelo a replicar directamente sobre `nicegui_v2/`, módulo por módulo, según deuda técnica.
