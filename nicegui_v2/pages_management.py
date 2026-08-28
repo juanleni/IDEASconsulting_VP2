@@ -283,64 +283,13 @@ def render_management_workspace_page(
                         ui.icon(icon, size='22px').classes('text-slate-700')
                         ui.label(title).classes('text-sm text-slate-700 whitespace-nowrap')
 
-            if False:
-                ui.add_css(
-                '''
-                .ideas-ops-compact .q-expansion-item__container {
-                    border: 1px solid rgba(148,163,184,.22);
-                    border-radius: 14px;
-                    background: rgba(255,255,255,.9);
-                }
-                .ideas-ops-compact .q-item__label {
-                    font-weight: 700;
-                    color: #334155;
-                }
-                '''
-            )
-            if False:
-                with ui.grid(columns=2).classes('w-full mt-3 gap-3 ideas-grid-2'):
-                    for title, icon, route, action_fn in module_cards:
-                        with ui.expansion(text=title, icon=icon).classes('w-full ideas-ops-compact'):
-                            with ui.column().classes('w-full gap-2 pb-2 px-2'):
-                                ui.label(f'Accede al modulo de {title.lower()} con un click.').classes('ideas-section-note')
-                                with ui.row().classes('w-full justify-end'):
-                                    if action_fn:
-                                        ui.button(
-                                            'Entrar',
-                                            icon='open_in_new',
-                                            on_click=lambda fn=action_fn: fn(selected_company_id, set_selection_fn),
-                                        ).props('unelevated color=primary')
-                                    else:
-                                        ui.button(
-                                            'Entrar',
-                                            icon='open_in_new',
-                                            on_click=lambda path=route: ui.navigate.to(f'/sistema-gestion/{path}'),
-                                        ).props('unelevated color=primary')
-            return
-            with ui.grid(columns=3).classes('ideas-module-grid w-full mt-3'):
-                for title, icon, route, action_fn in module_cards:
-                    card = ui.card().classes('ideas-module-card cursor-pointer')
-                    if action_fn:
-                        card.on('click', lambda _e, fn=action_fn: fn(selected_company_id, set_selection_fn))
-                    else:
-                        card.on('click', lambda _e, path=route: ui.navigate.to(f'/sistema-gestion/{path}'))
-                    with card:
-                        ui.html(
-                            f'''
-                            <div class="ideas-module-top">
-                                <div class="ideas-module-icon"><span class="material-icons">{icon}</span></div>
-                            </div>
-                            <div>
-                                <h3>{title}</h3>
-                                <p>Acceso al módulo {title.lower()}.</p>
-                            </div>
-                            '''
-                        )
-                        with ui.row().classes('w-full justify-end mt-2'):
-                            if action_fn:
-                                ui.button('Abrir', icon='open_in_new', on_click=lambda fn=action_fn: fn(selected_company_id, set_selection_fn)).props('flat color=primary')
-                            else:
-                                ui.button('Abrir', icon='open_in_new', on_click=lambda path=route: ui.navigate.to(f'/sistema-gestion/{path}')).props('flat color=primary')
+            # 2026-08-28: patrón de navegación confirmado por Juan (URL completa en
+            # todos lados, ver CLAUDE.md) -- se saca el prototipo de la alternativa
+            # (expansión inline con ui.expansion) que quedó como código muerto desde
+            # el 2026-08-21, más un segundo layout de grilla de tarjetas ya obsoleto,
+            # ninguno de los dos alcanzable (ambos detrás de `if False:` o después de
+            # un `return`). La fila de chips de arriba (ya navega por URL) es el
+            # único camino real hacia estos módulos.
             return
 
         if ia_empresa_activa:
