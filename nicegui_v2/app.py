@@ -3656,6 +3656,23 @@ if not INSTITUTIONAL_ONLY:
 # sin ningun detalle interno (nombre de columna, clave de diccionario, etc.).
 _server_error_logger = logging.getLogger('ideus.server_error')
 
+# Mismo señal que abajo (Render siempre inyecta PORT, el arranque local nunca):
+# se calcula acá arriba porque la necesita el middleware de HSTS.
+_running_on_render = bool(os.getenv('PORT'))
+
+
+@app.middleware('http')
+async def _hsts_header(request, call_next):
+    """Agrega Strict-Transport-Security solo en Render (HTTPS real).
+
+    En local (http://127.0.0.1) HSTS rompería el acceso por HTTP la próxima
+    vez que el navegador visite el sitio -- por eso queda condicionado.
+    """
+    response = await call_next(request)
+    if _running_on_render:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
 
 @app.exception_handler(Exception)
 async def _ideus_500_handler(request, exception: Exception):
@@ -3677,6 +3694,8 @@ async def _ideus_500_handler(request, exception: Exception):
 render_port = os.getenv('PORT')
 run_port = int(render_port) if render_port else 8502
 run_host = '0.0.0.0'
+# _running_on_render (arriba, usado por el middleware de HSTS) es la misma señal.
+running_on_render = _running_on_render
 start_lab_ai_scheduler()
 start_legal_matrix_alert_scheduler()
 start_legal_curation_scheduler()
@@ -3690,6 +3709,11 @@ ui.run(
     reload=False,
     native=False,
     storage_secret=os.getenv('NICEGUI_STORAGE_SECRET', 'ideas-consulting-v2'),
+    # Cookie de sesión: httponly y samesite=lax ya son el default de Starlette.
+    # `secure` (exige HTTPS para mandar la cookie) solo se activa en Render, donde
+    # el tráfico siempre llega por HTTPS -- ver auditoría "antes de exponer en red"
+    # en CLAUDE.md.
+    session_middleware_kwargs={'https_only': running_on_render},
 )
 
 

@@ -693,6 +693,18 @@ def main_page() -> None:
 
 render_port = os.getenv('PORT')
 port = int(render_port) if render_port else int(os.getenv('MOBILE_LEGAL_MATRIX_PORT', '8600'))
+# Ver nota equivalente en nicegui_v2/app.py: solo forzar `Secure`/HSTS cuando
+# corre en Render (HTTPS real) -- en local rompería el login sobre http://.
+running_on_render = bool(render_port)
+
+
+@app.middleware('http')
+async def _hsts_header(request, call_next):
+    response = await call_next(request)
+    if running_on_render:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
 
 ui.run(
     title='IDEUS | Matriz Legal — by IDEAS Consulting',
@@ -702,4 +714,5 @@ ui.run(
     reload=False,
     native=False,
     storage_secret=os.getenv('MOBILE_LEGAL_MATRIX_STORAGE_SECRET', 'ideas-mobile-legal-matrix-poc'),
+    session_middleware_kwargs={'https_only': running_on_render},
 )
