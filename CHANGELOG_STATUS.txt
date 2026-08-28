@@ -18,15 +18,18 @@ Que se cambio
 - Se confirmo con Juan la Opcion B de ADR-001: el prototipo app/ queda en pausa, sin mas inversion.
 - Se borro el ideas.db suelto sin usar en nicegui_v2/ (copia vieja del 3/ago).
 - Cookie de sesion reforzada (flag Secure) y header HSTS agregado, activos solo cuando corre en Render (no rompe el login local). Se verifico ademas que la cookie de analitica de Segment que motivaba este chequeo ya no existe -- el sitio solo manda la cookie de sesion.
+- Doble aprobacion opcional para "Restaurar backup" (consola Super Admin): una segunda contrasena, separada de la de login, que exige una segunda persona del equipo antes de habilitar el restore. Sin configurar, sigue funcionando como antes (solo nombre de archivo) con un aviso visible.
 - Se publico todo en GitHub (mobile de Diagnostico de la sesion anterior + todo lo de hoy).
 
 Impacto funcional
 - Elimina la causa mas probable que quedaba sin cerrar del "connection lost" intermitente: mientras corria una de estas tres tareas de fondo, se congelaba la conexion de todos los usuarios conectados en simultaneo.
 - Cierra el ultimo punto de seguridad que quedaba abierto de la ronda de auditoria de agosto antes de considerar el sitio listo para trafico real.
+- Reduce el riesgo de un restore accidental o mal intencionado que afecte a toda la cartera de clientes de una vez.
 
 Pendientes
 - Hacer Manual Deploy en Render (autoDeploy esta en false, hay que dispararlo a mano desde el dashboard) -- Juan lo hace directamente.
 - Definir que hacer con los logos demo de terceros (Pepsi/Adidas/Coca-Cola) y los PDFs de prueba en reportes/premium/tmp/ (dejados sin tocar a pedido de Juan).
+- Decidir si se activa la doble aprobacion de backup (setear RESTORE_APPROVAL_PASSWORD en Render) y quien tiene esa segunda contrasena.
 
 ==================================================
 2026-08-10
