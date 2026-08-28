@@ -2,13 +2,9 @@ from __future__ import annotations
 import time
 from datetime import datetime
 
-import httpx
 from sqlalchemy import select
 
 from ideas_utils import ideus_wordmark_html
-
-
-AUTH_API_BASE_URL = 'http://127.0.0.1:8000/api'
 
 # Fase 1 (2026-08-10): rate limiting basico de login por usuario, en memoria del proceso.
 # No sustituye un rate limit por IP a nivel infraestructura, pero frena fuerza bruta contra
@@ -181,18 +177,23 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                         ui.notify(mensaje, type='negative')
                         return
 
+                    # 2026-08-28: _provisionar_usuario_api() intenta escribir el
+                    # usuario tambien en la base Postgres del prototipo app/ (en
+                    # pausa por ADR-001, sin Postgres provisionado en produccion) --
+                    # antes, si esa llamada fallaba (siempre, en produccion), se
+                    # mostraba un error y se cortaba el flujo aca mismo, aun cuando
+                    # el acceso local (la unica base real) ya se habia guardado bien
+                    # arriba. Nadie podia terminar de "crear contraseña" desde el
+                    # enlace de invitacion/reset. Ahora es best-effort: se intenta,
+                    # pero un fallo no bloquea el alta local ya confirmada.
                     empresa_nombre = f'Empresa {int(empresa_id)}'
                     if callable(obtener_empresa_detalle):
                         detalle = obtener_empresa_detalle(int(empresa_id))
                         if isinstance(detalle, dict):
                             empresa_nombre = str(detalle.get('razon_social') or empresa_nombre).strip()
+                    await _provisionar_usuario_api(empresa_nombre, user_name, p1)
 
-                    ok_api, user_email = await _provisionar_usuario_api(empresa_nombre, user_name, p1)
-                    if not ok_api:
-                        ui.notify('Se guardo acceso local, pero fallo alta en API. Contacta a soporte.', type='negative')
-                        return
-
-                    ui.notify(f'Usuario y contraseña creados correctamente. Ingresa con {user_email}.', type='positive')
+                    ui.notify(f'Usuario y contraseña creados correctamente. Ingresa con {user_name}.', type='positive')
                     ui.navigate.to('/plataforma')
 
                 with ui.row().classes('w-full justify-end mt-2'):
@@ -239,15 +240,46 @@ def register_platform_pages(ui, app, deps: dict) -> None:
 
                     set_selection = deps.get('set_selection')
                     company_name_by_id = {int(company_id): str(name or '').strip() for company_id, name in obtener_empresas()}
+
+                    # 2026-08-28: hasta el 2026-07-20 (commit 2e485bb) el login era
+                    # 100% local -- atajo de super-admin por env vars, despues
+                    # verificar_usuario (tabla usuarios) y verificar_login_empresa
+                    # (credencial a nivel empresa). Ese commit lo reemplazo por un
+                    # intento contra la API externa de app/ (AUTH_API_BASE_URL =
+                    # http://127.0.0.1:8000/api) con fallback a verificar_usuario
+                    # solamente -- pero esa API NUNCA esta disponible en produccion
+                    # (nada escucha ahi; app/ quedo en pausa por decision de Juan,
+                    # ver ADR-001), asi que todo login pagaba hasta 12s de timeout
+                    # de mas, y verificar_login_empresa (login a nivel empresa) y el
+                    # atajo de super-admin quedaron inalcanzables sin que nadie lo
+                    # notara -- goteando en reportes de "no puedo entrar". Se
+                    # restaura el flujo 100% local de antes, sin la API externa.
+                    if PLATFORM_USER and PLATFORM_PASSWORD and user == PLATFORM_USER and pwd == PLATFORM_PASSWORD:
+                        _login_register_success(user)
+                        app.storage.user['show_splash'] = True
+                        app.storage.user['platform_auth'] = True
+                        app.storage.user['jwt_token'] = ''
+                        app.storage.user['auth_source'] = 'platform_env'
+                        app.storage.user['last_activity_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        app.storage.user['api_user_id'] = None
+                        app.storage.user['api_role'] = ''
+                        app.storage.user['permisos'] = 'ALL'
+                        app.storage.user['role'] = 'admin'
+                        app.storage.user['session_user_key'] = user.lower()
+                        app.storage.user['session_user_name'] = user
+                        app.storage.user['local_user_id'] = None
+                        app.storage.user['local_user_role'] = ''
+                        app.storage.user['logged_empresa_id'] = None
+                        app.storage.user['logged_empresa_nombre'] = ''
+                        ui.notify('Acceso concedido.', type='positive')
+                        ui.navigate.to('/dashboard')
+                        return
+
                     local_user_match = None
                     if callable(verificar_usuario):
                         local_user_match = verificar_usuario(user, pwd)
                         if not local_user_match and '@' in user:
                             local_user_match = verificar_usuario(user.split('@', 1)[0], pwd)
-                    if not isinstance(local_user_match, dict):
-                        _login_register_failure(user)
-                    else:
-                        _login_register_success(user)
 
                     def login_local() -> bool:
                         if not isinstance(local_user_match, dict):
@@ -279,7 +311,7 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                         if role == 'admin':
                             app.storage.user['logged_empresa_id'] = None
                             app.storage.user['logged_empresa_nombre'] = ''
-                            ui.notify('Acceso concedido (local).', type='positive')
+                            ui.notify('Acceso concedido.', type='positive')
                             ui.navigate.to('/dashboard')
                             return True
 
@@ -290,105 +322,43 @@ def register_platform_pages(ui, app, deps: dict) -> None:
                         app.storage.user['logged_empresa_nombre'] = company_name_by_id.get(resolved_empresa_id, '')
                         if callable(set_selection) and resolved_empresa_id:
                             set_selection(resolved_empresa_id)
-                        ui.notify('Acceso concedido (local).', type='positive')
+                        ui.notify('Acceso concedido.', type='positive')
                         ui.navigate.to('/sistema-gestion')
                         return True
 
-                    try:
-                        async with httpx.AsyncClient(timeout=12.0) as client:
-                            login_response = await client.post(
-                                f'{AUTH_API_BASE_URL}/auth/login',
-                                data={'username': user, 'password': pwd},
-                                headers={'Content-Type': 'application/x-www-form-urlencoded'},
-                            )
-                            if login_response.status_code == 422:
-                                login_response = await client.post(
-                                    f'{AUTH_API_BASE_URL}/auth/login',
-                                    json={'email': user, 'password': pwd},
-                            )
-                            if login_response.status_code == 401:
-                                if login_local():
-                                    return
-                                ui.notify('Credenciales invalidas', type='negative')
-                                return
-                            login_response.raise_for_status()
-                            token_payload = login_response.json()
-                            access_token = str(token_payload.get('access_token') or '').strip()
-                            if not access_token:
-                                ui.notify('La API no devolvio un token de acceso.', type='negative')
-                                return
-
-                            me_response = await client.get(
-                                f'{AUTH_API_BASE_URL}/auth/me',
-                                headers={'Authorization': f'Bearer {access_token}'},
-                            )
-                            me_response.raise_for_status()
-                            session_payload = me_response.json()
-                    except httpx.HTTPStatusError:
-                        ui.notify('Credenciales invalidas', type='negative')
+                    if login_local():
+                        _login_register_success(user)
                         return
-                    except httpx.RequestError:
-                        if login_local():
+
+                    if callable(verificar_login_empresa):
+                        found_empresa = verificar_login_empresa(user, pwd)
+                        if found_empresa:
+                            _login_register_success(user)
+                            empresa_id_int = int(found_empresa[0])
+                            empresa_nombre = str(found_empresa[1] or '').strip()
+                            app.storage.user['show_splash'] = True
+                            app.storage.user['platform_auth'] = True
+                            app.storage.user['jwt_token'] = ''
+                            app.storage.user['auth_source'] = 'empresa_local'
+                            app.storage.user['last_activity_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            app.storage.user['api_user_id'] = None
+                            app.storage.user['api_role'] = ''
+                            app.storage.user['permisos'] = 'ALL'
+                            app.storage.user['role'] = 'empresa'
+                            app.storage.user['session_user_key'] = user.lower()
+                            app.storage.user['session_user_name'] = user
+                            app.storage.user['local_user_id'] = None
+                            app.storage.user['local_user_role'] = ''
+                            app.storage.user['logged_empresa_id'] = empresa_id_int
+                            app.storage.user['logged_empresa_nombre'] = empresa_nombre
+                            if callable(set_selection):
+                                set_selection(empresa_id_int)
+                            ui.notify('Acceso concedido.', type='positive')
+                            ui.navigate.to('/sistema-gestion')
                             return
-                        ui.notify('No se pudo conectar con el servicio de autenticacion.', type='negative')
-                        return
-                    except Exception:
-                        ui.notify('No se pudo iniciar sesion.', type='negative')
-                        return
 
-                    _login_register_success(user)
-                    app.storage.user['show_splash'] = True
-                    empresa_id = session_payload.get('empresa_id')
-                    try:
-                        empresa_id_int = int(empresa_id) if empresa_id else None
-                    except Exception:
-                        empresa_id_int = None
-
-                    api_rol = str(session_payload.get('rol') or '').strip()
-                    internal_roles = {'ideas_admin', 'ideas_superadmin', 'superadmin'}
-                    role = 'admin' if api_rol.lower() in internal_roles else 'empresa'
-                    email = str(session_payload.get('email') or user).strip()
-
-                    app.storage.user['platform_auth'] = True
-                    app.storage.user['jwt_token'] = access_token
-                    app.storage.user['auth_source'] = 'api'
-                    app.storage.user['last_activity_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    app.storage.user['api_user_id'] = session_payload.get('user_id')
-                    app.storage.user['api_role'] = api_rol
-                    app.storage.user['permisos'] = 'ALL'
-                    app.storage.user['role'] = role
-                    app.storage.user['session_user_key'] = email.lower()
-                    app.storage.user['session_user_name'] = email
-                    app.storage.user['local_user_id'] = int(local_user_match.get('id')) if isinstance(local_user_match, dict) and local_user_match.get('id') else None
-                    app.storage.user['local_user_role'] = str(local_user_match.get('rol') or '') if isinstance(local_user_match, dict) else ''
-                    if isinstance(local_user_match, dict) and str(local_user_match.get('permisos') or '').strip():
-                        app.storage.user['permisos'] = str(local_user_match.get('permisos') or 'ALL').strip()
-
-                    if role == 'admin':
-                        app.storage.user['logged_empresa_id'] = None
-                        app.storage.user['logged_empresa_nombre'] = ''
-                        ui.notify('Acceso concedido.', type='positive')
-                        ui.navigate.to('/dashboard')
-                        return
-
-                    resolved_empresa_id = empresa_id_int if empresa_id_int in company_name_by_id else None
-                    if not resolved_empresa_id and isinstance(local_user_match, dict):
-                        local_empresa_id = local_user_match.get('empresa_id')
-                        try:
-                            local_empresa_id = int(local_empresa_id) if local_empresa_id else None
-                        except Exception:
-                            local_empresa_id = None
-                        if local_empresa_id in company_name_by_id:
-                            resolved_empresa_id = local_empresa_id
-                    if not resolved_empresa_id and len(company_name_by_id) == 1:
-                        resolved_empresa_id = next(iter(company_name_by_id.keys()))
-
-                    app.storage.user['logged_empresa_id'] = resolved_empresa_id
-                    app.storage.user['logged_empresa_nombre'] = company_name_by_id.get(resolved_empresa_id, '')
-                    if callable(set_selection) and resolved_empresa_id:
-                        set_selection(resolved_empresa_id)
-                    ui.notify('Acceso concedido.', type='positive')
-                    ui.navigate.to('/sistema-gestion')
+                    _login_register_failure(user)
+                    ui.notify('Credenciales invalidas', type='negative')
                     return
 
                 with ui.row().classes('w-full justify-between items-center mt-2'):
