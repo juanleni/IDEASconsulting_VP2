@@ -9,6 +9,21 @@ Formato sugerido de uso
 - Pendientes
 
 ==================================================
+2026-08-28 (critico)
+Modulo / area
+Login de /plataforma
+
+Que se cambio
+- El login estaba roto en produccion desde el 2026-07-20: un cambio de esa fecha hizo que cada intento de entrar dependiera primero de una API externa que nunca esta disponible en produccion (el prototipo app/, en pausa), y el mecanismo de respaldo (usuario/contraseña de super-admin por variable de entorno, y el login a nivel empresa) habia quedado desconectado sin que nadie lo notara.
+- Se restauro el login local completo (sin esa dependencia externa) y se corrigio un problema hermano en "crear contraseña desde un link de invitacion" que tampoco dejaba terminar el alta.
+
+Impacto funcional
+- Encontrado a partir de un reporte de Juan ("no me abre la plataforma para loguearme"). Restaura el acceso a /plataforma con usuario y contraseña; antes de este fix, cualquier intento de login fallaba en produccion.
+
+Pendientes
+- Requiere el proximo Manual Deploy en Render para tener efecto en produccion.
+
+==================================================
 2026-08-28
 Modulo / area
 Infraestructura / estabilidad (schedulers de fondo) + seguridad (cookie de sesion, HSTS)
