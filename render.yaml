@@ -15,6 +15,13 @@ services:
         sync: false
       - key: PLATFORM_PASSWORD
         sync: false
+      # 2026-08-28: doble aprobacion para "Restaurar backup" (consola Super Admin,
+      # /dashboard) -- contrasena separada de PLATFORM_PASSWORD, pensada para que
+      # la sepa una segunda persona del equipo (no quien esta restaurando). Sin
+      # setear, el restore sigue funcionando solo con la confirmacion de nombre
+      # de archivo de antes (no bloquea disaster recovery por falta de setup).
+      - key: RESTORE_APPROVAL_PASSWORD
+        sync: false
       - key: LEGAL_MATRIX_DEFAULT_DELETE_PASSWORD
         sync: false
       - key: IDEAS_DB_PATH

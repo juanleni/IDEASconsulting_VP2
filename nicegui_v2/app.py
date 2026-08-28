@@ -409,6 +409,13 @@ app.add_static_file(local_file=FAVICON_ICO_PATH, url_path='/favicon.ico')
 
 PLATFORM_USER = os.getenv('PLATFORM_USER', 'IDEAS')
 PLATFORM_PASSWORD = os.getenv('PLATFORM_PASSWORD', '2026')
+# 2026-08-28: doble aprobacion para restaurar un backup (afecta a TODA la
+# plataforma de una vez, todos los tenants) -- contrasena separada de la de
+# login diario, pensada para que la sepa una segunda persona del equipo, no
+# quien hace el restore. Sin configurar (None), el restore sigue funcionando
+# solo con la confirmacion de nombre de archivo de antes -- no se bloquea el
+# disaster recovery si todavia no se seteo, pero se avisa en pantalla.
+RESTORE_APPROVAL_PASSWORD = os.getenv('RESTORE_APPROVAL_PASSWORD') or None
 SESSION_TIMEOUT_MINUTES = int(os.getenv('IDEAS_SESSION_TIMEOUT_MINUTES', '90'))
 INSTITUTIONAL_ONLY = str(os.getenv('IDEAS_INSTITUTIONAL_ONLY', '0')).strip().lower() in {'1', 'true', 'yes', 'on'}
 
@@ -3383,9 +3390,10 @@ def smart_ideas_admin_page():
                 def _execute_restore(name: str, dialog) -> None:
                     ok, msg = restaurar_backup_db(name)
                     actor, role = _current_actor()
+                    detalle = name if not RESTORE_APPROVAL_PASSWORD else f"{name} (con doble aprobacion)"
                     registrar_auditoria(
                         None, actor=actor, actor_role=role, entidad='backup', accion='RESTORE',
-                        detalle=name, resultado='ok' if ok else 'error',
+                        detalle=detalle, resultado='ok' if ok else 'error',
                     )
                     ui.notify(msg, type='positive' if ok else 'negative')
                     dialog.close()
@@ -3420,6 +3428,25 @@ def smart_ideas_admin_page():
                                 ui.label(f"Fecha: {backup_info.get('updated_at', '-')}  ·  {backup_info.get('size_kb', '-')} KB").classes('text-sm text-slate-500')
                         ui.label(f'Para confirmar, escribi el nombre exacto del archivo ("{name}"):').classes('text-sm text-slate-700 mt-3')
                         confirm_input = ui.input(placeholder=name).classes('w-full').props('outlined dense')
+                        # 2026-08-24 (auditoria): doble aprobacion -- una segunda persona del
+                        # equipo (no quien esta restaurando) tiene que aportar una contrasena
+                        # aparte de la de login diario. Si RESTORE_APPROVAL_PASSWORD no esta
+                        # configurada todavia, se avisa pero no se bloquea el restore (no
+                        # queremos frenar un disaster recovery real por falta de setup).
+                        approval_input = None
+                        if RESTORE_APPROVAL_PASSWORD:
+                            ui.label(
+                                'Doble aprobacion requerida: pedile a una segunda persona del equipo '
+                                'que ingrese la contrasena de aprobacion (no es la de login).'
+                            ).classes('text-sm text-slate-700 mt-3')
+                            approval_input = ui.input(
+                                label='Contrasena de aprobacion (segunda persona)', password=True, password_toggle_button=True,
+                            ).classes('w-full').props('outlined dense')
+                        else:
+                            ui.label(
+                                'Doble aprobacion no configurada (RESTORE_APPROVAL_PASSWORD) -- '
+                                'cualquiera con este acceso puede restaurar solo con el nombre del archivo.'
+                            ).classes('text-xs text-slate-400 mt-2')
                         with ui.row().classes('w-full justify-end gap-2 mt-4'):
                             ui.button('Cancelar', on_click=confirm_dialog.close).props('flat')
                             restore_btn = ui.button(
@@ -3427,9 +3454,15 @@ def smart_ideas_admin_page():
                                 on_click=lambda: _execute_restore(name, confirm_dialog),
                             ).props('unelevated')
                             restore_btn.disable()
-                            confirm_input.on_value_change(
-                                lambda e: restore_btn.enable() if str(e.value or '') == name else restore_btn.disable()
-                            )
+
+                            def _sync_restore_enabled() -> None:
+                                name_ok = str(confirm_input.value or '') == name
+                                approval_ok = not RESTORE_APPROVAL_PASSWORD or str((approval_input.value if approval_input else '') or '') == RESTORE_APPROVAL_PASSWORD
+                                restore_btn.enable() if (name_ok and approval_ok) else restore_btn.disable()
+
+                            confirm_input.on_value_change(lambda _e: _sync_restore_enabled())
+                            if approval_input is not None:
+                                approval_input.on_value_change(lambda _e: _sync_restore_enabled())
                     confirm_dialog.open()
 
                 with ui.row().classes('w-full items-center gap-2'):
