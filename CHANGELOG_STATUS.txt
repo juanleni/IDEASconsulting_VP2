@@ -26,6 +26,8 @@ Impacto funcional
 - Cierra el ultimo punto de seguridad que quedaba abierto de la ronda de auditoria de agosto antes de considerar el sitio listo para trafico real.
 - Reduce el riesgo de un restore accidental o mal intencionado que afecte a toda la cartera de clientes de una vez.
 
+- Se reviso el patron de navegacion entre modulos (hallazgo #4 de la auditoria): ya era URL completa en todos lados en la practica -- lo que quedaba de la alternativa vieja (expansion inline) era codigo muerto, ahora eliminado. Los 11 modulos operativos ya tenian boton "volver" consistente.
+
 Pendientes
 - Hacer Manual Deploy en Render (autoDeploy esta en false, hay que dispararlo a mano desde el dashboard) -- Juan lo hace directamente.
 - Definir que hacer con los logos demo de terceros (Pepsi/Adidas/Coca-Cola) y los PDFs de prueba en reportes/premium/tmp/ (dejados sin tocar a pedido de Juan).
