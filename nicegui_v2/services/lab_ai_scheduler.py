@@ -55,11 +55,15 @@ async def _loop_scheduler():
                 if not int(cfg.get("scheduler_activo") or 0):
                     continue
                 if _time_matches(str(cfg.get("frecuencia_diaria") or "08:30")):
-                    run_rules_and_alert(int(company_id), actor="scheduler_diario")
+                    # run_rules_and_alert / generate_daily_ai_summary llaman a OpenAI
+                    # de forma bloqueante -- se corren en un thread aparte para no
+                    # congelar el resto de la app (websockets de todos los clientes)
+                    # mientras dura la llamada.
+                    await asyncio.to_thread(run_rules_and_alert, int(company_id), actor="scheduler_diario")
                     if int(cfg.get("auto_summary_activo") or 1):
-                        generate_daily_ai_summary(int(company_id))
+                        await asyncio.to_thread(generate_daily_ai_summary, int(company_id))
                 if _weekday_matches(str(cfg.get("frecuencia_semanal_dia") or "monday")) and _time_matches(str(cfg.get("frecuencia_semanal_hora") or "09:00")):
-                    run_rules_and_alert(int(company_id), actor="scheduler_semanal")
+                    await asyncio.to_thread(run_rules_and_alert, int(company_id), actor="scheduler_semanal")
         except Exception:
             pass
         await asyncio.sleep(60)

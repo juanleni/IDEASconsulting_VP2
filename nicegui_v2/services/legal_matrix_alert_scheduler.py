@@ -50,7 +50,10 @@ async def _loop_scheduler():
     while True:
         try:
             for company_id, _company_name in obtener_empresas():
-                procesar_alertas_empresa(int(company_id))
+                # procesar_alertas_empresa termina mandando el mail por SMTP de forma
+                # bloqueante -- se corre en un thread aparte para no congelar el resto
+                # de la app (websockets de todos los clientes) mientras dura el envío.
+                await asyncio.to_thread(procesar_alertas_empresa, int(company_id))
         except Exception:
             pass
         await asyncio.sleep(60)

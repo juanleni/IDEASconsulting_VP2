@@ -67,7 +67,10 @@ def ejecutar_backup_si_corresponde(force: bool = False) -> tuple[bool, str] | No
 async def _loop_scheduler():
     while True:
         try:
-            ejecutar_backup_si_corresponde()
+            # crear_backup_db() copia el archivo ideas.db a disco de forma bloqueante --
+            # se corre en un thread aparte para no congelar el resto de la app
+            # (websockets de todos los clientes) mientras dura la copia.
+            await asyncio.to_thread(ejecutar_backup_si_corresponde)
         except Exception:
             pass
         await asyncio.sleep(INTERVALO_CHEQUEO_SEG)
