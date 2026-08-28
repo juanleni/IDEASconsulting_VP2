@@ -9,6 +9,22 @@ Formato sugerido de uso
 - Pendientes
 
 ==================================================
+2026-08-28
+Modulo / area
+Infraestructura / estabilidad (schedulers de fondo)
+
+Que se cambio
+- Los tres schedulers de fondo que quedaban pendientes de la sesion anterior (IA de Laboratorio, alertas por email de Matriz Legal, backup automatico de la base) ahora corren sus llamadas lentas (OpenAI, envio de correo, copia del archivo de base) en un thread aparte en vez de directo en el bucle async -- mismo patron ya usado en el conector de curacion normativa.
+- Se publicaron en GitHub los commits pendientes de la sesion anterior (mobile de Diagnostico + esta correccion).
+
+Impacto funcional
+- Elimina la causa mas probable que quedaba sin cerrar del "connection lost" intermitente: mientras corria una de estas tres tareas de fondo, se congelaba la conexion de todos los usuarios conectados en simultaneo.
+
+Pendientes
+- Hacer Manual Deploy en Render (autoDeploy esta en false, hay que dispararlo a mano desde el dashboard).
+- Definir que hacer con el ideas.db suelto en nicegui_v2/, los logos demo de terceros (Pepsi/Adidas/Coca-Cola) y los PDFs de prueba en reportes/premium/tmp/.
+
+==================================================
 2026-08-10
 Modulo / area
 Robustecimiento integral (Fases 0 a 4: seguridad, aislamiento multi-tenant, gaps funcionales QHSE, marca/UX, deuda tecnica)

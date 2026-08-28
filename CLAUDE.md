@@ -49,17 +49,19 @@ Además, específico de `/diagnostico`: los pills de puntaje pasan de 4 en fila 
 
 Detalle completo, fecha por fecha, en `CHANGELOG_STATUS.txt`.
 
+**Commit del 2026-08-28 — schedulers de fondo dejan de bloquear el event loop**: los tres puntos que habían quedado señalados como sin corregir (ver nota de "connection lost" abajo) ya están resueltos — `lab_ai_scheduler.py`, `legal_matrix_alert_scheduler.py` y `db_backup_scheduler.py` ahora corren su llamada lenta (OpenAI, SMTP, copia de archivo) con `asyncio.to_thread`, mismo patrón que ya usaba `legal_curation_scheduler.py`. Se pusheó todo lo pendiente de la sesión anterior (mobile de diagnóstico) más este fix.
+
 **Investigado en esta sesión — "connection lost" intermitente en local:** la causa más probable eran justamente los exports de PDF sync mencionados en Fase 3 (ya corregidos ahí). Quedan **sin corregir** otros puntos con el mismo patrón — llamadas bloqueantes directo en el loop de un scheduler async, sin `asyncio.to_thread`/`run.io_bound` — que también pueden gatillarlo: `services/lab_ai_scheduler.py` (llamadas a OpenAI), `services/legal_matrix_alert_scheduler.py` (envío de email SMTP), `services/db_backup_scheduler.py` (copia del archivo de base). `services/legal_curation_scheduler.py` ya está bien resuelto (usa `asyncio.to_thread` a propósito, con comentario explicando por qué). Si el problema persiste después de esta tanda, ahí es donde mirar primero.
 
 ## Pendientes conocidos
 
-- Pushear todos estos commits a GitHub y hacer Manual Deploy en Render (`autoDeploy` está en `false`).
+- Ya se pusheó todo a GitHub (`d797dfd`, 2026-08-28). Queda hacer el **Manual Deploy en Render** (`autoDeploy` está en `false`, requiere entrar al dashboard — no hay API key/hook configurado en esta máquina para dispararlo desde acá).
 - `nicegui_v2/ideas.db` — archivo suelto sin trackear que no debería existir ahí (la app espera `ideas.db` solo en la raíz). Sin confirmar aún si borrarlo.
 - Confirmar o corregir la recomendación de `ADR-001` sobre `app/`.
 - Decidir si se sube el plan de Render a uno pago para activar disco persistente + backup real.
 - Borrar logos demo con marcas de terceros (Pepsi, Adidas, Coca-Cola) y PDFs de prueba generados durante la verificación de Fase 4 (permisos no dejaron borrarlos desde esa sesión).
 - Replicar el patrón de extracción de capa de servicios (piloto en Matriz Legal, Fase 4) en el resto de los módulos.
-- Wrappear en `asyncio.to_thread`/`run.io_bound` las llamadas bloqueantes que quedan en `lab_ai_scheduler.py`, `legal_matrix_alert_scheduler.py` y `db_backup_scheduler.py` (ver nota de "connection lost" arriba).
+- ~~Wrappear en `asyncio.to_thread`/`run.io_bound` las llamadas bloqueantes que quedan en `lab_ai_scheduler.py`, `legal_matrix_alert_scheduler.py` y `db_backup_scheduler.py`~~ — hecho el 2026-08-28 (ver arriba).
 - Definir el mapeo empresa↔norma quedó resuelto en Fase 2 — lo que sigue abierto ahí es el resto del roadmap del panel de curación (nada bloqueante conocido).
 - Calidad/8D: editar y eliminar acciones D5/D6 individuales desde la tabla, múltiples árboles de 5 Porqués por factor retenido, llevar acciones D5/D6 al PDF ejecutivo.
 - Mobile (`SPEC_mobile_legal_matrix_v2.md`): Face ID/WebAuthn, diff de actualizaciones de IDEAS, push notifications, KPIs nuevos del dashboard.
