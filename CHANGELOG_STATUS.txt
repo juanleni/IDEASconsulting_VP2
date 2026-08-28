@@ -27,6 +27,7 @@ Impacto funcional
 - Reduce el riesgo de un restore accidental o mal intencionado que afecte a toda la cartera de clientes de una vez.
 
 - Se reviso el patron de navegacion entre modulos (hallazgo #4 de la auditoria): ya era URL completa en todos lados en la practica -- lo que quedaba de la alternativa vieja (expansion inline) era codigo muerto, ahora eliminado. Los 11 modulos operativos ya tenian boton "volver" consistente.
+- Extraccion de capa de servicios de Calidad/8D: 14 funciones de acceso a datos movidas de core_data.py a quality_service.py nuevo (mismo patron piloto de Matriz Legal), con 18 tests nuevos y re-exportadas para que nada mas se rompa. Probado de punta a punta con un caso 8D real (crear, recargar, borrar).
 
 Pendientes
 - Hacer Manual Deploy en Render (autoDeploy esta en false, hay que dispararlo a mano desde el dashboard) -- Juan lo hace directamente.

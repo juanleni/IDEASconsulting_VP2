@@ -60,7 +60,7 @@ Detalle completo, fecha por fecha, en `CHANGELOG_STATUS.txt`.
 - ~~Confirmar o corregir la recomendación de `ADR-001` sobre `app/`~~ — confirmado el 2026-08-28: Opción B, `app/` en pausa (ver ADR-001).
 - Logos demo con marcas de terceros (Pepsi, Adidas, Coca-Cola) y PDFs de prueba en `reportes/premium/tmp/` — Juan pidió dejarlos para revisar aparte, no se tocaron.
 - Decidir si se sube el plan de Render a uno pago para activar disco persistente + backup real.
-- Replicar el patrón de extracción de capa de servicios (piloto en Matriz Legal, Fase 4) en el resto de los módulos.
+- Replicar el patrón de extracción de capa de servicios (piloto en Matriz Legal, Fase 4) en el resto de los módulos. **Calidad/8D hecho el 2026-08-28** (`quality_service.py`, 14 funciones movidas de `core_data.py`, re-exportadas para no romper llamadores existentes, 18 tests nuevos, probado en vivo). A diferencia de Matriz Legal, el schema de las tablas `calidad_*` se dejó en `database.py` (`crear_base()`), no se fragmentó — ya era la fuente única de verdad del schema completo. Quedan por hacer: `modules_kpi.py` (1642 líneas) y `modules_lab.py` (1286 líneas) son los siguientes candidatos por tamaño/deuda técnica.
 - ~~Wrappear en `asyncio.to_thread`/`run.io_bound` las llamadas bloqueantes que quedan en `lab_ai_scheduler.py`, `legal_matrix_alert_scheduler.py` y `db_backup_scheduler.py`~~ — hecho el 2026-08-28 (ver arriba).
 - Definir el mapeo empresa↔norma quedó resuelto en Fase 2 — lo que sigue abierto ahí es el resto del roadmap del panel de curación (nada bloqueante conocido).
 - Calidad/8D: editar y eliminar acciones D5/D6 individuales desde la tabla, múltiples árboles de 5 Porqués por factor retenido, llevar acciones D5/D6 al PDF ejecutivo.
