@@ -408,6 +408,8 @@ FAVICON_ICO_PATH = ROOT / 'favicon.ico'
 app.add_static_file(local_file=FAVICON_ICO_PATH, url_path='/favicon.ico')
 PRESENTACION_GENERAL_PATH = ROOT / 'assets' / 'web' / 'presentacion-general.html'
 app.add_static_file(local_file=PRESENTACION_GENERAL_PATH, url_path='/presentacion')
+DEMO_IDEUS_PATH = ROOT / 'assets' / 'web' / 'demo.html'
+app.add_static_file(local_file=DEMO_IDEUS_PATH, url_path='/demo')
 
 PLATFORM_USER = os.getenv('PLATFORM_USER', 'IDEAS')
 PLATFORM_PASSWORD = os.getenv('PLATFORM_PASSWORD', '2026')
