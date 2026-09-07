@@ -406,6 +406,8 @@ crear_base()
 app.add_static_files('/assets', str(ROOT))
 FAVICON_ICO_PATH = ROOT / 'favicon.ico'
 app.add_static_file(local_file=FAVICON_ICO_PATH, url_path='/favicon.ico')
+PRESENTACION_GENERAL_PATH = ROOT / 'assets' / 'web' / 'presentacion-general.html'
+app.add_static_file(local_file=PRESENTACION_GENERAL_PATH, url_path='/presentacion')
 
 PLATFORM_USER = os.getenv('PLATFORM_USER', 'IDEAS')
 PLATFORM_PASSWORD = os.getenv('PLATFORM_PASSWORD', '2026')
@@ -441,6 +443,15 @@ def inject_global_styles() -> None:
             --ideas-text: #334155;
             --ideas-shadow: 0 22px 48px rgba(15, 23, 42, 0.08);
             --ideas-font: "Poppins", "Segoe UI Variable", "Segoe UI", sans-serif;
+            /* 2026-09-03: tokens del sistema de diseño IDEUS (demo comercial) para el
+               reskin de shell() -- se reusan los ya existentes arriba (misma paleta,
+               ya estaban casi alineados) y se agregan los que faltaban. Ver
+               SPEC_migracion_diseno_ideus_2026-09.md, paso 1: restylear lo existente,
+               sin reemplazar los componentes de NiceGUI. */
+            --ideas-bg-soft: #f4faf9;
+            --ideas-card-bg: #e9f5f2;
+            --ideas-border: #d3e2df;
+            --ideas-muted: #5b6b7a;
         }
         body, .nicegui-content {
             background:
@@ -468,11 +479,38 @@ def inject_global_styles() -> None:
         .ideas-title { font-size: clamp(2rem, 3.2vw, 3.2rem); font-weight: 600; color: var(--ideas-navy); line-height: 1.03; letter-spacing: -0.02em; margin: 10px 0; }
         .ideas-subtitle { color: #607086; font-size: .95rem; line-height: 1.62; font-weight: 400; }
         .ideas-chip { display:inline-flex; align-items:center; padding:.45rem .8rem; border-radius:999px; background:rgba(255,255,255,.74); border:1px solid rgba(148,163,184,.22); color:#334155; font-weight:500; margin-right:.45rem; margin-top:.5rem; }
+        /* 2026-09-03 (paso 2 reskin IDEUS): tarjetas de KPI del dashboard customizer
+           (dashboard_customizer.py) -- mismo ui.card()/ui.echart() de siempre, solo
+           se le suma esta piel. Colores rotan por índice del widget en la grilla
+           (ver `_KPI_ACCENT_COLORS` en dashboard_customizer.py), mismo criterio que
+           ya usa modules_process_maps.py (PROCESS_TILE_THEMES) para no introducir
+           un segundo patrón de theming. */
+        .ideus-kpi-card { border-radius:12px; background:#fff; border:1px solid var(--ideas-border); border-top:3px solid var(--ideas-teal); box-shadow:none; }
+        .ideus-kpi-label { font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ideas-teal); font-weight:700; }
+        .ideus-kpi-value { font-size:1.7rem; font-weight:800; color:var(--ideas-navy); line-height:1.15; }
+        .ideus-kpi-note { font-size:.72rem; color:var(--ideas-muted); }
         .ideas-brand-card { padding:18px 16px 20px 16px; border-radius:28px; background:linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,251,253,.88)); border:1px solid var(--ideas-line); box-shadow:var(--ideas-shadow); margin-bottom:14px; }
         .ideas-nav-btn { width:100%; justify-content:flex-start; border-radius:14px; padding:.35rem .3rem; margin-bottom:.35rem; color:var(--ideas-navy); background:rgba(255,255,255,.74); border:1px solid rgba(255,255,255,.35); transition:all 180ms ease; }
         .ideas-nav-btn:hover { background:rgba(255,255,255,.98); transform:translateX(2px); box-shadow:0 10px 24px rgba(15,23,42,.06); }
         .ideas-nav-btn .q-btn__content { justify-content:flex-start; align-items:center; gap:.7rem; width:100%; }
         .ideas-nav-btn .q-icon { width: 20px; min-width: 20px; text-align: center; font-size: 1.1rem; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
+        /* 2026-09-03 (paso 1 reskin IDEUS): sidebar navy oscuro, mismo componente
+           ui.left_drawer de siempre -- se sobreescribe el fondo claro genérico de
+           `.q-drawer` (regla de más abajo) solo para el drawer de navegación
+           (clase `.ideas-drawer`, no toca `.ideas-ai-drawer`, que ya tiene su
+           propio override). El "indicador deslizante" del demo (JS con
+           getBoundingClientRect) se aproxima acá con un borde+fondo activo por
+           CSS -- mismo resultado percibido (se ve qué ítem está activo), sin
+           reescribir la lógica de navegación existente. */
+        .ideas-drawer.q-drawer { background: linear-gradient(180deg, var(--ideas-navy) 0%, #142236 100%); border-right: none; }
+        .ideas-drawer .ideas-brand-card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); box-shadow: none; }
+        .ideas-drawer .ideas-brand-card .text-slate-900 { color: #f8fafc !important; }
+        .ideas-drawer .ideas-brand-card .text-slate-500 { color: #93a3b8 !important; }
+        .ideas-drawer .text-slate-400 { color: #6b7d99 !important; }
+        .ideas-drawer .q-separator { background: rgba(255,255,255,.10); }
+        .ideas-drawer .ideas-nav-btn { color: #aebbcd; background: transparent; border: 1px solid transparent; }
+        .ideas-drawer .ideas-nav-btn:hover { color: #fff; background: rgba(255,255,255,.06); transform: none; box-shadow: none; }
+        .ideas-drawer .ideas-nav-btn.is-active { color: #fff; font-weight: 700; background: rgba(13,148,136,.24); border-left: 2px solid var(--ideas-teal-bright); border-radius: 8px; }
         .ideas-topbar { background:rgba(255,255,255,.62); backdrop-filter:blur(14px); border-bottom:1px solid rgba(148,163,184,.18); }
         .ideas-topbar-brand { display:flex; align-items:center; gap:.85rem; }
         .ideas-topbar-brand img { width:36px; height:36px; object-fit:contain; }
@@ -1725,8 +1763,17 @@ def shell(page_title: str, back_route: str = None, module_key: str = 'general'):
             drawer.hide()  # no-op en desktop (show-if-above la fuerza visible); cierra en mobile
             ui.navigate.to(route)
 
+        # 2026-09-03 (paso 1 reskin IDEUS): marca el ítem del sidebar que
+        # corresponde a la página actual (clase `.is-active`, ver CSS en
+        # inject_global_styles) -- match exacto de path, no hace falta más:
+        # todas las rutas de nav_items son destinos de primer nivel.
+        try:
+            _current_nav_path = str(ui.context.client.request.url.path or '')
+        except Exception:
+            _current_nav_path = ''
         for label, route, icon in nav_items:
-            ui.button(label, icon=icon, on_click=lambda r=route: _go_to(r)).props('flat align=left').classes('ideas-nav-btn')
+            nav_btn_classes = 'ideas-nav-btn is-active' if route == _current_nav_path else 'ideas-nav-btn'
+            ui.button(label, icon=icon, on_click=lambda r=route: _go_to(r)).props('flat align=left').classes(nav_btn_classes)
         if user_role == 'admin':
             with ui.column().classes('ideas-brand-card w-full mt-4'):
                 ui.label('Board-ready').classes('text-[11px] uppercase tracking-[0.18em] text-slate-400')
