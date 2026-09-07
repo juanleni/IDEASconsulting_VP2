@@ -15,3 +15,5 @@
 {"ts": "2026-06-01T22:27:48Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 259, "output_tokens": 618, "total_tokens": 877}
 {"ts": "2026-07-17T14:59:00Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 917, "output_tokens": 508, "total_tokens": 1425}
 {"ts": "2026-07-17T14:59:08Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 917, "output_tokens": 573, "total_tokens": 1490}
+{"ts": "2026-09-03T19:19:50Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 248, "output_tokens": 425, "total_tokens": 673}
+{"ts": "2026-09-03T19:20:17Z", "model": "gpt-4o-mini", "prompt_kind": "general", "company_id": null, "user_id": null, "input_tokens": 247, "output_tokens": 459, "total_tokens": 706}

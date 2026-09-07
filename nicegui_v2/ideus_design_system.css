@@ -1,0 +1,138 @@
+/* ============================================================
+   IDEUS — Sistema de diseño
+   Extraído del demo interactivo (2026-09) para reskin de nicegui_v2/
+   Cargar con ui.add_css(open('ideus_design_system.css').read())
+   ============================================================ */
+
+:root{
+  --navy:#0F172A; --navy2:#1E293B; --teal:#0D9488; --teal-light:#00D6A6;
+  --blue:#2E8CFF; --orange:#FF8A21; --green:#7ED625;
+  --bg-soft:#F4FAF9; --card-bg:#E9F5F2; --border:#D3E2DF; --muted:#5B6B7A;
+}
+/* Tipografía: Poppins en toda la plataforma (ya vigente en el resto de piezas IDEAS) */
+
+/* ---------- Layout general: sidebar + topbar + contenido ---------- */
+.ideus-shell{display:flex;height:100%;}
+.ideus-sidebar{width:210px;background:var(--navy);flex-shrink:0;padding:16px 12px;display:flex;flex-direction:column;gap:1px;position:relative;overflow:hidden;}
+.ideus-nav-indicator{position:absolute;top:0;left:0;width:0;height:0;border-radius:8px;background:rgba(13,148,136,.24);border-left:2px solid var(--teal-light);transition:transform .45s cubic-bezier(.22,1,.36,1), width .45s cubic-bezier(.22,1,.36,1), height .45s cubic-bezier(.22,1,.36,1), opacity .3s;opacity:0;z-index:0;pointer-events:none;}
+.ideus-brand-row{display:flex;align-items:center;gap:9px;padding:4px 8px 16px 8px;position:relative;z-index:1;}
+.ideus-nav-item{position:relative;z-index:1;font-size:12px;color:#aebbcd;padding:9px 12px;border-radius:8px;display:flex;align-items:center;gap:9px;font-weight:500;transition:color .3s;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.ideus-nav-item .dot{width:5px;height:5px;border-radius:50%;background:#465671;flex-shrink:0;transition:background .3s;}
+.ideus-nav-item.on{color:#fff;font-weight:600;}
+.ideus-nav-item.on .dot{background:var(--teal-light);}
+
+.ideus-topbar{height:52px;border-bottom:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 22px;flex-shrink:0;}
+.ideus-topbar-title{font-size:15px;font-weight:700;color:var(--navy2);transition:opacity .3s;}
+.ideus-client-badge{height:30px;padding:4px 12px;background:#fff;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;}
+.ideus-client-badge img{height:100%;width:auto;display:block;}
+.ideus-content{flex:1;overflow:auto;padding:22px 26px;background:var(--bg-soft);}
+
+/* ---------- Tabs (subnavegación funcional dentro de un módulo) ---------- */
+.ideus-tabs{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;}
+.ideus-tab{padding:6px 16px;font-size:11px;border-radius:20px;background:var(--card-bg);color:var(--teal);font-weight:600;flex-shrink:0;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.ideus-tab.active{background:var(--teal);color:#fff;}
+
+/* ---------- Tarjetas KPI ---------- */
+.ideus-kpi-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
+.ideus-kpi-card{flex:1 1 190px;min-width:190px;background:#fff;border:1px solid var(--border);border-top:3px solid var(--teal);border-radius:12px;padding:14px 16px;}
+.ideus-kpi-label{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);font-weight:700;margin-bottom:6px;}
+.ideus-kpi-value{font-size:22px;font-weight:800;color:var(--navy2);}
+.ideus-kpi-note{font-size:10px;color:var(--muted);margin-top:3px;}
+.ideus-kpi-card-body{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;}
+.ideus-kpi-chart svg{display:block;}
+.ideus-streak-track{width:80px;height:8px;background:var(--bg-soft);border-radius:4px;overflow:hidden;}
+.ideus-streak-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.22,1,.36,1);}
+.ideus-streak-note{font-size:8px;color:var(--muted);margin-top:4px;text-align:right;}
+
+/* ---------- Selector / armador de KPIs personalizados ---------- */
+.ideus-dash-name-input{width:100%;max-width:400px;height:36px;border-radius:8px;border:1px solid var(--border);padding:0 14px;font-size:11px;font-family:inherit;color:var(--navy2);margin-bottom:16px;outline:none;}
+.ideus-dash-name-input:focus{border-color:var(--teal);}
+.ideus-kpi-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.ideus-kpi-picker-group{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.ideus-kpg-h{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--teal);margin-bottom:9px;}
+.ideus-kpi-check{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--navy2);padding:5px 0;cursor:pointer;}
+.ideus-kpi-check input{accent-color:var(--teal);width:14px;height:14px;flex-shrink:0;cursor:pointer;}
+.ideus-kpi-check span{flex:1;display:flex;justify-content:space-between;gap:8px;}
+.ideus-pill-btn{font-size:9px;font-weight:700;padding:6px 13px;border-radius:20px;white-space:nowrap;cursor:pointer;background:var(--card-bg);color:var(--teal);}
+.ideus-pill-btn.danger{background:#fde2e2;color:#c0262c;}
+
+/* ---------- Mapas de proceso: grilla + tarjeta ---------- */
+.ideus-process-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
+.ideus-process-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;cursor:pointer;transition:transform .2s,box-shadow .2s;}
+.ideus-process-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.09);}
+.ideus-process-card .pc-icon{font-size:24px;margin-bottom:9px;}
+.ideus-process-card .pc-name{font-size:12px;font-weight:700;color:var(--navy2);margin-bottom:7px;}
+.ideus-process-card .pc-tag{display:inline-block;font-size:8px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:.03em;text-transform:uppercase;}
+.ideus-process-card .pc-tag.turtle{background:#eaf7d8;color:#4c7a0a;}
+.ideus-process-card .pc-tag.simple{background:var(--card-bg);color:var(--teal);}
+
+/* ---------- Diagrama de tortuga ---------- */
+.ideus-turtle-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+.ideus-turtle-name{font-size:14px;font-weight:700;color:var(--navy2);}
+.ideus-turtle-obj{font-size:10.5px;color:var(--muted);margin-top:4px;max-width:520px;line-height:1.55;}
+.ideus-turtle-owner{font-size:9px;color:var(--teal);font-weight:700;background:var(--card-bg);padding:6px 13px;border-radius:20px;white-space:nowrap;}
+.ideus-turtle-grid{display:grid;grid-template-columns:1fr 1.5fr 1fr;grid-template-areas:". que quien" "in center out" ". como kpi";gap:10px;}
+.ideus-t-que{grid-area:que;} .ideus-t-quien{grid-area:quien;} .ideus-t-in{grid-area:in;}
+.ideus-t-center{grid-area:center;} .ideus-t-out{grid-area:out;} .ideus-t-como{grid-area:como;} .ideus-t-kpi{grid-area:kpi;}
+.ideus-tcell{background:#fff;border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:10px;color:var(--navy2);}
+.ideus-tcell b{display:block;font-size:8.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--teal);margin-bottom:6px;}
+.ideus-tcell ul{margin:0;padding-left:14px;}
+.ideus-tcell li{margin-bottom:4px;line-height:1.45;}
+.ideus-t-center{background:var(--navy);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px 12px;border-radius:12px;}
+.ideus-t-center b{color:var(--teal-light);font-size:11px;margin-bottom:6px;}
+.ideus-t-center span{font-size:9px;color:#c9d3e0;line-height:1.5;}
+.ideus-t-kpi li{display:flex;justify-content:space-between;gap:8px;}
+.ideus-t-kpi .kv{font-weight:700;color:var(--navy2);flex-shrink:0;}
+.ideus-kpi-link{margin-top:9px;font-size:9px;font-weight:700;color:var(--teal);cursor:pointer;}
+
+@media (max-width: 760px){
+  .ideus-turtle-grid{grid-template-columns:1fr;grid-template-areas:"que" "quien" "in" "center" "out" "como" "kpi";}
+  .ideus-shell{flex-direction:column;}
+  .ideus-sidebar{width:100%;flex-direction:row;align-items:center;gap:4px;padding:10px 12px;overflow-x:auto;}
+  .ideus-nav-item{flex-shrink:0;white-space:nowrap;}
+  .ideus-nav-item .dot{display:none;}
+  .ideus-nav-indicator{border-left:none;border-bottom:2px solid var(--teal-light);border-radius:9px;}
+}
+
+/* ---------- Tablas de datos ---------- */
+table.ideus-data{width:100%;border-collapse:collapse;font-size:10.5px;}
+table.ideus-data th{background:var(--navy);color:#fff;text-align:left;padding:9px 12px;font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:600;}
+table.ideus-data td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--navy2);}
+table.ideus-data tr:nth-child(even) td{background:#fff;}
+table.ideus-data tr:nth-child(odd) td{background:var(--bg-soft);}
+table.ideus-data tr.clickable{cursor:pointer;}
+table.ideus-data tr.clickable:hover td{background:var(--card-bg);}
+.ideus-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:8.5px;font-weight:700;letter-spacing:.02em;}
+.ideus-pill.ok{background:#eaf7d8;color:#4c7a0a;}
+.ideus-pill.upd{background:#FFF0DC;color:var(--orange);}
+.ideus-pill.rev{background:#e6f0ff;color:var(--blue);}
+.ideus-pill.crit{background:#fde2e2;color:#c0262c;}
+.ideus-pill.med{background:#FFF0DC;color:var(--orange);}
+.ideus-pill.low{background:#eaf7d8;color:#4c7a0a;}
+
+/* ---------- Layouts de detalle (split, back-link, timeline) ---------- */
+.ideus-split{display:flex;gap:16px;}
+.ideus-split-main{flex:1.4;background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;}
+.ideus-split-side{flex:1;background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;}
+.ideus-back-link{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:var(--teal);cursor:pointer;margin-bottom:14px;}
+.ideus-back-link:hover{text-decoration:underline;}
+.ideus-tl-item{display:flex;gap:10px;margin-bottom:14px;position:relative;}
+.ideus-tl-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);margin-top:3px;flex-shrink:0;}
+.ideus-tl-item:not(:last-child)::after{content:'';position:absolute;left:3.5px;top:13px;bottom:-14px;width:1px;background:var(--border);}
+.ideus-tl-text b{display:block;font-size:10px;color:var(--navy2);}
+.ideus-tl-text span{font-size:9px;color:var(--muted);}
+
+/* ---------- Alertas / toast ---------- */
+.ideus-alert{display:flex;align-items:center;gap:10px;background:#FFF6EC;border-left:3px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:10.5px;color:var(--navy2);}
+.ideus-alert b{color:var(--orange);}
+.ideus-alert .pulse{width:8px;height:8px;border-radius:50%;background:var(--orange);flex-shrink:0;animation:ideusPulse 1.2s ease-in-out infinite;}
+@keyframes ideusPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.4);}}
+
+/* ---------- Kanban (Calidad / 8D) ---------- */
+.ideus-kanban{display:flex;gap:12px;}
+.ideus-kcol{flex:1;background:var(--bg-soft);border-radius:12px;padding:10px;}
+.ideus-kcol-h{font-size:9px;font-weight:700;color:var(--navy2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:9px;display:flex;justify-content:space-between;}
+.ideus-kcol-h span{color:var(--teal);}
+.ideus-kcard{background:#fff;border:1px solid var(--border);border-radius:9px;padding:9px 10px;margin-bottom:8px;font-size:10px;color:var(--navy2);}
+.ideus-kcard b{display:block;font-size:10.5px;margin-bottom:4px;}
+.ideus-kcard .tag{display:block;margin-top:5px;font-size:8px;color:var(--muted);}

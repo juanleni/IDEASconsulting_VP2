@@ -103,6 +103,13 @@ def _normalize_for_widget(source_key: str, data: dict[str, Any], widget: dict[st
     return []
 
 
+# 2026-09-03 (paso 2 reskin IDEUS): paleta de acento por widget, mismo criterio
+# rotativo que PROCESS_TILE_THEMES en modules_process_maps.py -- el schema de
+# la IA no trae categoría, así que se rota por posición en la grilla. Colores
+# tomados de ideus_design_system.css (SPEC_migracion_diseno_ideus_2026-09.md).
+_KPI_ACCENT_COLORS = ["#0D9488", "#2E8CFF", "#7ED625", "#FF8A21"]
+
+
 def _render_visual_dashboard(*, container, schema: dict[str, Any], sources: dict[str, Any]) -> None:
     container.clear()
     with container:
@@ -110,20 +117,31 @@ def _render_visual_dashboard(*, container, schema: dict[str, Any], sources: dict
         if str(schema.get("description") or "").strip():
             ui.label(str(schema.get("description") or "")).classes("ideas-section-note")
         with ui.grid(columns=2).classes("w-full gap-3 mt-3"):
-            for widget in schema.get("widgets") or []:
+            for widget_index, widget in enumerate(schema.get("widgets") or []):
+                accent = _KPI_ACCENT_COLORS[widget_index % len(_KPI_ACCENT_COLORS)]
                 src = str(widget.get("data_source") or "").strip()
                 src_data = sources.get(src) if isinstance(sources, dict) else None
                 rows = _normalize_for_widget(src, src_data or {}, widget)
-                with ui.card().classes("ideas-panel p-3"):
-                    ui.label(str(widget.get("title") or "Widget")).classes("text-sm font-semibold text-slate-800")
+                with ui.card().classes("ideus-kpi-card p-3").style(f"border-top-color:{accent};"):
+                    ui.label(str(widget.get("title") or "Widget")).classes("ideus-kpi-label")
                     wtype = str(widget.get("type") or "")
                     if not rows:
                         ui.label("Sin datos para este bloque. Cargá registros y volvé a intentar.").classes("ideas-section-note mt-2")
                         continue
                     if wtype == "kpi_card":
                         first = rows[0] if isinstance(rows[0], dict) else {}
-                        value = first.get("open_count") or first.get("score_general") or first.get("total") or len(rows)
-                        ui.label(str(value)).classes("text-3xl font-bold text-slate-900 mt-3")
+                        value_field, value = next(
+                            (
+                                (key, first.get(key))
+                                for key in ("open_count", "score_general", "total")
+                                if first.get(key) is not None
+                            ),
+                            (None, None),
+                        )
+                        if value is None:
+                            value_field, value = "registros", len(rows)
+                        ui.label(str(value)).classes("ideus-kpi-value mt-2")
+                        ui.label(str(value_field).replace("_", " ")).classes("ideus-kpi-note")
                     elif wtype in {"bar_chart", "line_chart", "donut_chart"}:
                         x_key = str(widget.get("x") or "label")
                         y_key = str(widget.get("y") or "count")
@@ -134,6 +152,7 @@ def _render_visual_dashboard(*, container, schema: dict[str, Any], sources: dict
                             ui.echart(
                                 {
                                     "tooltip": {"trigger": "item"},
+                                    "color": _KPI_ACCENT_COLORS,
                                     "series": [
                                         {
                                             "type": "pie",
@@ -147,6 +166,7 @@ def _render_visual_dashboard(*, container, schema: dict[str, Any], sources: dict
                             ui.echart(
                                 {
                                     "tooltip": {"trigger": "axis"},
+                                    "color": [accent],
                                     "xAxis": {"type": "category", "data": labels},
                                     "yAxis": {"type": "value"},
                                     "series": [{"type": chart, "data": values, "smooth": chart == "line"}],

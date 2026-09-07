@@ -39,13 +39,15 @@ PROCESS_CATEGORIES = {
     'recursos_humanos': 'Soporte',
 }
 
+# 2026-09-03 (paso reskin IDEUS): rotación de acento alineada a la paleta del
+# sistema de diseño nuevo (teal/blue/green/orange) -- mismo criterio que
+# _KPI_ACCENT_COLORS en dashboard_customizer.py, para que el color de una
+# tarjeta signifique lo mismo en toda la plataforma.
 PROCESS_TILE_THEMES = [
-    ('linear-gradient(135deg, rgba(31,126,214,.10), rgba(31,126,214,.03))', '#1d4ed8'),
-    ('linear-gradient(135deg, rgba(15,143,97,.10), rgba(15,143,97,.03))', '#0f8f61'),
-    ('linear-gradient(135deg, rgba(245,158,11,.14), rgba(245,158,11,.04))', '#b45309'),
-    ('linear-gradient(135deg, rgba(99,102,241,.12), rgba(99,102,241,.04))', '#4f46e5'),
-    ('linear-gradient(135deg, rgba(236,72,153,.12), rgba(236,72,153,.04))', '#be185d'),
-    ('linear-gradient(135deg, rgba(20,184,166,.12), rgba(20,184,166,.04))', '#0f766e'),
+    ('linear-gradient(135deg, rgba(13,148,136,.10), rgba(13,148,136,.03))', '#0D9488'),
+    ('linear-gradient(135deg, rgba(46,140,255,.10), rgba(46,140,255,.03))', '#2E8CFF'),
+    ('linear-gradient(135deg, rgba(126,214,37,.14), rgba(126,214,37,.04))', '#4c7a0a'),
+    ('linear-gradient(135deg, rgba(255,138,33,.12), rgba(255,138,33,.04))', '#b45309'),
 ]
 
 
@@ -182,21 +184,21 @@ def _render_process_editor(*, row: dict, fix_text_fn, actualizar_proceso_mapa_fn
                 <div style="display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:16px;align-items:center;">
                     <div style="display:flex;flex-direction:column;gap:14px;">
                         <div style="padding:14px 16px;border-radius:20px;background:white;border:1px solid rgba(148,163,184,.18);">
-                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">¿De dónde? / Entradas</div>
+                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0D9488;">¿De dónde? / Entradas</div>
                             <div style="margin-top:8px;color:#0f172a;line-height:1.55;">{preview_text(row.get("entradas"))}</div>
                         </div>
                         <div style="padding:14px 16px;border-radius:20px;background:white;border:1px solid rgba(148,163,184,.18);">
-                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">¿Con qué? / Recursos</div>
+                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0D9488;">¿Con qué? / Recursos</div>
                             <div style="margin-top:8px;color:#0f172a;line-height:1.55;">{preview_text(row.get("recursos"))}</div>
                         </div>
                         <div style="padding:14px 16px;border-radius:20px;background:white;border:1px solid rgba(148,163,184,.18);">
-                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">¿Con qué criterios? / Documentos</div>
+                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0D9488;">¿Con qué criterios? / Documentos</div>
                             <div style="margin-top:8px;color:#0f172a;line-height:1.55;">{preview_text(row.get("documentos"))}</div>
                         </div>
                     </div>
                     <div style="display:flex;align-items:center;justify-content:center;">
-                        <div style="width:100%;max-width:270px;padding:26px 22px;border-radius:26px;background:linear-gradient(135deg, #9a6800 0%, #c58b18 55%, #8c5f04 100%);color:white;box-shadow:0 20px 40px rgba(146, 102, 10, .22);text-align:center;">
-                            <div style="font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.72);font-weight:800;">Proceso</div>
+                        <div style="width:100%;max-width:270px;padding:26px 22px;border-radius:26px;background:linear-gradient(180deg, #0F172A 0%, #142236 100%);color:white;box-shadow:0 20px 40px rgba(15,23,42,.22);text-align:center;">
+                            <div style="font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;color:#00D6A6;font-weight:800;">Proceso</div>
                             <div style="margin-top:10px;font-size:1.55rem;font-weight:800;line-height:1.08;">{fix_text_fn(row["proceso_nombre"])}</div>
                             <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18);font-size:.92rem;color:rgba(255,255,255,.85);">Dueño: {preview_text(row.get("dueno_proceso"), "Sin asignar")}</div>
                             <div style="margin-top:6px;font-size:.88rem;color:rgba(255,255,255,.78);">Ult. revision: {preview_text(row.get("ultima_revision"), "Pendiente")}</div>
@@ -204,15 +206,15 @@ def _render_process_editor(*, row: dict, fix_text_fn, actualizar_proceso_mapa_fn
                     </div>
                     <div style="display:flex;flex-direction:column;gap:14px;">
                         <div style="padding:14px 16px;border-radius:20px;background:white;border:1px solid rgba(148,163,184,.18);">
-                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">¿Quién? / Responsable</div>
+                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0D9488;">¿Quién? / Responsable</div>
                             <div style="margin-top:8px;color:#0f172a;line-height:1.55;">{preview_text(row.get("dueno_proceso"), "Sin asignar")}</div>
                         </div>
                         <div style="padding:14px 16px;border-radius:20px;background:white;border:1px solid rgba(148,163,184,.18);">
-                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">¿Qué? / Salidas</div>
+                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0D9488;">¿Qué? / Salidas</div>
                             <div style="margin-top:8px;color:#0f172a;line-height:1.55;">{preview_text(row.get("salidas"))}</div>
                         </div>
                         <div style="padding:14px 16px;border-radius:20px;background:white;border:1px solid rgba(148,163,184,.18);">
-                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">¿Cómo se mide? / Indicadores</div>
+                            <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0D9488;">¿Cómo se mide? / Indicadores</div>
                             <div style="margin-top:8px;color:#0f172a;line-height:1.55;">{preview_text(row.get("indicadores"))}</div>
                         </div>
                     </div>
@@ -296,15 +298,15 @@ def _render_process_tile(
                 f'''
                 <div style="margin-top:16px;display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:10px;">
                     <div style="padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.68);border:1px solid rgba(255,255,255,.45);">
-                        <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">Dueño</div>
+                        <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0D9488;">Dueño</div>
                         <div style="margin-top:6px;color:#0f172a;font-weight:700;">{fix_text_fn(row.get("dueno_proceso") or "Pendiente")}</div>
                     </div>
                     <div style="padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.68);border:1px solid rgba(255,255,255,.45);">
-                        <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">Documentos</div>
+                        <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0D9488;">Documentos</div>
                         <div style="margin-top:6px;color:{accent};font-weight:800;">{documents_ready}</div>
                     </div>
                     <div style="padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.68);border:1px solid rgba(255,255,255,.45);">
-                        <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">Indicadores</div>
+                        <div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0D9488;">Indicadores</div>
                         <div style="margin-top:6px;color:{accent};font-weight:800;">{indicators_ready}</div>
                     </div>
                 </div>
