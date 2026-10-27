@@ -16,7 +16,22 @@ if str(THIS_DIR) not in sys.path:
 from pages_public import register_public_pages  # noqa: E402
 from ideas_utils import ideus_wordmark_html  # noqa: E402
 
-app.add_static_files('/assets', str(ROOT))
+from fastapi import HTTPException as _AssetHTTPException  # noqa: E402
+from fastapi.responses import FileResponse as _AssetFileResponse  # noqa: E402
+
+_ASSET_EXTENSIONES = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico', '.css', '.js', '.woff', '.woff2', '.ttf'}
+_ASSET_ROOT = ROOT.resolve()
+
+
+@app.get('/assets/{ruta:path}', include_in_schema=False)
+def servir_asset(ruta: str):
+    archivo = (_ASSET_ROOT / ruta).resolve()
+    if (_ASSET_ROOT not in archivo.parents
+            or archivo.suffix.lower() not in _ASSET_EXTENSIONES
+            or not archivo.is_file()):
+        raise _AssetHTTPException(status_code=404)
+    return _AssetFileResponse(archivo)
+
 FAVICON_ICO_PATH = ROOT / 'favicon.ico'
 app.add_static_file(local_file=FAVICON_ICO_PATH, url_path='/favicon.ico')
 

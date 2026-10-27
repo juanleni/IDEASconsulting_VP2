@@ -403,13 +403,30 @@ from pdf_reports import (  # noqa: E402
 )
 
 crear_base()
-app.add_static_files('/assets', str(ROOT))
+from fastapi import HTTPException as _AssetHTTPException  # noqa: E402
+from fastapi.responses import FileResponse as _AssetFileResponse  # noqa: E402
+
+_ASSET_EXTENSIONES = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico', '.css', '.js', '.woff', '.woff2', '.ttf'}
+_ASSET_ROOT = ROOT.resolve()
+
+
+@app.get('/assets/{ruta:path}', include_in_schema=False)
+def servir_asset(ruta: str):
+    archivo = (_ASSET_ROOT / ruta).resolve()
+    if (_ASSET_ROOT not in archivo.parents
+            or archivo.suffix.lower() not in _ASSET_EXTENSIONES
+            or not archivo.is_file()):
+        raise _AssetHTTPException(status_code=404)
+    return _AssetFileResponse(archivo)
+
 FAVICON_ICO_PATH = ROOT / 'favicon.ico'
 app.add_static_file(local_file=FAVICON_ICO_PATH, url_path='/favicon.ico')
 PRESENTACION_GENERAL_PATH = ROOT / 'assets' / 'web' / 'presentacion-general.html'
 app.add_static_file(local_file=PRESENTACION_GENERAL_PATH, url_path='/presentacion')
 DEMO_IDEUS_PATH = ROOT / 'assets' / 'web' / 'demo.html'
 app.add_static_file(local_file=DEMO_IDEUS_PATH, url_path='/demo')
+FARMOGRAFICA_PATH = ROOT / 'assets' / 'web' / 'farmografica.html'
+app.add_static_file(local_file=FARMOGRAFICA_PATH, url_path='/farmografica')
 
 PLATFORM_USER = os.getenv('PLATFORM_USER', 'IDEAS')
 PLATFORM_PASSWORD = os.getenv('PLATFORM_PASSWORD', '2026')
